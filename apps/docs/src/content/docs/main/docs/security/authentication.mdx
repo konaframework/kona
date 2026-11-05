@@ -102,6 +102,21 @@ Credential keys other than the password key become equality filters on the model
 | `Authenticate` | Require login; redirect to `/login` (or throw 401 when `redirectTo = null`); stores `url.intended` on GET |
 | `RedirectIfAuthenticated` | Bounce already-logged-in users away from guest pages |
 | `AuthenticateSession` | Log out when the password hash no longer matches the hash captured at login |
+| `EnsureEmailIsVerified` | Redirect (or 403 JSON/Inertia) when a `MustVerifyEmail` user has not verified |
+| `RequirePassword` | Require a recent password confirmation (`auth.password_confirmed_at`) |
+
+## Two-factor authentication
+
+`kona-auth` ships TOTP (RFC 6238) + recovery codes with the same shape as Laravel Fortify:
+
+- `TwoFactorAuthenticatable` on the user (encrypted `two_factor_secret` / `two_factor_recovery_codes`, `two_factor_confirmed_at`)
+- `TwoFactorAuthenticationProvider` — secret generation, `otpauth://` QR URLs, verify with replay protection
+- Actions: `EnableTwoFactorAuthentication`, `ConfirmTwoFactorAuthentication`, `DisableTwoFactorAuthentication`, `GenerateNewRecoveryCodes`
+- Login: `RedirectIfTwoFactorAuthenticatable` parks a pending login in the session; `TwoFactorLogin` completes it with a TOTP or recovery code (rate-limited)
+
+Config: `auth.two_factor.confirm` (default true), `auth.two_factor.window` (TOTP skew). Secrets require `app.key` / `Encrypter`.
+
+The **Inertia + Vue** starter kit (`kona new --kit=inertia`) wires enrollment under Settings → Security and a `/two-factor-challenge` page during login. See [Starter kits](/docs/starter-kits/).
 
 ```kotlin
 router.get("/dashboard", handler).middleware(Authenticate(auth))

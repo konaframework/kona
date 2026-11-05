@@ -1,0 +1,20 @@
+package app.http.middleware
+
+import org.konaframework.http.Cookie
+import org.konaframework.http.Handler
+import org.konaframework.http.Middleware
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+import java.time.Duration
+
+class HandleAppearance : Middleware {
+    override fun handle(request: Request, next: Handler): Response {
+        val response = next.handle(request)
+        val appearance = request.cookie(COOKIE) ?: request.input("appearance")?.toString()
+        if (!appearance.isNullOrBlank() && appearance in setOf("light", "dark", "system")) {
+            response.cookies.add(Cookie(COOKIE, appearance, maxAge = Duration.ofDays(365), path = "/", httpOnly = false))
+        }
+        return response
+    }
+    companion object { const val COOKIE: String = "appearance" }
+}

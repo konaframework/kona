@@ -1,0 +1,100 @@
+package app.models;
+
+import org.konaframework.auth.Authenticatable;
+import org.konaframework.auth.HasCredentials;
+import org.konaframework.auth.HasEmail;
+import org.konaframework.auth.HasName;
+import org.konaframework.auth.MustVerifyEmail;
+import org.konaframework.auth.twofactor.TwoFactorAuthenticatable;
+import org.konaframework.cadence.Cadence;
+import org.konaframework.cadence.CadenceCompanion;
+import org.konaframework.cadence.CastType;
+
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+
+public class User extends Cadence<User> implements Authenticatable, HasCredentials, HasEmail, HasName, MustVerifyEmail, TwoFactorAuthenticatable {
+    public static final CadenceCompanion<User> QUERY = Cadence.of(User.class);
+
+    @Override
+    public Set<String> getFillable() {
+        return Set.of(
+            "name", "email", "password", "remember_token", "email_verified_at",
+            "two_factor_secret", "two_factor_recovery_codes", "two_factor_confirmed_at"
+        );
+    }
+
+    @Override
+    public Set<String> getHidden() {
+        return Set.of("password", "remember_token", "two_factor_secret", "two_factor_recovery_codes");
+    }
+
+    @Override
+    public Map<String, Object> getCasts() {
+        Map<String, Object> casts = new LinkedHashMap<>();
+        casts.put("password", CastType.HASHED);
+        casts.put("email_verified_at", CastType.INSTANT);
+        casts.put("two_factor_confirmed_at", CastType.INSTANT);
+        return casts;
+    }
+
+    @Override public Object getAuthIdentifier() { return getAttribute("id"); }
+    @Override public String getAuthPassword() {
+        Object password = getAttribute("password");
+        return password == null ? "" : password.toString();
+    }
+    @Override public String getRememberToken() {
+        Object token = getAttribute("remember_token");
+        return token == null ? null : token.toString();
+    }
+    @Override public void setRememberToken(String token) { setAttribute("remember_token", token); }
+    @Override public Object getCredential(String key) { return getAttribute(key); }
+    @Override public String getEmail() {
+        Object email = getAttribute("email");
+        return email == null ? null : email.toString();
+    }
+    @Override public String getName() {
+        Object name = getAttribute("name");
+        return name == null ? null : name.toString();
+    }
+    @Override public Instant emailVerifiedAt() {
+        Object value = getAttribute("email_verified_at");
+        return value instanceof Instant ? (Instant) value : null;
+    }
+    @Override public void markEmailAsVerified() {
+        setAttribute("email_verified_at", Instant.now());
+        save();
+    }
+    @Override public String getEmailForVerification() {
+        String email = getEmail();
+        return email == null ? "" : email;
+    }
+    @Override public String getTwoFactorSecret() {
+        Object value = getAttribute("two_factor_secret");
+        return value == null ? null : value.toString();
+    }
+    @Override public void setTwoFactorSecret(String secret) { setAttribute("two_factor_secret", secret); }
+    @Override public String getTwoFactorRecoveryCodes() {
+        Object value = getAttribute("two_factor_recovery_codes");
+        return value == null ? null : value.toString();
+    }
+    @Override public void setTwoFactorRecoveryCodes(String codes) { setAttribute("two_factor_recovery_codes", codes); }
+    @Override public Instant getTwoFactorConfirmedAt() {
+        Object value = getAttribute("two_factor_confirmed_at");
+        return value instanceof Instant ? (Instant) value : null;
+    }
+    @Override public void setTwoFactorConfirmedAt(Instant confirmedAt) { setAttribute("two_factor_confirmed_at", confirmedAt); }
+    @Override public void saveTwoFactorState() { save(); }
+
+    public Map<String, Object> toInertia() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", getAttribute("id"));
+        map.put("name", getName());
+        map.put("email", getEmail());
+        map.put("email_verified_at", emailVerifiedAt() == null ? null : emailVerifiedAt().toString());
+        map.put("two_factor_enabled", hasEnabledTwoFactorAuthentication());
+        return map;
+    }
+}

@@ -273,7 +273,8 @@ internal fun resolveNewPlan(
             kit == "api" -> "custom"
             cssFlag != null -> cssFlag
             canPrompt -> NewStacks.cssId(prompts.choice("CSS", NewStacks.CSS, defaultIndex = 0))
-            else -> "custom"
+            // Inertia Vue auth scaffolding assumes Tailwind utilities by default.
+            else -> if (kit == "inertia") "tailwind" else "custom"
         }
     val database =
         if (options.containsKey("database")) {

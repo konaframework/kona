@@ -1,0 +1,29 @@
+package database.migrations;
+
+import org.konaframework.cadence.migrations.Migration;
+import org.konaframework.cadence.migrations.MigrationName;
+import org.konaframework.cadence.schema.Schema;
+
+@MigrationName("2000_01_01_000000_create_users_table")
+public class CreateUsersTable implements Migration {
+    @Override
+    public void up(Schema schema) {
+        schema.create("users", table -> {
+            table.id();
+            table.string("name");
+            table.string("email").unique();
+            table.timestamp("email_verified_at").nullable();
+            table.string("password");
+            table.text("two_factor_secret").nullable();
+            table.text("two_factor_recovery_codes").nullable();
+            table.timestamp("two_factor_confirmed_at").nullable();
+            table.string("remember_token").nullable();
+            table.timestamps();
+        });
+    }
+
+    @Override
+    public void down(Schema schema) {
+        schema.dropIfExists("users");
+    }
+}

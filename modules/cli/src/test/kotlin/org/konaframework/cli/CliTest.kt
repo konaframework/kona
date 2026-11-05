@@ -408,11 +408,13 @@ class CliTest {
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/kotlin/app/http/middleware/HandleInertia.kt")))
         assertTrue(
             Files.readString(inertia.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt"))
-                .contains("\"welcome\""),
+                .contains("Welcome"),
         )
-        assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/views/login.crema.html")))
+        assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/Pages/Auth/Login.vue")))
+        assertTrue(Files.isRegularFile(inertia.resolve("src/main/kotlin/app/http/controllers/Auth/SessionController.kt")))
+        assertTrue(Files.readString(inertia.resolve("package.json")).contains("tailwindcss"))
         assertTrue(
-            Files.readString(inertia.resolve("src/main/kotlin/routes/WebRoutes.kt")).contains("/dashboard"),
+            Files.readString(inertia.resolve("src/main/kotlin/routes/WebRoutes.kt")).contains("/two-factor-challenge"),
         )
 
         val brew = temp.resolve("brew-app")

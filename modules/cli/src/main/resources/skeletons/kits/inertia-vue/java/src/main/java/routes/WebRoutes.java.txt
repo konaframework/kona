@@ -1,0 +1,96 @@
+package routes;
+
+import app.http.controllers.DashboardController;
+import app.http.controllers.WelcomeController;
+import app.http.controllers.auth.ConfirmPasswordController;
+import app.http.controllers.auth.EmailVerificationController;
+import app.http.controllers.auth.PasswordResetController;
+import app.http.controllers.auth.RegisteredUserController;
+import app.http.controllers.auth.SessionController;
+import app.http.controllers.settings.AppearanceController;
+import app.http.controllers.settings.PasswordController;
+import app.http.controllers.settings.ProfileController;
+import app.http.controllers.settings.TwoFactorController;
+import app.support.Features;
+import org.konaframework.auth.AuthManager;
+import org.konaframework.auth.middleware.Authenticate;
+import org.konaframework.auth.middleware.EnsureEmailIsVerified;
+import org.konaframework.auth.middleware.RedirectIfAuthenticated;
+import org.konaframework.auth.middleware.RequirePassword;
+import org.konaframework.auth.passwords.PasswordBroker;
+import org.konaframework.auth.twofactor.ConfirmTwoFactorAuthentication;
+import org.konaframework.auth.twofactor.DisableTwoFactorAuthentication;
+import org.konaframework.auth.twofactor.EnableTwoFactorAuthentication;
+import org.konaframework.auth.twofactor.GenerateNewRecoveryCodes;
+import org.konaframework.core.Application;
+import org.konaframework.http.Router;
+import org.konaframework.security.Encrypter;
+import org.konaframework.security.RateLimiter;
+
+public class WebRoutes {
+    private final Application app;
+
+    public WebRoutes(Application app) {
+        this.app = app;
+    }
+
+    public void register(Router router) {
+        AuthManager auth = app.resolve(AuthManager.class);
+        Encrypter encrypter = app.resolve(Encrypter.class);
+        RateLimiter rateLimiter = app.resolve(RateLimiter.class);
+        PasswordBroker passwords = app.resolve(PasswordBroker.class);
+        SessionController session = new SessionController(auth, encrypter, rateLimiter);
+        RegisteredUserController register = new RegisteredUserController();
+        PasswordResetController passwordReset = new PasswordResetController(passwords);
+        EmailVerificationController verify = new EmailVerificationController();
+        ConfirmPasswordController confirmPassword = new ConfirmPasswordController();
+        ProfileController profile = new ProfileController();
+        PasswordController password = new PasswordController();
+        TwoFactorController twoFactor = new TwoFactorController(
+            app.resolve(EnableTwoFactorAuthentication.class),
+            app.resolve(ConfirmTwoFactorAuthentication.class),
+            app.resolve(DisableTwoFactorAuthentication.class),
+            app.resolve(GenerateNewRecoveryCodes.class),
+            encrypter
+        );
+        AppearanceController appearance = new AppearanceController();
+        DashboardController dashboard = new DashboardController();
+        WelcomeController welcome = new WelcomeController();
+        RedirectIfAuthenticated guest = new RedirectIfAuthenticated(auth, "/dashboard");
+        Authenticate authenticated = new Authenticate(auth);
+        EnsureEmailIsVerified verified = new EnsureEmailIsVerified(auth);
+        RequirePassword passwordConfirmed = new RequirePassword(auth);
+
+        router.get("/", welcome::index).name("welcome");
+        router.get("/login", session::create).middleware(guest).name("login");
+        router.post("/login", session::store).middleware(guest).name("login.store");
+        router.post("/logout", session::destroy).middleware(authenticated).name("logout");
+        if (Features.registration()) {
+            router.get("/register", register::create).middleware(guest).name("register");
+            router.post("/register", register::store).middleware(guest).name("register.store");
+        }
+        router.get("/forgot-password", passwordReset::create).middleware(guest).name("password.request");
+        router.post("/forgot-password", passwordReset::store).middleware(guest).name("password.email");
+        router.get("/reset-password", passwordReset::edit).middleware(guest).name("password.reset");
+        router.post("/reset-password", passwordReset::update).middleware(guest).name("password.store");
+        router.get("/two-factor-challenge", session::challenge).middleware(guest).name("two-factor.login");
+        router.post("/two-factor-challenge", session::challengeStore).middleware(guest).name("two-factor.login.store");
+        router.get("/email/verify", verify::notice).middleware(authenticated).name("verification.notice");
+        router.get("/email/verify/{id}/{hash}", verify::verify).middleware(authenticated).name("verification.verify");
+        router.post("/email/verification-notification", verify::send).middleware(authenticated).name("verification.send");
+        router.get("/user/confirm-password", confirmPassword::show).middleware(authenticated).name("password.confirm");
+        router.post("/user/confirm-password", confirmPassword::store).middleware(authenticated).name("password.confirm.store");
+        router.get("/dashboard", dashboard::index).middleware(authenticated, verified).name("dashboard");
+        router.get("/settings/profile", profile::edit).middleware(authenticated).name("profile.edit");
+        router.patch("/settings/profile", profile::update).middleware(authenticated).name("profile.update");
+        router.delete("/settings/profile", profile::destroy).middleware(authenticated, verified).name("profile.destroy");
+        router.get("/settings/security", twoFactor::edit).middleware(authenticated, verified, passwordConfirmed).name("security.edit");
+        router.put("/settings/password", password::update).middleware(authenticated, verified).name("user-password.update");
+        router.post("/settings/two-factor-authentication", twoFactor::enable).middleware(authenticated, verified, passwordConfirmed).name("two-factor.enable");
+        router.post("/settings/confirmed-two-factor-authentication", twoFactor::confirm).middleware(authenticated, verified, passwordConfirmed).name("two-factor.confirm");
+        router.delete("/settings/two-factor-authentication", twoFactor::disable).middleware(authenticated, verified, passwordConfirmed).name("two-factor.disable");
+        router.post("/settings/two-factor-recovery-codes", twoFactor::recoveryCodes).middleware(authenticated, verified, passwordConfirmed).name("two-factor.recovery-codes");
+        router.get("/settings/appearance", appearance::edit).middleware(authenticated, verified).name("appearance.edit");
+        router.patch("/settings/appearance", appearance::update).middleware(authenticated, verified).name("appearance.update");
+    }
+}

@@ -1,0 +1,11 @@
+package app.http.controllers
+import org.konaframework.core.Env
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+import org.konaframework.inertia.Inertia
+class WelcomeController {
+    fun index(request: Request): Response = Inertia.render("Welcome", mapOf(
+        "title" to Env.getOrDefault("APP_NAME", "{{appName}}"),
+        "message" to "Inertia + Vue auth starter",
+    ))
+}

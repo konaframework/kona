@@ -1,0 +1,90 @@
+package routes
+
+import app.http.controllers.Auth.ConfirmPasswordController
+import app.http.controllers.Auth.EmailVerificationController
+import app.http.controllers.Auth.PasswordResetController
+import app.http.controllers.Auth.RegisteredUserController
+import app.http.controllers.Auth.SessionController
+import app.http.controllers.DashboardController
+import app.http.controllers.Settings.AppearanceController
+import app.http.controllers.Settings.PasswordController
+import app.http.controllers.Settings.ProfileController
+import app.http.controllers.Settings.TwoFactorController
+import app.http.controllers.WelcomeController
+import app.support.Features
+import org.konaframework.auth.AuthManager
+import org.konaframework.auth.middleware.Authenticate
+import org.konaframework.auth.middleware.EnsureEmailIsVerified
+import org.konaframework.auth.middleware.RedirectIfAuthenticated
+import org.konaframework.auth.middleware.RequirePassword
+import org.konaframework.auth.passwords.PasswordBroker
+import org.konaframework.auth.twofactor.ConfirmTwoFactorAuthentication
+import org.konaframework.auth.twofactor.DisableTwoFactorAuthentication
+import org.konaframework.auth.twofactor.EnableTwoFactorAuthentication
+import org.konaframework.auth.twofactor.GenerateNewRecoveryCodes
+import org.konaframework.core.Application
+import org.konaframework.http.Router
+import org.konaframework.security.Encrypter
+import org.konaframework.security.RateLimiter
+
+class WebRoutes(private val app: Application) {
+    fun register(router: Router) {
+        val auth = app.resolve(AuthManager::class.java)
+        val encrypter = app.resolve(Encrypter::class.java)
+        val rateLimiter = app.resolve(RateLimiter::class.java)
+        val passwords = app.resolve(PasswordBroker::class.java)
+        val session = SessionController(auth, encrypter, rateLimiter)
+        val register = RegisteredUserController()
+        val passwordReset = PasswordResetController(passwords)
+        val verify = EmailVerificationController()
+        val confirmPassword = ConfirmPasswordController()
+        val profile = ProfileController()
+        val password = PasswordController()
+        val twoFactor = TwoFactorController(
+            app.resolve(EnableTwoFactorAuthentication::class.java),
+            app.resolve(ConfirmTwoFactorAuthentication::class.java),
+            app.resolve(DisableTwoFactorAuthentication::class.java),
+            app.resolve(GenerateNewRecoveryCodes::class.java),
+            encrypter,
+        )
+        val appearance = AppearanceController()
+        val dashboard = DashboardController()
+        val welcome = WelcomeController()
+        val guest = RedirectIfAuthenticated(auth, "/dashboard")
+        val authenticated = Authenticate(auth)
+        val verified = EnsureEmailIsVerified(auth)
+        val passwordConfirmed = RequirePassword(auth)
+
+        router.get("/") { welcome.index(it) }.name("welcome")
+        router.get("/login") { session.create(it) }.middleware(guest).name("login")
+        router.post("/login") { session.store(it) }.middleware(guest).name("login.store")
+        router.post("/logout") { session.destroy(it) }.middleware(authenticated).name("logout")
+        if (Features.registration()) {
+            router.get("/register") { register.create(it) }.middleware(guest).name("register")
+            router.post("/register") { register.store(it) }.middleware(guest).name("register.store")
+        }
+        router.get("/forgot-password") { passwordReset.create(it) }.middleware(guest).name("password.request")
+        router.post("/forgot-password") { passwordReset.store(it) }.middleware(guest).name("password.email")
+        router.get("/reset-password") { passwordReset.edit(it) }.middleware(guest).name("password.reset")
+        router.post("/reset-password") { passwordReset.update(it) }.middleware(guest).name("password.store")
+        router.get("/two-factor-challenge") { session.challenge(it) }.middleware(guest).name("two-factor.login")
+        router.post("/two-factor-challenge") { session.challengeStore(it) }.middleware(guest).name("two-factor.login.store")
+        router.get("/email/verify") { verify.notice(it) }.middleware(authenticated).name("verification.notice")
+        router.get("/email/verify/{id}/{hash}") { verify.verify(it) }.middleware(authenticated).name("verification.verify")
+        router.post("/email/verification-notification") { verify.send(it) }.middleware(authenticated).name("verification.send")
+        router.get("/user/confirm-password") { confirmPassword.show(it) }.middleware(authenticated).name("password.confirm")
+        router.post("/user/confirm-password") { confirmPassword.store(it) }.middleware(authenticated).name("password.confirm.store")
+        router.get("/dashboard") { dashboard.index(it) }.middleware(authenticated, verified).name("dashboard")
+        router.get("/settings/profile") { profile.edit(it) }.middleware(authenticated).name("profile.edit")
+        router.patch("/settings/profile") { profile.update(it) }.middleware(authenticated).name("profile.update")
+        router.delete("/settings/profile") { profile.destroy(it) }.middleware(authenticated, verified).name("profile.destroy")
+        router.get("/settings/security") { twoFactor.edit(it) }.middleware(authenticated, verified, passwordConfirmed).name("security.edit")
+        router.put("/settings/password") { password.update(it) }.middleware(authenticated, verified).name("user-password.update")
+        router.post("/settings/two-factor-authentication") { twoFactor.enable(it) }.middleware(authenticated, verified, passwordConfirmed).name("two-factor.enable")
+        router.post("/settings/confirmed-two-factor-authentication") { twoFactor.confirm(it) }.middleware(authenticated, verified, passwordConfirmed).name("two-factor.confirm")
+        router.delete("/settings/two-factor-authentication") { twoFactor.disable(it) }.middleware(authenticated, verified, passwordConfirmed).name("two-factor.disable")
+        router.post("/settings/two-factor-recovery-codes") { twoFactor.recoveryCodes(it) }.middleware(authenticated, verified, passwordConfirmed).name("two-factor.recovery-codes")
+        router.get("/settings/appearance") { appearance.edit(it) }.middleware(authenticated, verified).name("appearance.edit")
+        router.patch("/settings/appearance") { appearance.update(it) }.middleware(authenticated, verified).name("appearance.update")
+    }
+}

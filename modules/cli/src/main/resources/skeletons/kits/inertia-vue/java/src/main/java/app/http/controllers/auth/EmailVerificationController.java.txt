@@ -1,0 +1,26 @@
+package app.http.controllers.auth;
+import app.models.User; import org.konaframework.auth.Auth; import org.konaframework.auth.MustVerifyEmail;
+import org.konaframework.http.Request; import org.konaframework.http.Response; import org.konaframework.http.Url; import org.konaframework.inertia.Inertia;
+import java.util.List; import java.util.Map;
+public class EmailVerificationController {
+  public Response notice(Request request) {
+    Auth.setRequest(request);
+    MustVerifyEmail user = Auth.user() instanceof MustVerifyEmail m ? m : null;
+    if (user != null && user.hasVerifiedEmail()) return Response.redirect("/dashboard",302);
+    return Inertia.render("Auth/VerifyEmail", Map.of("status", request.session()==null?null:request.session().get("status")));
+  }
+  public Response verify(Request request) {
+    Auth.setRequest(request);
+    if (!(Auth.user() instanceof User user)) return Response.redirect("/login",302);
+    if (!Url.generator().hasValidSignature(request)) return Response.redirect("/email/verify",302).withErrors(Map.of("email", List.of("Invalid or expired verification link.")));
+    if (!user.hasVerifiedEmail()) user.markEmailAsVerified();
+    return Response.redirect("/dashboard",302).with("status","Your email has been verified.");
+  }
+  public Response send(Request request) {
+    Auth.setRequest(request);
+    if (!(Auth.user() instanceof User user)) return Response.redirect("/login",302);
+    if (user.hasVerifiedEmail()) return Response.redirect("/dashboard",302);
+    String link = Url.generator().signedRoute("verification.verify", Map.of("id", user.getAuthIdentifier().toString(), "hash", Integer.toString(user.getEmailForVerification().hashCode())), 3600);
+    return Response.redirect("/email/verify",302).with("status","Verification link ready (local): "+link);
+  }
+}

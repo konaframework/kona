@@ -1,0 +1,35 @@
+package app.http.controllers.Auth
+import app.models.User
+import app.support.Features
+import org.konaframework.auth.Auth
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+import org.konaframework.inertia.Inertia
+import java.time.Instant
+class RegisteredUserController {
+    fun create(request: Request): Response {
+        if (!Features.registration()) return Response.redirect("/login", 302)
+        return Inertia.render("Auth/Register", emptyMap())
+    }
+    fun store(request: Request): Response {
+        if (!Features.registration()) return Response.redirect("/login", 302)
+        val name = request.input("name")?.toString().orEmpty().trim()
+        val email = request.input("email")?.toString().orEmpty().trim()
+        val password = request.input("password")?.toString().orEmpty()
+        val confirmation = request.input("password_confirmation")?.toString().orEmpty()
+        val errors = linkedMapOf<String, List<String>>()
+        if (name.isBlank()) errors["name"] = listOf("The name field is required.")
+        if (email.isBlank()) errors["email"] = listOf("The email field is required.")
+        if (password.length < 8) errors["password"] = listOf("The password must be at least 8 characters.")
+        if (password != confirmation) errors["password"] = listOf("The password confirmation does not match.")
+        if (email.isNotBlank() && User.query().where("email", email).exists()) errors["email"] = listOf("The email has already been taken.")
+        if (errors.isNotEmpty()) return Response.redirect("/register", 302).withErrors(errors).withInput(mapOf("name" to name, "email" to email))
+        val user = User().also {
+            it.fill(mapOf("name" to name, "email" to email, "password" to password,
+                "email_verified_at" to if (Features.emailVerification()) null else Instant.now()))
+            it.save()
+        }
+        Auth.setRequest(request); Auth.login(user)
+        return Response.redirect("/dashboard", 302)
+    }
+}

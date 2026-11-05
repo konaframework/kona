@@ -1,0 +1,52 @@
+package app.http.controllers.auth;
+
+import app.models.User;
+import app.support.Features;
+import org.konaframework.auth.Auth;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+import org.konaframework.inertia.Inertia;
+
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public class RegisteredUserController {
+    public Response create(Request request) {
+        if (!Features.registration()) return Response.redirect("/login", 302);
+        return Inertia.render("Auth/Register", Map.of());
+    }
+
+    public Response store(Request request) {
+        if (!Features.registration()) return Response.redirect("/login", 302);
+        String name = blankToEmpty(request.input("name")).trim();
+        String email = blankToEmpty(request.input("email")).trim();
+        String password = blankToEmpty(request.input("password"));
+        String confirmation = blankToEmpty(request.input("password_confirmation"));
+        Map<String, List<String>> errors = new LinkedHashMap<>();
+        if (name.isBlank()) errors.put("name", List.of("The name field is required."));
+        if (email.isBlank()) errors.put("email", List.of("The email field is required."));
+        if (password.length() < 8) errors.put("password", List.of("The password must be at least 8 characters."));
+        if (!password.equals(confirmation)) errors.put("password", List.of("The password confirmation does not match."));
+        if (!email.isBlank() && User.QUERY.where("email", email).exists()) {
+            errors.put("email", List.of("The email has already been taken."));
+        }
+        if (!errors.isEmpty()) {
+            return Response.redirect("/register", 302).withErrors(errors).withInput(Map.of("name", name, "email", email));
+        }
+        User user = new User();
+        Map<String, Object> attrs = new LinkedHashMap<>();
+        attrs.put("name", name);
+        attrs.put("email", email);
+        attrs.put("password", password);
+        attrs.put("email_verified_at", Features.emailVerification() ? null : Instant.now());
+        user.fill(attrs);
+        user.save();
+        Auth.setRequest(request);
+        Auth.login(user);
+        return Response.redirect("/dashboard", 302);
+    }
+
+    private static String blankToEmpty(String value) { return value == null ? "" : value; }
+}

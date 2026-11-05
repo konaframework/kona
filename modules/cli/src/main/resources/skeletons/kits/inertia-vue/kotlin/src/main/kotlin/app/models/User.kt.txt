@@ -1,0 +1,53 @@
+package app.models
+
+import org.konaframework.auth.Authenticatable
+import org.konaframework.auth.HasCredentials
+import org.konaframework.auth.HasEmail
+import org.konaframework.auth.HasName
+import org.konaframework.auth.MustVerifyEmail
+import org.konaframework.auth.twofactor.TwoFactorAuthenticatable
+import org.konaframework.cadence.Cadence
+import org.konaframework.cadence.CadenceCompanion
+import org.konaframework.cadence.CastType
+import java.time.Instant
+
+class User : Cadence<User>(), Authenticatable, HasCredentials, HasEmail, HasName, MustVerifyEmail, TwoFactorAuthenticatable {
+    override val fillable = setOf(
+        "name", "email", "password", "remember_token", "email_verified_at",
+        "two_factor_secret", "two_factor_recovery_codes", "two_factor_confirmed_at",
+    )
+    override val hidden = setOf("password", "remember_token", "two_factor_secret", "two_factor_recovery_codes")
+    override val casts = mapOf(
+        "password" to CastType.HASHED,
+        "email_verified_at" to CastType.INSTANT,
+        "two_factor_confirmed_at" to CastType.INSTANT,
+    )
+
+    companion object : CadenceCompanion<User>(User::class.java)
+
+    override fun getAuthIdentifier(): Any = getAttribute("id")!!
+    override fun getAuthPassword(): String = getAttribute("password")?.toString() ?: ""
+    override fun getRememberToken(): String? = getAttribute("remember_token")?.toString()
+    override fun setRememberToken(token: String?) { setAttribute("remember_token", token) }
+    override fun getCredential(key: String): Any? = getAttribute(key)
+    override fun getEmail(): String? = getAttribute("email")?.toString()
+    override fun getName(): String? = getAttribute("name")?.toString()
+    override fun emailVerifiedAt(): Instant? = getAttribute("email_verified_at") as? Instant
+    override fun markEmailAsVerified() { setAttribute("email_verified_at", Instant.now()); save() }
+    override fun getEmailForVerification(): String = getEmail().orEmpty()
+    override fun getTwoFactorSecret(): String? = getAttribute("two_factor_secret")?.toString()
+    override fun setTwoFactorSecret(secret: String?) { setAttribute("two_factor_secret", secret) }
+    override fun getTwoFactorRecoveryCodes(): String? = getAttribute("two_factor_recovery_codes")?.toString()
+    override fun setTwoFactorRecoveryCodes(codes: String?) { setAttribute("two_factor_recovery_codes", codes) }
+    override fun getTwoFactorConfirmedAt(): Instant? = getAttribute("two_factor_confirmed_at") as? Instant
+    override fun setTwoFactorConfirmedAt(confirmedAt: Instant?) { setAttribute("two_factor_confirmed_at", confirmedAt) }
+    override fun saveTwoFactorState() { save() }
+
+    fun toInertia(): Map<String, Any?> = mapOf(
+        "id" to getAttribute("id"),
+        "name" to getName(),
+        "email" to getEmail(),
+        "email_verified_at" to emailVerifiedAt()?.toString(),
+        "two_factor_enabled" to hasEnabledTwoFactorAuthentication(),
+    )
+}

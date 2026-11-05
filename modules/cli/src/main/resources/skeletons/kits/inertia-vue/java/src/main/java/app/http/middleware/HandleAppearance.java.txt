@@ -1,0 +1,28 @@
+package app.http.middleware;
+
+import org.konaframework.http.Cookie;
+import org.konaframework.http.Handler;
+import org.konaframework.http.Middleware;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+
+import java.time.Duration;
+import java.util.Set;
+
+public class HandleAppearance implements Middleware {
+    public static final String COOKIE = "appearance";
+
+    @Override
+    public Response handle(Request request, Handler next) {
+        Response response = next.handle(request);
+        String appearance = request.cookie(COOKIE);
+        if (appearance == null) {
+            Object input = request.input("appearance");
+            appearance = input == null ? null : input.toString();
+        }
+        if (appearance != null && !appearance.isBlank() && Set.of("light", "dark", "system").contains(appearance)) {
+            response.getCookies().add(new Cookie(COOKIE, appearance, Duration.ofDays(365), "/", null, false, false, Cookie.SameSite.Lax));
+        }
+        return response;
+    }
+}

@@ -67,7 +67,7 @@ After a **DONE** chip, the outro lists `cd`, `./grind serve`, and (when you skip
 | `web` (default) | HTTP + grind + session/auth/queue/… + **crema** | Welcome view, login, dashboard, JSON `/api/health` |
 | `crema` | same as `web` | Alias of `web` |
 | `api` | without Crema | Plain-text `/` welcome + JSON health (no CSS pipeline) |
-| `inertia` | + `kona-inertia` | Inertia middleware, root shell, Vite + Vue/React/Svelte, Crema login/dashboard |
+| `inertia` | + `kona-inertia` | Inertia middleware, root shell, Vite + Vue/React/Svelte. **Vue** adds full auth scaffolding (login, register, password reset, email verification, confirm password, profile / security / appearance settings, TOTP 2FA). React/Svelte keep Crema login/dashboard until those adapters gain the same kit. |
 | `wire` | + `kona-wire` | Crema landing with a live `<wire:counter />` plus login/dashboard |
 | `brew` | + `kona-wire` | Deprecated alias of `wire` |
 | `firefly` | + `kona-firefly` (+ Wire) | Crema welcome/login/dashboard plus a mounted admin panel at `/admin` (`reuseAppGuard`, demo `demo@kona.test` / `password` at `/admin/login` after seed); Vite CSS stack for non-panel pages; panel chrome uses shipped `firefly.css` |
@@ -120,7 +120,9 @@ TypeScript scaffolds:
 
 `npm run build` is still Vite. `npm run typecheck` runs `vue-tsc` (Vue) or `tsc` (React and Svelte).
 
-Landing, login, and dashboard still ship as **Crema HTML** so session auth works before you add more Inertia pages. `js/Pages/Welcome.*` is the client page to grow from.
+For **Vue**, landing / login / dashboard / settings are **Inertia pages** under `js/Pages` with shared `auth.user`, `flash`, `errors`, and `features` props. Toggle registration, email verification, and two-factor via `AUTH_REGISTRATION`, `AUTH_EMAIL_VERIFICATION`, and `AUTH_TWO_FACTOR` in `.env`. Non-interactive `kona new --kit=inertia` defaults CSS to **Tailwind**.
+
+React and Svelte still ship Crema HTML login/dashboard plus `js/Pages/Welcome.*` as the client page to grow from.
 
 ## Install, migrate, seed
 

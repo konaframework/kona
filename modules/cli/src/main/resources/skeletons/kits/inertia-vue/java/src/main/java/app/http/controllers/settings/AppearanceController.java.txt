@@ -1,0 +1,17 @@
+package app.http.controllers.settings;
+import app.http.middleware.HandleAppearance; import org.konaframework.http.Cookie; import org.konaframework.http.Request; import org.konaframework.http.Response; import org.konaframework.inertia.Inertia;
+import java.time.Duration; import java.util.Map; import java.util.Set;
+public class AppearanceController {
+  public Response edit(Request request) {
+    String appearance = request.cookie(HandleAppearance.COOKIE); if (appearance==null) appearance="system";
+    return Inertia.render("Settings/Appearance", Map.of("appearance", appearance));
+  }
+  public Response update(Request request) {
+    String appearance = request.input("appearance")==null?"system":request.input("appearance");
+    Response response = Response.redirect("/settings/appearance",302).with("status","Appearance updated.");
+    if (Set.of("light","dark","system").contains(appearance)) {
+      response.getCookies().add(new Cookie(HandleAppearance.COOKIE, appearance, Duration.ofDays(365), "/", null, false, false, Cookie.SameSite.Lax));
+    }
+    return response;
+  }
+}

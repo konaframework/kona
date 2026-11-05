@@ -1,0 +1,50 @@
+package app.http.controllers.Auth
+import app.support.Features
+import org.konaframework.auth.Auth
+import org.konaframework.auth.AuthManager
+import org.konaframework.auth.middleware.Authenticate
+import org.konaframework.auth.twofactor.RedirectIfTwoFactorAuthenticatable
+import org.konaframework.auth.twofactor.TwoFactor
+import org.konaframework.auth.twofactor.TwoFactorLogin
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+import org.konaframework.inertia.Inertia
+import org.konaframework.security.Encrypter
+import org.konaframework.security.RateLimitExceededException
+import org.konaframework.security.RateLimiter
+class SessionController(private val auth: AuthManager, private val encrypter: Encrypter, private val rateLimiter: RateLimiter) {
+    fun create(request: Request): Response = Inertia.render("Auth/Login", mapOf(
+        "canResetPassword" to true, "canRegister" to Features.registration(),
+        "status" to request.session()?.get("status"),
+    ))
+    fun store(request: Request): Response {
+        val email = request.input("email")?.toString().orEmpty()
+        val password = request.input("password")?.toString().orEmpty()
+        val remember = request.boolean("remember")
+        val result = RedirectIfTwoFactorAuthenticatable(auth, auth.getProvider("users")).handle(
+            request, mapOf("email" to email, "password" to password), remember,
+        )
+        if (result.failed()) return Response.redirect("/login", 302)
+            .withErrors(mapOf("email" to listOf("These credentials do not match our records.")))
+            .withInput(mapOf("email" to email))
+        if (result.challenged()) return result.response!!
+        return Response.redirect(Authenticate.pullIntended(request, "/dashboard"), 302)
+    }
+    fun destroy(request: Request): Response { Auth.setRequest(request); Auth.logout(); return Response.redirect("/", 302) }
+    fun challenge(request: Request): Response {
+        if (TwoFactor.pendingLoginId(request) == null) return Response.redirect("/login", 302)
+        return Inertia.render("Auth/TwoFactorChallenge", emptyMap())
+    }
+    fun challengeStore(request: Request): Response {
+        return try {
+            val user = TwoFactorLogin(auth, auth.getProvider("users"), TwoFactor.provider(), encrypter, rateLimiter)
+                .attempt(request, request.input("code")?.toString(), request.input("recovery_code")?.toString())
+            if (user == null) Response.redirect("/two-factor-challenge", 302)
+                .withErrors(mapOf("code" to listOf("The provided two-factor authentication code was invalid.")))
+            else Response.redirect(Authenticate.pullIntended(request, "/dashboard"), 302)
+        } catch (_: RateLimitExceededException) {
+            Response.redirect("/two-factor-challenge", 302)
+                .withErrors(mapOf("code" to listOf("Too many attempts. Please try again shortly.")))
+        }
+    }
+}
