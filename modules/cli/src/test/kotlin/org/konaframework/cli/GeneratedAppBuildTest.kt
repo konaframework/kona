@@ -105,7 +105,13 @@ class GeneratedAppBuildTest {
         assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
         assertTrue(home.contains("<!DOCTYPE html>", ignoreCase = true), home)
         assertTrue(home.contains("docs.konaframework.org"), home)
-        assertTrue(login.contains("Sign in") || login.contains("email"), login)
+        assertTrue(home.contains("Welcome") || home.contains("twoFactorAuthentication"), home)
+        // Login is an Inertia page: strings live in props JSON until the Vite app hydrates.
+        assertTrue(
+            login.contains("Auth/Login") || login.contains("canResetPassword") ||
+                login.contains("Sign in") || login.contains("email"),
+            login,
+        )
     }
 
     private fun assertServesInProcess(app: Path) {

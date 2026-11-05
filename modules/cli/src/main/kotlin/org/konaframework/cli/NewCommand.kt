@@ -255,6 +255,12 @@ constructor(
         }
         applyKit(lang, kit, target, variables)
         ScaffoldFrontends.apply(target, kit, css, frontend, script)
+        // Vue auth pages / controllers replace the generic Inertia Crema login routes.
+        // Empty frontend matches ScaffoldFrontends (defaults to vue).
+        val inertiaAdapter = frontend.ifEmpty { "vue" }
+        if (kit == "inertia" && inertiaAdapter == "vue") {
+            overlayKit("inertia-vue", lang, target, variables)
+        }
     }
 
     internal fun applyKit(lang: String, kit: String, target: Path, variables: Map<String, String>) {
@@ -446,6 +452,24 @@ constructor(
                 "src/main/resources/views/app.crema.html",
                 "public/.gitkeep",
             ),
+            "inertia-vue" to listOf(
+                "src/main/resources/js/Layouts/AuthLayout.vue",
+                "src/main/resources/js/Layouts/AppLayout.vue",
+                "src/main/resources/js/Components/InputError.vue",
+                "src/main/resources/js/Components/TextLink.vue",
+                // Welcome.vue stays from ScaffoldFrontends (CSS + optional TypeScript).
+                "src/main/resources/js/Pages/Dashboard.vue",
+                "src/main/resources/js/Pages/Auth/Login.vue",
+                "src/main/resources/js/Pages/Auth/Register.vue",
+                "src/main/resources/js/Pages/Auth/ForgotPassword.vue",
+                "src/main/resources/js/Pages/Auth/ResetPassword.vue",
+                "src/main/resources/js/Pages/Auth/VerifyEmail.vue",
+                "src/main/resources/js/Pages/Auth/ConfirmPassword.vue",
+                "src/main/resources/js/Pages/Auth/TwoFactorChallenge.vue",
+                "src/main/resources/js/Pages/Settings/Profile.vue",
+                "src/main/resources/js/Pages/Settings/Security.vue",
+                "src/main/resources/js/Pages/Settings/Appearance.vue",
+            ),
             // Brew overlays Crema landing with a live `<wire:counter />` demo (+ Counter class via KIT_LANG).
             "wire" to listOf(
                 "src/main/resources/views/welcome.crema.html",
@@ -487,6 +511,53 @@ constructor(
                     "src/main/java/bootstrap/App.java.txt",
                     "src/main/java/app/http/middleware/HandleInertia.java.txt",
                     "src/main/java/routes/WebRoutes.java.txt",
+                    "README.md",
+                ),
+            ),
+            "inertia-vue" to mapOf(
+                "kotlin" to listOf(
+                    "src/main/kotlin/app/support/Features.kt.txt",
+                    "src/main/kotlin/app/models/User.kt.txt",
+                    "src/main/kotlin/database/migrations/2000_01_01_000000_create_users_table.kt.txt",
+                    "src/main/kotlin/app/http/middleware/HandleInertia.kt.txt",
+                    "src/main/kotlin/app/http/middleware/HandleAppearance.kt.txt",
+                    "src/main/kotlin/app/http/controllers/WelcomeController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/DashboardController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/Auth/SessionController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/Auth/RegisteredUserController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/Auth/PasswordResetController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/Auth/EmailVerificationController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/Auth/ConfirmPasswordController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/Settings/ProfileController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/Settings/PasswordController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/Settings/TwoFactorController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/Settings/AppearanceController.kt.txt",
+                    "src/main/kotlin/routes/WebRoutes.kt.txt",
+                    "src/main/kotlin/bootstrap/App.kt.txt",
+                    "src/main/kotlin/bootstrap/Middleware.kt.txt",
+                    "src/test/kotlin/AuthScaffoldTest.kt.txt",
+                    "README.md",
+                ),
+                "java" to listOf(
+                    "src/main/java/app/support/Features.java.txt",
+                    "src/main/java/app/models/User.java.txt",
+                    "src/main/java/database/migrations/2000_01_01_000000_create_users_table.java.txt",
+                    "src/main/java/app/http/middleware/HandleInertia.java.txt",
+                    "src/main/java/app/http/middleware/HandleAppearance.java.txt",
+                    "src/main/java/app/http/controllers/WelcomeController.java.txt",
+                    "src/main/java/app/http/controllers/DashboardController.java.txt",
+                    "src/main/java/app/http/controllers/auth/SessionController.java.txt",
+                    "src/main/java/app/http/controllers/auth/RegisteredUserController.java.txt",
+                    "src/main/java/app/http/controllers/auth/PasswordResetController.java.txt",
+                    "src/main/java/app/http/controllers/auth/EmailVerificationController.java.txt",
+                    "src/main/java/app/http/controllers/auth/ConfirmPasswordController.java.txt",
+                    "src/main/java/app/http/controllers/settings/ProfileController.java.txt",
+                    "src/main/java/app/http/controllers/settings/PasswordController.java.txt",
+                    "src/main/java/app/http/controllers/settings/TwoFactorController.java.txt",
+                    "src/main/java/app/http/controllers/settings/AppearanceController.java.txt",
+                    "src/main/java/routes/WebRoutes.java.txt",
+                    "src/main/java/bootstrap/App.java.txt",
+                    "src/main/java/bootstrap/Middleware.java.txt",
                     "README.md",
                 ),
             ),

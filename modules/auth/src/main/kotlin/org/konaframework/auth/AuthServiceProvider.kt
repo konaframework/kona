@@ -12,6 +12,12 @@ import org.konaframework.auth.tokens.DatabasePersonalAccessTokenRepository
 import org.konaframework.auth.tokens.InMemoryPersonalAccessTokenRepository
 import org.konaframework.auth.tokens.PersonalAccessTokenManager
 import org.konaframework.auth.tokens.PersonalAccessTokenRepository
+import org.konaframework.auth.twofactor.ConfirmTwoFactorAuthentication
+import org.konaframework.auth.twofactor.DisableTwoFactorAuthentication
+import org.konaframework.auth.twofactor.EnableTwoFactorAuthentication
+import org.konaframework.auth.twofactor.GenerateNewRecoveryCodes
+import org.konaframework.auth.twofactor.TwoFactor
+import org.konaframework.auth.twofactor.TwoFactorAuthenticationProvider
 import org.konaframework.cadence.CastRegistry
 import org.konaframework.cadence.Database
 import org.konaframework.core.Application
@@ -21,7 +27,7 @@ import org.konaframework.security.EncryptionException
 import org.konaframework.security.RateLimiter
 
 /**
- * Registers hashing, auth, passwords, gate, encryption, tokens, and rate limiting.
+ * Registers hashing, auth, passwords, gate, encryption, tokens, rate limiting, and two-factor.
  *
  * Session module is soft-depended: [SessionGuard] reads `request.getAttribute("session")`.
  *
@@ -30,6 +36,8 @@ import org.konaframework.security.RateLimiter
  * - `auth.passwords.driver` — `array` (default) or `database` (needs [Database])
  * - `auth.passwords.table` — reset-token table; falls back to `auth.passwords.users.table`
  * - `auth.tokens.driver` — `array` (default) or `database` (needs [Database])
+ * - `auth.two_factor.confirm` — require confirmation OTP before 2FA counts as enabled (default true)
+ * - `auth.two_factor.window` — TOTP clock-skew window in steps (default 1)
  *
  * Wire [CadenceUserProvider] in app bootstrap when authenticating Cadence models.
  */
@@ -88,6 +96,41 @@ class AuthServiceProvider : ServiceProvider {
         app.container.alias("rateLimiter", RateLimiter::class.java.name)
 
         registerEncrypter(app)
+        registerTwoFactor(app)
+    }
+
+    private fun registerTwoFactor(app: Application) {
+        val confirms = app.config.getString("auth.two_factor.confirm")
+            ?.let { it.equals("true", ignoreCase = true) || it == "1" }
+            ?: true
+        TwoFactor.setRequiresConfirmation(confirms)
+        val window = app.config.getInt("auth.two_factor.window", 1)
+        val provider = TwoFactorAuthenticationProvider(window = window)
+        app.container.instance(TwoFactorAuthenticationProvider::class.java, provider)
+        TwoFactor.setProvider(provider)
+
+        val encrypter =
+            if (app.container.bound(Encrypter::class.java)) {
+                app.resolve(Encrypter::class.java)
+            } else {
+                null
+            }
+        TwoFactor.setEncrypter(encrypter)
+        if (encrypter != null) {
+            app.container.instance(
+                EnableTwoFactorAuthentication::class.java,
+                EnableTwoFactorAuthentication(provider, encrypter),
+            )
+            app.container.instance(
+                ConfirmTwoFactorAuthentication::class.java,
+                ConfirmTwoFactorAuthentication(provider, encrypter),
+            )
+            app.container.instance(DisableTwoFactorAuthentication::class.java, DisableTwoFactorAuthentication())
+            app.container.instance(
+                GenerateNewRecoveryCodes::class.java,
+                GenerateNewRecoveryCodes(encrypter),
+            )
+        }
     }
 
     private fun passwordResetTable(app: Application): String {

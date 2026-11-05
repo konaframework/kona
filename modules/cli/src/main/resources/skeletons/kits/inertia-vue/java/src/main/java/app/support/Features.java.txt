@@ -1,0 +1,16 @@
+package app.support;
+
+import org.konaframework.core.Env;
+
+public final class Features {
+    private Features() {}
+    public static boolean registration() {
+        return Env.getOrDefault("AUTH_REGISTRATION", "true").equalsIgnoreCase("true");
+    }
+    public static boolean emailVerification() {
+        return Env.getOrDefault("AUTH_EMAIL_VERIFICATION", "true").equalsIgnoreCase("true");
+    }
+    public static boolean twoFactorAuthentication() {
+        return Env.getOrDefault("AUTH_TWO_FACTOR", "true").equalsIgnoreCase("true");
+    }
+}

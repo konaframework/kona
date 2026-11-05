@@ -1,0 +1,24 @@
+package app.http.middleware
+
+import app.models.User
+import app.support.Features
+import org.konaframework.auth.Auth
+import org.konaframework.core.Env
+import org.konaframework.http.Request
+import org.konaframework.inertia.HandleInertiaRequests
+
+class HandleInertia : HandleInertiaRequests() {
+    override fun share(request: Request): Map<String, Any?> {
+        Auth.setRequest(request)
+        val user = Auth.user() as? User
+        return mapOf(
+            "name" to Env.getOrDefault("APP_NAME", "{{appName}}"),
+            "auth" to mapOf("user" to user?.toInertia()),
+            "features" to mapOf(
+                "registration" to Features.registration(),
+                "emailVerification" to Features.emailVerification(),
+                "twoFactorAuthentication" to Features.twoFactorAuthentication(),
+            ),
+        )
+    }
+}

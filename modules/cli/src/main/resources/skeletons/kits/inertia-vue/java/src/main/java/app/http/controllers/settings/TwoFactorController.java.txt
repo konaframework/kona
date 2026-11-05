@@ -1,0 +1,42 @@
+package app.http.controllers.settings;
+import app.models.User; import app.support.Features; import org.konaframework.auth.Auth;
+import org.konaframework.auth.twofactor.*; import org.konaframework.core.Env; import org.konaframework.http.Request; import org.konaframework.http.Response; import org.konaframework.inertia.Inertia; import org.konaframework.security.Encrypter;
+import java.util.LinkedHashMap; import java.util.List; import java.util.Map;
+public class TwoFactorController {
+  private final EnableTwoFactorAuthentication enable; private final ConfirmTwoFactorAuthentication confirm;
+  private final DisableTwoFactorAuthentication disable; private final GenerateNewRecoveryCodes regenerate; private final Encrypter encrypter;
+  public TwoFactorController(EnableTwoFactorAuthentication enable, ConfirmTwoFactorAuthentication confirm, DisableTwoFactorAuthentication disable, GenerateNewRecoveryCodes regenerate, Encrypter encrypter) {
+    this.enable=enable; this.confirm=confirm; this.disable=disable; this.regenerate=regenerate; this.encrypter=encrypter;
+  }
+  public Response edit(Request request) {
+    Auth.setRequest(request); User user = (User) Auth.user();
+    Map<String, Object> props = new LinkedHashMap<>();
+    boolean enabled = Features.twoFactorAuthentication() && user.hasEnabledTwoFactorAuthentication();
+    props.put("enabled", enabled); props.put("requiresConfirmation", TwoFactor.requiresConfirmation());
+    props.put("status", request.session()==null?null:request.session().get("status"));
+    if (user.getTwoFactorSecret()!=null && !user.getTwoFactorSecret().isBlank() && Features.twoFactorAuthentication()) {
+      props.put("qrCodeUrl", user.twoFactorQrCodeUrl(TwoFactor.provider(), encrypter, Env.getOrDefault("APP_NAME","Kona"), user.getEmail()));
+      props.put("recoveryCodes", user.recoveryCodes(encrypter));
+      props.put("confirmed", user.getTwoFactorConfirmedAt()!=null);
+    }
+    return Inertia.render("Settings/Security", props);
+  }
+  public Response enable(Request request) {
+    if (!Features.twoFactorAuthentication()) return Response.redirect("/settings/security",302);
+    Auth.setRequest(request); enable.enable((User) Auth.user(), true);
+    return Response.redirect("/settings/security",302).with("status","Two-factor authentication enabled. Confirm with an authenticator code.");
+  }
+  public Response confirm(Request request) {
+    Auth.setRequest(request); String code = request.input("code")==null?"":request.input("code");
+    if (!confirm.confirm((User) Auth.user(), code)) return Response.redirect("/settings/security",302).withErrors(Map.of("code", List.of("The provided two-factor authentication code was invalid.")));
+    return Response.redirect("/settings/security",302).with("status","Two-factor authentication confirmed.");
+  }
+  public Response disable(Request request) {
+    Auth.setRequest(request); disable.disable((User) Auth.user());
+    return Response.redirect("/settings/security",302).with("status","Two-factor authentication disabled.");
+  }
+  public Response recoveryCodes(Request request) {
+    Auth.setRequest(request); regenerate.generate((User) Auth.user());
+    return Response.redirect("/settings/security",302).with("status","Recovery codes regenerated.");
+  }
+}

@@ -1,0 +1,30 @@
+package app.http.middleware;
+
+import app.models.User;
+import app.support.Features;
+import org.konaframework.auth.Auth;
+import org.konaframework.core.Env;
+import org.konaframework.http.Request;
+import org.konaframework.inertia.HandleInertiaRequests;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class HandleInertia extends HandleInertiaRequests {
+    @Override
+    public Map<String, Object> share(Request request) {
+        Auth.setRequest(request);
+        User user = Auth.user() instanceof User u ? u : null;
+        Map<String, Object> features = new LinkedHashMap<>();
+        features.put("registration", Features.registration());
+        features.put("emailVerification", Features.emailVerification());
+        features.put("twoFactorAuthentication", Features.twoFactorAuthentication());
+        Map<String, Object> auth = new LinkedHashMap<>();
+        auth.put("user", user == null ? null : user.toInertia());
+        Map<String, Object> shared = new LinkedHashMap<>();
+        shared.put("name", Env.getOrDefault("APP_NAME", "{{appName}}"));
+        shared.put("auth", auth);
+        shared.put("features", features);
+        return shared;
+    }
+}

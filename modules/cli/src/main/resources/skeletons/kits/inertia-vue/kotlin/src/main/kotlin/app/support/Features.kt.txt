@@ -1,0 +1,17 @@
+package app.support
+
+import org.konaframework.core.Env
+
+object Features {
+    @JvmStatic
+    fun registration(): Boolean =
+        Env.getOrDefault("AUTH_REGISTRATION", "true").equals("true", ignoreCase = true)
+
+    @JvmStatic
+    fun emailVerification(): Boolean =
+        Env.getOrDefault("AUTH_EMAIL_VERIFICATION", "true").equals("true", ignoreCase = true)
+
+    @JvmStatic
+    fun twoFactorAuthentication(): Boolean =
+        Env.getOrDefault("AUTH_TWO_FACTOR", "true").equals("true", ignoreCase = true)
+}

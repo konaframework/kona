@@ -1,0 +1,40 @@
+package bootstrap
+
+import org.konaframework.auth.AuthManager
+import org.konaframework.auth.middleware.Authenticate
+import org.konaframework.auth.middleware.EnsureEmailIsVerified
+import org.konaframework.auth.middleware.RedirectIfAuthenticated
+import org.konaframework.auth.middleware.RequirePassword
+import org.konaframework.core.Application
+import org.konaframework.filesystem.FilesystemManager
+import org.konaframework.http.HttpKernel
+import org.konaframework.http.HttpMiddleware
+import org.konaframework.http.ServePublicDirectory
+import org.konaframework.http.ServePublicStorage
+import org.konaframework.session.SessionManager
+import org.konaframework.session.StartSession
+import org.konaframework.session.VerifyCsrfToken
+
+object Middleware {
+    @JvmStatic
+    fun configure(app: Application) {
+        val sessions = app.resolve(SessionManager::class.java)
+        val files = app.resolve(FilesystemManager::class.java)
+        val auth = app.resolve(AuthManager::class.java)
+        val publicRoot = app.basePath.resolve(
+            app.config.getString("paths.public") ?: "public",
+        )
+        app.resolve(HttpKernel::class.java)
+            .prependMiddleware(ServePublicStorage(files.disk("public")))
+            .prependMiddleware(ServePublicDirectory(publicRoot))
+        HttpMiddleware()
+            .alias("start.session") { StartSession(sessions) }
+            .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/wire/*")) }
+            .alias("auth") { Authenticate(auth) }
+            .alias("guest") { RedirectIfAuthenticated(auth, "/dashboard") }
+            .alias("verified") { EnsureEmailIsVerified(auth) }
+            .alias("password.confirm") { RequirePassword(auth) }
+            .web(listOf("start.session", "csrf"))
+            .apply(app)
+    }
+}

@@ -1,0 +1,46 @@
+package bootstrap;
+
+import org.konaframework.auth.AuthManager;
+import org.konaframework.auth.middleware.Authenticate;
+import org.konaframework.auth.middleware.EnsureEmailIsVerified;
+import org.konaframework.auth.middleware.RedirectIfAuthenticated;
+import org.konaframework.auth.middleware.RequirePassword;
+import org.konaframework.core.Application;
+import org.konaframework.filesystem.FilesystemManager;
+import org.konaframework.http.HttpKernel;
+import org.konaframework.http.HttpMiddleware;
+import org.konaframework.http.ServePublicDirectory;
+import org.konaframework.http.ServePublicStorage;
+import org.konaframework.session.SessionManager;
+import org.konaframework.session.StartSession;
+import org.konaframework.session.VerifyCsrfToken;
+
+import java.util.List;
+import java.util.function.Supplier;
+
+public final class Middleware {
+    public static void configure(Application app) {
+        SessionManager sessions = app.resolve(SessionManager.class);
+        FilesystemManager files = app.resolve(FilesystemManager.class);
+        AuthManager auth = app.resolve(AuthManager.class);
+        String publicRel = app.getConfig().getString("paths.public");
+        if (publicRel == null || publicRel.isBlank()) {
+            publicRel = "public";
+        }
+        app.resolve(HttpKernel.class)
+            .prependMiddleware(new ServePublicStorage(files.disk("public")))
+            .prependMiddleware(new ServePublicDirectory(app.getBasePath().resolve(publicRel)));
+        new HttpMiddleware()
+            .alias("start.session", (Supplier<org.konaframework.http.Middleware>) () -> new StartSession(sessions))
+            .alias("csrf", (Supplier<org.konaframework.http.Middleware>) () -> new VerifyCsrfToken(List.of("/api/*", "/wire/*")))
+            .alias("auth", (Supplier<org.konaframework.http.Middleware>) () -> new Authenticate(auth))
+            .alias("guest", (Supplier<org.konaframework.http.Middleware>) () -> new RedirectIfAuthenticated(auth, "/dashboard"))
+            .alias("verified", (Supplier<org.konaframework.http.Middleware>) () -> new EnsureEmailIsVerified(auth))
+            .alias("password.confirm", (Supplier<org.konaframework.http.Middleware>) () -> new RequirePassword(auth))
+            .web(List.of("start.session", "csrf"))
+            .apply(app);
+    }
+
+    private Middleware() {
+    }
+}

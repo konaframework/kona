@@ -1,0 +1,87 @@
+package app.http.controllers.auth;
+
+import app.support.Features;
+import org.konaframework.auth.Auth;
+import org.konaframework.auth.AuthManager;
+import org.konaframework.auth.middleware.Authenticate;
+import org.konaframework.auth.twofactor.RedirectIfTwoFactorAuthenticatable;
+import org.konaframework.auth.twofactor.TwoFactor;
+import org.konaframework.auth.twofactor.TwoFactorLogin;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+import org.konaframework.inertia.Inertia;
+import org.konaframework.security.Encrypter;
+import org.konaframework.security.RateLimitExceededException;
+import org.konaframework.security.RateLimiter;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public class SessionController {
+    private final AuthManager auth;
+    private final Encrypter encrypter;
+    private final RateLimiter rateLimiter;
+
+    public SessionController(AuthManager auth, Encrypter encrypter, RateLimiter rateLimiter) {
+        this.auth = auth;
+        this.encrypter = encrypter;
+        this.rateLimiter = rateLimiter;
+    }
+
+    public Response create(Request request) {
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("canResetPassword", true);
+        props.put("canRegister", Features.registration());
+        props.put("status", request.session() == null ? null : request.session().get("status"));
+        return Inertia.render("Auth/Login", props);
+    }
+
+    public Response store(Request request) {
+        String email = request.input("email") == null ? "" : request.input("email");
+        String password = request.input("password") == null ? "" : request.input("password");
+        boolean remember = request.booleanValue("remember");
+        RedirectIfTwoFactorAuthenticatable.Result result =
+            new RedirectIfTwoFactorAuthenticatable(auth, auth.getProvider("users"))
+                .handle(request, Map.of("email", email, "password", password), remember);
+        if (result.failed()) {
+            return Response.redirect("/login", 302)
+                .withErrors(Map.of("email", List.of("These credentials do not match our records.")))
+                .withInput(Map.of("email", email));
+        }
+        if (result.challenged()) {
+            return result.getResponse();
+        }
+        return Response.redirect(Authenticate.pullIntended(request, "/dashboard"), 302);
+    }
+
+    public Response destroy(Request request) {
+        Auth.setRequest(request);
+        Auth.logout();
+        return Response.redirect("/", 302);
+    }
+
+    public Response challenge(Request request) {
+        if (TwoFactor.pendingLoginId(request) == null) {
+            return Response.redirect("/login", 302);
+        }
+        return Inertia.render("Auth/TwoFactorChallenge", Map.of());
+    }
+
+    public Response challengeStore(Request request) {
+        String code = request.input("code");
+        String recovery = request.input("recovery_code");
+        try {
+            var user = new TwoFactorLogin(auth, auth.getProvider("users"), TwoFactor.provider(), encrypter, rateLimiter)
+                .attempt(request, code, recovery);
+            if (user == null) {
+                return Response.redirect("/two-factor-challenge", 302)
+                    .withErrors(Map.of("code", List.of("The provided two-factor authentication code was invalid.")));
+            }
+            return Response.redirect(Authenticate.pullIntended(request, "/dashboard"), 302);
+        } catch (RateLimitExceededException ex) {
+            return Response.redirect("/two-factor-challenge", 302)
+                .withErrors(Map.of("code", List.of("Too many attempts. Please try again shortly.")));
+        }
+    }
+}

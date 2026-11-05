@@ -1,0 +1,20 @@
+package app.http.controllers.Settings
+import app.http.middleware.HandleAppearance
+import org.konaframework.http.Cookie
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+import org.konaframework.inertia.Inertia
+import java.time.Duration
+class AppearanceController {
+    fun edit(request: Request): Response = Inertia.render("Settings/Appearance", mapOf(
+        "appearance" to (request.cookie(HandleAppearance.COOKIE) ?: "system"),
+    ))
+    fun update(request: Request): Response {
+        val appearance = request.input("appearance")?.toString() ?: "system"
+        val response = Response.redirect("/settings/appearance", 302).with("status", "Appearance updated.")
+        if (appearance in setOf("light", "dark", "system")) {
+            response.cookies.add(Cookie(HandleAppearance.COOKIE, appearance, maxAge = Duration.ofDays(365), path = "/", httpOnly = false))
+        }
+        return response
+    }
+}

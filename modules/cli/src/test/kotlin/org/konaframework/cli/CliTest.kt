@@ -408,12 +408,35 @@ class CliTest {
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/kotlin/app/http/middleware/HandleInertia.kt")))
         assertTrue(
             Files.readString(inertia.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt"))
-                .contains("\"welcome\""),
+                .contains("Welcome"),
         )
-        assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/views/login.crema.html")))
+        assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/Pages/Auth/Login.vue")))
+        assertTrue(Files.isRegularFile(inertia.resolve("src/main/kotlin/app/http/controllers/Auth/SessionController.kt")))
+        assertTrue(Files.readString(inertia.resolve("package.json")).contains("tailwindcss"))
         assertTrue(
-            Files.readString(inertia.resolve("src/main/kotlin/routes/WebRoutes.kt")).contains("/dashboard"),
+            Files.readString(inertia.resolve("src/main/kotlin/routes/WebRoutes.kt")).contains("/two-factor-challenge"),
         )
+
+        // Empty frontend string is treated as vue (auth overlay still applied).
+        val inertiaEmptyFrontend = temp.resolve("inertia-empty-fe-kit")
+        Files.createDirectories(inertiaEmptyFrontend)
+        NewCommand().copySkeleton(
+            "kotlin",
+            inertiaEmptyFrontend,
+            mapOf(
+                "appName" to "EmptyFe",
+                "konaVersion" to "0.0.0-test",
+                "kotlinVersion" to "2.0.0",
+                "kit" to "inertia",
+                "appKey" to "base64:dGVzdC1rZXktMzItYnl0ZXMtZXhhY3QhISE=",
+                "dbConnection" to "sqlite",
+                "viteEntry" to "src/main/resources/js/app.js",
+            ),
+            kit = "inertia",
+            css = "tailwind",
+            frontend = "",
+        )
+        assertTrue(Files.isRegularFile(inertiaEmptyFrontend.resolve("src/main/resources/js/Pages/Auth/Login.vue")))
 
         val brew = temp.resolve("brew-app")
         assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=wire", "--no-interaction")))

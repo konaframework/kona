@@ -1,0 +1,32 @@
+package app.http.controllers.settings;
+import app.models.User; import org.konaframework.auth.Auth; import org.konaframework.http.Request; import org.konaframework.http.Response; import org.konaframework.inertia.Inertia;
+import java.util.LinkedHashMap; import java.util.List; import java.util.Map;
+public class ProfileController {
+  public Response edit(Request request) {
+    Auth.setRequest(request); User user = (User) Auth.user();
+    return Inertia.render("Settings/Profile", Map.of("mustVerifyEmail", user.emailVerifiedAt()==null, "status", request.session()==null?null:request.session().get("status")));
+  }
+  public Response update(Request request) {
+    Auth.setRequest(request); User user = (User) Auth.user();
+    String name = request.input("name")==null?"":request.input("name").trim();
+    String email = request.input("email")==null?"":request.input("email").trim();
+    Map<String, List<String>> errors = new LinkedHashMap<>();
+    if (name.isBlank()) errors.put("name", List.of("The name field is required."));
+    if (email.isBlank()) errors.put("email", List.of("The email field is required."));
+    if (!email.isBlank() && !email.equals(user.getEmail()) && User.QUERY.where("email", email).exists()) errors.put("email", List.of("The email has already been taken."));
+    if (!errors.isEmpty()) return Response.redirect("/settings/profile",302).withErrors(errors).withInput(Map.of("name", name, "email", email));
+    boolean changed = !email.equals(user.getEmail());
+    user.setAttribute("name", name); user.setAttribute("email", email);
+    if (changed) user.setAttribute("email_verified_at", null);
+    user.save();
+    return Response.redirect("/settings/profile",302).with("status","Profile updated.");
+  }
+  public Response destroy(Request request) {
+    Auth.setRequest(request); User user = (User) Auth.user();
+    String password = request.input("password")==null?"":request.input("password");
+    if (!Auth.validate(Map.of("email", user.getEmail(), "password", password))) {
+      return Response.redirect("/settings/profile",302).withErrors(Map.of("password", List.of("The provided password is incorrect.")));
+    }
+    Auth.logout(); user.delete(); return Response.redirect("/",302);
+  }
+}

@@ -1,0 +1,42 @@
+package app.http.controllers.Settings
+import app.models.User
+import org.konaframework.auth.Auth
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+import org.konaframework.inertia.Inertia
+class ProfileController {
+    fun edit(request: Request): Response {
+        Auth.setRequest(request)
+        val user = Auth.user() as User
+        return Inertia.render("Settings/Profile", mapOf(
+            "mustVerifyEmail" to (user.emailVerifiedAt() == null),
+            "status" to request.session()?.get("status"),
+        ))
+    }
+    fun update(request: Request): Response {
+        Auth.setRequest(request)
+        val user = Auth.user() as User
+        val name = request.input("name")?.toString().orEmpty().trim()
+        val email = request.input("email")?.toString().orEmpty().trim()
+        val errors = linkedMapOf<String, List<String>>()
+        if (name.isBlank()) errors["name"] = listOf("The name field is required.")
+        if (email.isBlank()) errors["email"] = listOf("The email field is required.")
+        if (email.isNotBlank() && email != user.getEmail() && User.query().where("email", email).exists())
+            errors["email"] = listOf("The email has already been taken.")
+        if (errors.isNotEmpty()) return Response.redirect("/settings/profile", 302).withErrors(errors).withInput(mapOf("name" to name, "email" to email))
+        val changed = email != user.getEmail()
+        user.setAttribute("name", name); user.setAttribute("email", email)
+        if (changed) user.setAttribute("email_verified_at", null)
+        user.save()
+        return Response.redirect("/settings/profile", 302).with("status", "Profile updated.")
+    }
+    fun destroy(request: Request): Response {
+        Auth.setRequest(request)
+        val user = Auth.user() as User
+        val password = request.input("password")?.toString().orEmpty()
+        if (!Auth.validate(mapOf("email" to user.getEmail(), "password" to password))) {
+            return Response.redirect("/settings/profile", 302).withErrors(mapOf("password" to listOf("The provided password is incorrect.")))
+        }
+        Auth.logout(); user.delete(); return Response.redirect("/", 302)
+    }
+}

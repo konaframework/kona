@@ -1,0 +1,20 @@
+package sample
+
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.nio.file.Files
+import java.nio.file.Path
+
+/**
+ * Smoke check that the Vue auth scaffold files were generated.
+ * Full HTTP feature tests belong in the app once dependencies resolve.
+ */
+class AuthScaffoldTest {
+    @Test
+    fun authPagesExist() {
+        val root = Path.of("").toAbsolutePath()
+        assertTrue(Files.isRegularFile(root.resolve("src/main/resources/js/Pages/Auth/Login.vue")))
+        assertTrue(Files.isRegularFile(root.resolve("src/main/kotlin/app/http/controllers/Auth/SessionController.kt")))
+        assertTrue(Files.isRegularFile(root.resolve("src/main/kotlin/app/support/Features.kt")))
+    }
+}
