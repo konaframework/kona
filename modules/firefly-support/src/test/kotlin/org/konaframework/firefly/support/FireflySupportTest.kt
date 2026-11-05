@@ -620,6 +620,11 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-table-nav"))
         assertTrue(html.contains("data-ff-mobile-sort"))
         assertTrue(html.contains("data-ff-column-toggle"))
+        // SIDE exclusive accordion chrome (#494 / #496): live toggle closes siblings.
+        assertTrue(html.contains("data-ff-nav-accordion"))
+        assertTrue(html.contains("collapseSiblings"))
+        assertTrue(html.contains("onSummaryClick"))
+        assertTrue(html.contains("data-ff-nav-accordion-armed"))
         assertEquals("", RenderHooks().render(Hook.BODY_START))
 
         val auth = Panel()
