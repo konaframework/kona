@@ -1704,16 +1704,13 @@ open class Panel {
         val brandBlock =
             """<div class="ff-sidebar-brand$logoClass">${brandMarkHtml(branding)}""" +
                 """<button type="button" class="ff-sidebar-close" data-ff-sidebar-close aria-label="Close navigation">${Icon.X.svg()}</button></div>"""
-        // APP: L1 roots only (groups promote to clusters; children go to the top bar).
+        // TOP already returned. APP: L1 roots only (groups promote to clusters; children go to the top bar).
         // SIDE: full nested tree with group headings in the sidebar.
-        val nav = when (type) {
-            NavigationType.APP -> {
-                val roots = appLevelOnes(items, navigationGroupList, get)
-                """<nav class="ff-nav ff-nav-side">${renderItems(roots, path, spaMode, get, false)}</nav>"""
-            }
-            NavigationType.SIDE ->
-                """<nav class="ff-nav ff-nav-side">${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
-            NavigationType.TOP -> ""
+        val nav = if (type == NavigationType.APP) {
+            val roots = appLevelOnes(items, navigationGroupList, get)
+            """<nav class="ff-nav ff-nav-side">${renderItems(roots, path, spaMode, get, false)}</nav>"""
+        } else {
+            """<nav class="ff-nav ff-nav-side">${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
         }
         return brandBlock + nav + sidebarFootHtml(user, branding)
     }

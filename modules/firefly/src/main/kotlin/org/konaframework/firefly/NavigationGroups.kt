@@ -145,7 +145,8 @@ internal fun appLevelOnes(
         val root = NavigationItem(bucket.group.label).label(bucket.group.label).cluster(true)
         val icon = bucket.group.navigationIcon()
         if (!icon.isNullOrBlank()) root.icon(icon)
-        val firstUrl = bucket.items.firstOrNull()?.urlText(get).orEmpty()
+        // Buckets only exist when they have members.
+        val firstUrl = bucket.items.first().urlText(get)
         if (firstUrl.isNotEmpty()) root.url(firstUrl)
         for (member in bucket.items) root.child(member)
         roots.add(root)
