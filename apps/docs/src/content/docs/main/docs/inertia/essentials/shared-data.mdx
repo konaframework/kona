@@ -1,6 +1,6 @@
 ---
 title: Shared data
-description: Global Inertia.share, per-request middleware share, and merge rules.
+description: Global share, middleware defaults (errors + flash), and merge rules.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -21,9 +21,16 @@ Inertia.share(Map.of("features", List.of("a", "b")));
 
 Inspect with `Inertia.manager().shared()`. Clear with `manager.clearShared()`.
 
-## Per-request share
+## Middleware defaults
 
-Subclass middleware:
+`HandleInertiaRequests` always merges **default share** before your `share(request)` override:
+
+| Prop | Source |
+|------|--------|
+| `errors` | Session `errors` flash as `Inertia.always(...)` (first message per field). With `X-Inertia-Error-Bag`, nested under that bag name. |
+| `flash` | Session keys `success`, `error`, `warning`, `info`, `status` |
+
+Override `defaultShare(request)` to replace those defaults, or override `share(request)` to add app props (they win on key clash).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -31,7 +38,6 @@ Subclass middleware:
 ```kotlin
 class HandleInertia : HandleInertiaRequests() {
     override fun share(request: Request) = mapOf(
-        "path" to request.path,
         "auth" to mapOf("user" to currentUser(request)),
     )
 }
@@ -52,24 +58,17 @@ public class HandleInertia extends HandleInertiaRequests {
 </TabItem>
 </Tabs>
 
-Internally this calls `manager.shareForRequest(props)` for the duration of the request. The ThreadLocal map is cleared when the middleware finishes.
-
 ## Merge order
 
 1. Global `share`
-2. Middleware / `shareForRequest`
+2. Middleware `defaultShare` + `share` / `shareForRequest`
 3. Props passed to `Inertia.render` (highest priority)
 
-Duplicate keys: later layers win. Prefer putting stable app metadata in global share and request-specific flash/auth in middleware so controllers stay thin.
+## Validation errors
 
-## Flash-style patterns
+`ValidationException` already redirects back with flashed errors for non-JSON requests (Inertia clients send HTML Accept). The next Inertia render picks them up via `errors`. Partial reloads still receive `errors` because they are wrapped in `Inertia.always`.
 
-There is no separate “flash” bag in `kona-inertia`. Typical approach:
+## Related
 
-1. Store flash in the session from a controller or filter.
-2. In `share(request)`, read and clear that session key into props (e.g. `"flash" to mapOf("success" to …)`).
-3. Display on the client from `usePage().props.flash` (Vue/React adapter APIs — see [inertiajs.com](https://inertiajs.com/shared-data)).
-
-## Testing shared props
-
-In unit tests, boot a manager, call `share` / `shareForRequest`, render with an explicit `Request`, and assert the JSON props map. See [Testing](../../dx/testing/).
+- [Prop types](../prop-types/)
+- [Middleware](../middleware/)

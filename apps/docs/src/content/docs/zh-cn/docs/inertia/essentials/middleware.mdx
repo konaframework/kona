@@ -1,37 +1,41 @@
 ---
-title: 中间件
-description: HandleInertiaRequests 的生命周期、版本覆盖，以及 InertiaMiddleware 别名。
+title: Middleware
+description: HandleInertiaRequests lifecycle, 303 redirects, empty responses, and defaults.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`HandleInertiaRequests`（类型别名 `InertiaMiddleware`）应放在 HTTP 内核上，覆盖全部 Inertia 路由。
+`HandleInertiaRequests` (typealias `InertiaMiddleware`) should sit on the HTTP kernel for all Inertia routes.
 
-## 生命周期
+## Lifecycle
 
-1. 解析 `Inertia.manager()`（需要已启动的 `InertiaServiceProvider`）
+1. Resolve `Inertia.manager()` (requires booted `InertiaServiceProvider`)
 2. `setRequest(request)`
-3. 应用 `share(request)` → `shareForRequest`
-4. 可选的 `version(request)` → 更新 `manager.version`
-5. 如果 `versionConflict(request)` → 返回装饰后的 `409`
-6. 否则 `decorate(next.handle(request))`
-7. `finally` → `setRequest(null)`（清掉本次请求范围的共享属性）
+3. Merge `defaultShare(request)` + `share(request)` → `shareForRequest`
+4. Optional `version(request)` → updates `manager.version`
+5. If `versionConflict(request)` → return decorated `409` + `X-Inertia-Location`
+6. Else run the next handler
+7. Empty Inertia `200` with no body → `Response.back(request)`
+8. Inertia `302` after `PUT` / `PATCH` / `DELETE` → status `303`
+9. `decorate(response)`
+10. `finally` → `setRequest(null)`
 
-## 覆盖
+## Overrides
 
-| 方法 | 默认 | 用途 |
-|------|------|------|
-| `share(request)` | 空映射 | 每次请求的属性 |
-| `version(request)` | `null`（保留管理器版本） | 动态资源版本 |
+| Method | Default | Purpose |
+|--------|---------|---------|
+| `defaultShare(request)` | `errors` + `flash` | Built-in shared props |
+| `share(request)` | empty map | App props (merged after defaults) |
+| `version(request)` | `null` (keep manager version) | Dynamic asset version |
+| `resolveValidationErrors` / `resolveFlash` | session-backed | Customize error/flash shapes |
 
-## 注册
+## Registration
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
 app.resolve(HttpKernel::class.java).pushMiddleware(HandleInertia())
-// or alias via HttpMiddleware if you use the web stack
 ```
 
 </TabItem>
@@ -44,4 +48,4 @@ app.resolve(HttpKernel.class).pushMiddleware(new HandleInertia());
 </TabItem>
 </Tabs>
 
-在 `InertiaServiceProvider` 已经启动之后再压入中间件，这样门面上的管理器才已设置。
+Push **after** `InertiaServiceProvider` has booted so the facade manager is set.

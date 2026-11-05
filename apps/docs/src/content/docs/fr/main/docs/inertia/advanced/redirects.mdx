@@ -1,17 +1,24 @@
 ---
-title: Redirections externes
-description: Inertia.location pour une navigation cross-origin ou forcée.
+title: External redirects
+description: Inertia.location and 303 See Other after mutating verbs.
 ---
 
 ```kotlin
 Inertia.location("https://example.com")
 ```
 
-| Client | Statut | En-têtes |
+| Client | Status | Headers |
 |--------|--------|---------|
-| Inertia (`X-Inertia` + requête courante définie) | `409` | `X-Inertia-Location: <url>` |
-| Navigateur ordinaire / pas de requête Inertia | `302` | `Location: <url>` |
+| Inertia (`X-Inertia` + current request set) | `409` | `X-Inertia-Location: <url>` |
+| Ordinary browser / no Inertia request | `302` | `Location: <url>` |
 
-La branche Inertia exige une requête courante sur le manager (middleware). Sans requête courante, le comportement est le `302` ordinaire.
+Requires a current request on the manager for the Inertia branch (middleware). Without a current request, behavior is the ordinary `302`.
 
-Après le middleware, `decorate` peut ajouter `X-Inertia-Version` lorsque la réponse porte déjà `X-Inertia-Location`.
+## 303 after PUT / PATCH / DELETE
+
+When an Inertia client receives a `302` from `PUT`, `PATCH`, or `DELETE`, `HandleInertiaRequests` rewrites the status to **`303 See Other`** so the browser follows with `GET`. Ordinary `POST` redirects stay `302`.
+
+## Related
+
+- [Middleware](../../essentials/middleware/)
+- [History encryption](../history/)

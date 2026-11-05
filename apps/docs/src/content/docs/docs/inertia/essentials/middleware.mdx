@@ -1,6 +1,6 @@
 ---
 title: Middleware
-description: HandleInertiaRequests lifecycle, version override, and InertiaMiddleware alias.
+description: HandleInertiaRequests lifecycle, 303 redirects, empty responses, and defaults.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -11,18 +11,23 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 1. Resolve `Inertia.manager()` (requires booted `InertiaServiceProvider`)
 2. `setRequest(request)`
-3. Apply `share(request)` → `shareForRequest`
+3. Merge `defaultShare(request)` + `share(request)` → `shareForRequest`
 4. Optional `version(request)` → updates `manager.version`
-5. If `versionConflict(request)` → return decorated `409`
-6. Else `decorate(next.handle(request))`
-7. `finally` → `setRequest(null)` (clears request-scoped shared props)
+5. If `versionConflict(request)` → return decorated `409` + `X-Inertia-Location`
+6. Else run the next handler
+7. Empty Inertia `200` with no body → `Response.back(request)`
+8. Inertia `302` after `PUT` / `PATCH` / `DELETE` → status `303`
+9. `decorate(response)`
+10. `finally` → `setRequest(null)`
 
 ## Overrides
 
 | Method | Default | Purpose |
 |--------|---------|---------|
-| `share(request)` | empty map | Per-request props |
+| `defaultShare(request)` | `errors` + `flash` | Built-in shared props |
+| `share(request)` | empty map | App props (merged after defaults) |
 | `version(request)` | `null` (keep manager version) | Dynamic asset version |
+| `resolveValidationErrors` / `resolveFlash` | session-backed | Customize error/flash shapes |
 
 ## Registration
 
@@ -31,7 +36,6 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ```kotlin
 app.resolve(HttpKernel::class.java).pushMiddleware(HandleInertia())
-// or alias via HttpMiddleware if you use the web stack
 ```
 
 </TabItem>

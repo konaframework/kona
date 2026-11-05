@@ -58,5 +58,24 @@ public class InertiaSampleTest {
         assertEquals("Pages/Welcome", page.get("component").asText());
         assertEquals("Welcome to Kona Inertia", page.get("props").get("message").asText());
         assertEquals("Inertia sample (Java)", page.get("props").get("appName").asText());
+        assertTrue(page.get("props").has("errors"));
+        assertTrue(page.get("props").has("flash"));
+        assertTrue(page.has("deferredProps"));
+        assertTrue(page.has("mergeProps"));
+    }
+
+    @Test
+    void putRedirectBecomes303ForInertia() {
+        Response response = kernel().handle(
+            new Request(
+                "PUT",
+                "/profile",
+                Map.of("X-Inertia", "true", "X-Inertia-Version", "1"),
+                Map.of(),
+                ""
+            )
+        );
+        assertEquals(303, response.getStatus());
+        assertEquals("/about", response.getHeaders().get("Location"));
     }
 }

@@ -1,6 +1,6 @@
 ---
 title: Kotlin & Java API
-description: Java-callable surface, overloads, and sample apps in this repository.
+description: Java-callable surface, prop helpers, and sample apps.
 ---
 
 Every public entry point is `@JvmStatic` or an open Java class so Java apps call the same API.
@@ -12,10 +12,12 @@ Every public entry point is `@JvmStatic` or an open Java class so Java apps call
 - `share` (key/value and map)
 - `version`
 - `location`
+- `encryptHistory()` / `encryptHistory(boolean)` / `clearHistory()`
+- `optional` / `lazy` / `always` / `defer` / `merge` / `deepMerge`
 
 ## Middleware
 
-Extend `HandleInertiaRequests` and override `share` / `version`. Return types use maps that Java can construct with `Map.of`.
+Extend `HandleInertiaRequests` and override `share` / `version` / `defaultShare`. Return types use maps that Java can construct with `Map.of`.
 
 ## Samples
 

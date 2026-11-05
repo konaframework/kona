@@ -1,13 +1,13 @@
 ---
-title: Datos compartidos
-description: Inertia.share global, share de middleware por petición y reglas de fusión.
+title: Shared data
+description: Global share, middleware defaults (errors + flash), and merge rules.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-## Share global
+## Global share
 
-Vive durante la vida del proceso (o hasta que se limpia):
+Lives for the life of the process (or until cleared):
 
 ```kotlin
 Inertia.share("appName", "Kona")
@@ -19,11 +19,18 @@ Inertia.share("appName", "Kona");
 Inertia.share(Map.of("features", List.of("a", "b")));
 ```
 
-Inspecciona con `Inertia.manager().shared()`. Limpia con `manager.clearShared()`.
+Inspect with `Inertia.manager().shared()`. Clear with `manager.clearShared()`.
 
-## Share por petición
+## Middleware defaults
 
-Subclase del middleware:
+`HandleInertiaRequests` always merges **default share** before your `share(request)` override:
+
+| Prop | Source |
+|------|--------|
+| `errors` | Session `errors` flash as `Inertia.always(...)` (first message per field). With `X-Inertia-Error-Bag`, nested under that bag name. |
+| `flash` | Session keys `success`, `error`, `warning`, `info`, `status` |
+
+Override `defaultShare(request)` to replace those defaults, or override `share(request)` to add app props (they win on key clash).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -31,7 +38,6 @@ Subclase del middleware:
 ```kotlin
 class HandleInertia : HandleInertiaRequests() {
     override fun share(request: Request) = mapOf(
-        "path" to request.path,
         "auth" to mapOf("user" to currentUser(request)),
     )
 }
@@ -52,24 +58,17 @@ public class HandleInertia extends HandleInertiaRequests {
 </TabItem>
 </Tabs>
 
-Por dentro esto llama a `manager.shareForRequest(props)` durante la petición. El mapa ThreadLocal se limpia cuando termina el middleware.
+## Merge order
 
-## Orden de fusión
+1. Global `share`
+2. Middleware `defaultShare` + `share` / `shareForRequest`
+3. Props passed to `Inertia.render` (highest priority)
 
-1. `share` global
-2. Middleware / `shareForRequest`
-3. Props pasadas a `Inertia.render` (prioridad más alta)
+## Validation errors
 
-Claves duplicadas: gana la capa posterior. Prefiere poner metadatos estables de la app en el share global y el flash/auth específicos de la petición en el middleware, para que los controladores se queden delgados.
+`ValidationException` already redirects back with flashed errors for non-JSON requests (Inertia clients send HTML Accept). The next Inertia render picks them up via `errors`. Partial reloads still receive `errors` because they are wrapped in `Inertia.always`.
 
-## Patrones al estilo flash
+## Related
 
-No hay una bolsa «flash» aparte en `kona-inertia`. El enfoque típico:
-
-1. Guarda el flash en la sesión desde un controlador o un filtro.
-2. En `share(request)`, lee y limpia esa clave de sesión hacia las props (por ejemplo `"flash" to mapOf("success" to …)`).
-3. Muéstralo en el cliente desde `usePage().props.flash` (APIs de los adaptadores Vue/React — consulta [inertiajs.com](https://inertiajs.com/shared-data)).
-
-## Probar props compartidas
-
-En pruebas unitarias, arranca un manager, llama a `share` / `shareForRequest`, renderiza con un `Request` explícito y afirma el mapa de props JSON. Consulta [Pruebas](../../dx/testing/).
+- [Prop types](../prop-types/)
+- [Middleware](../middleware/)

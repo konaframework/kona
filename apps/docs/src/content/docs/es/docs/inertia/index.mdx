@@ -1,15 +1,18 @@
 ---
 title: Inertia
-description: Frontends de una sola página dirigidos por el servidor para Kona — resumen y guías.
+description: Server-driven single-page frontends for Kona — overview and guides.
 ---
 
-**Inertia** para Kona permite que tu aplicación JVM devuelva un **objeto de página** — nombre del componente más props — que un cliente JavaScript hidrata. La primera visita es un documento HTML normal; las navegaciones posteriores envían la cabecera `X-Inertia` y reciben JSON.
+**Inertia** for Kona lets your JVM app return a **page object** — component name plus props — that a JavaScript client hydrates. The first visit is a normal HTML document; later navigations send the `X-Inertia` header and receive JSON.
 
-Inertia se publica como `org.konaframework:kona-inertia` en [Maven Central](https://repo1.maven.org/maven2/org/konaframework/kona-inertia/). Crea el esqueleto con `kona new my-app --kit=inertia`, o añade la dependencia (y el provider) con `./grind install inertia` (o `kona grind install inertia`).
+Inertia ships as `org.konaframework:kona-inertia` on [Maven Central](https://repo1.maven.org/maven2/org/konaframework/kona-inertia/). Scaffold with `kona new my-app --kit=inertia`, or add the dependency (and provider) with `./grind install inertia` (or `kona grind install inertia`).
 
-## Guías de esta sección
+## Guides in this section
 
-- [Introducción](/docs/inertia/guides/introduction/) — protocolo y cuándo usar Inertia
-- [Instalación](/docs/inertia/guides/installation/) — paquete + cliente Vite
-- [Tu primera página](/docs/inertia/guides/first-page/) — primera página de punta a punta
-- [Renderizar páginas](/docs/inertia/essentials/rendering/) — `Inertia.render` y props
+- [Introduction](/docs/inertia/guides/introduction/) — protocol and when to use Inertia
+- [Installation](/docs/inertia/guides/installation/) — package + Vite client setup
+- [Your first page](/docs/inertia/guides/first-page/) — end-to-end first page
+- [Rendering pages](/docs/inertia/essentials/rendering/) — `Inertia.render` and props
+- [Partial reloads](/docs/inertia/essentials/partial-reloads/) — `only` / `except` headers
+- [Prop types](/docs/inertia/essentials/prop-types/) — optional, defer, merge, always
+- [SSR](/docs/inertia/advanced/ssr/) — optional Node SSR gateway

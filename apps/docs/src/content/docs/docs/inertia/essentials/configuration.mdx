@@ -8,9 +8,12 @@ description: All inertia.* config keys and how InertiaServiceProvider applies th
 | Key | Type | Effect |
 |-----|------|--------|
 | `inertia.root_view` | string | Sets `InertiaManager.rootView` |
-| `inertia.root_html` | string | Sets `InertiaManager.rootHtml` |
+| `inertia.root_html` | string | Sets `InertiaManager.rootHtml` (`@page`, `@vite`, `@ssrHead`, `@ssrBody`) |
 | `inertia.version` | string | Sets `InertiaManager.version` |
 | `inertia.public_path` | path string | Vite public directory; default `<app.basePath>/public` |
+| `inertia.history.encrypt` | `true` / `1` | Default `encryptHistory` page flag |
+| `inertia.ssr.enabled` | `true` / `1` | Enable Node SSR gateway |
+| `inertia.ssr.url` | URL | SSR base (default `http://127.0.0.1:13714`) |
 
 Example:
 
@@ -18,6 +21,8 @@ Example:
 .configure { cfg ->
     cfg.set("inertia.root_view", "app")
     cfg.set("inertia.version", "1")
+    cfg.set("inertia.history.encrypt", "false")
+    cfg.set("inertia.ssr.enabled", "false")
     cfg.set("inertia.public_path", app.basePath.resolve("public").toString())
 }
 ```
@@ -28,4 +33,5 @@ Runtime changes after boot:
 Inertia.version("2")
 Inertia.manager().rootView = "shell"
 Inertia.manager().viteEntries = listOf("resources/js/app.js")
+Inertia.manager().ssr.enabled = true
 ```

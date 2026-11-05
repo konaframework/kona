@@ -1,0 +1,19 @@
+---
+title: History encryption
+description: encryptHistory and clearHistory page flags.
+---
+
+Inertia 2 page objects include boolean flags the client uses for history state:
+
+| Flag | Set via | Config |
+|------|---------|--------|
+| `encryptHistory` | `Inertia.encryptHistory()` / `Inertia.encryptHistory(false)` | `inertia.history.encrypt` default |
+| `clearHistory` | `Inertia.clearHistory()` | flashed as `inertia.clear_history` when a session is present |
+
+```kotlin
+Inertia.encryptHistory(true)
+Inertia.clearHistory()
+return Inertia.render("Pages/Secret", mapOf("token" to token))
+```
+
+`clearHistory()` also flashes `inertia.clear_history` on the current request session so a redirect that re-renders still clears history once.

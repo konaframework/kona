@@ -1,20 +1,20 @@
 ---
-title: 渲染页面
-description: Inertia.render 的重载、页面属性，以及 InertiaPage 的形状。
+title: Rendering pages
+description: Inertia.render overloads, page props, and the InertiaPage shape.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-## 门面 API
+## Facade API
 
-| 调用 | 行为 |
-|------|------|
-| `Inertia.render(component)` | 属性为空；使用中间件里的当前请求 |
-| `Inertia.render(component, props)` | 同上，并带属性映射 |
-| `Inertia.render(request, component)` | 显式请求 |
-| `Inertia.render(request, component, props)` | 显式请求加属性 |
+| Call | Behavior |
+|------|----------|
+| `Inertia.render(component)` | Props empty; uses current request from middleware |
+| `Inertia.render(component, props)` | Same with props map |
+| `Inertia.render(request, component)` | Explicit request |
+| `Inertia.render(request, component, props)` | Explicit request + props |
 
-没有中间件（或 `manager.setRequest`）时，省略 `request` 的调用会抛出 `InertiaException`。
+Without middleware (or `manager.setRequest`), calls that omit `request` throw `InertiaException`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -37,34 +37,36 @@ Inertia.render("Pages/Users/Index", Map.of(
 </TabItem>
 </Tabs>
 
-## 页面对象
+## Page object
 
-序列化到 JSON / `data-page` 的 `InertiaPage` 字段：
+`InertiaPage` fields serialized to JSON / `data-page`:
 
-| 字段 | 含义 |
-|------|------|
-| `component` | 客户端组件名（例如 `Pages/Home`） |
-| `props` | 合并后的共享属性、请求共享属性和本地属性 |
-| `url` | `request.path` |
-| `version` | 管理器版本；为空时是 `null` |
+| Field | Meaning |
+|-------|---------|
+| `component` | Client component name (e.g. `Pages/Home`) |
+| `props` | Merged shared + request-shared + local props (resolved) |
+| `url` | Path + query string |
+| `version` | Manager version, or `null` when empty |
+| `encryptHistory` / `clearHistory` | History flags |
+| `deferredProps` / `mergeProps` / … | Inertia 2 metadata when applicable |
 
-属性合并顺序：**全局共享** → **每次请求的共享**（中间件）→ **本地属性**（键冲突时胜出）。
+Prop merge order: **global shared** → **per-request shared** (middleware) → **local props** (wins on key clash). See [Prop types](../prop-types/) for `optional` / `defer` / `merge`.
 
-## 组件命名
+## Component naming
 
-`component` 字符串对 Kona 是不透明的 — 它原样传给客户端。按惯例，套件和 `./grind install` 脚手架使用 `Pages/Name`，并解析 `src/main/resources/js/Pages/Name.{vue,jsx,svelte}` 下的文件。服务器和客户端的命名要保持一致，否则浏览器会报找不到页面。
+The `component` string is opaque to Kona — it is echoed to the client. By convention the kit and `./grind install` scaffolds use `Pages/Name` and resolve files under `src/main/resources/js/Pages/Name.{vue,jsx,svelte}`. Keep server and client naming in lockstep or the browser will throw “page not found”.
 
-## 何时选择 HTML 或 JSON
+## When HTML vs JSON is chosen
 
-| 条件 | 正文 |
-|------|------|
-| 没有 `X-Inertia` 请求头 | 带 `data-page` 的 HTML 根外壳（`root_view` / `root_html`） |
-| `X-Inertia: true` 且版本正确 | JSON 页面对象 |
-| `X-Inertia: true` 且版本不匹配 | `409`（见[资源版本](../../advanced/versioning/)） |
+| Condition | Body |
+|-----------|------|
+| No `X-Inertia` request header | HTML root shell (`root_view` / `root_html`) with `data-page` |
+| `X-Inertia: true` and version OK | JSON page object |
+| `X-Inertia: true` and version mismatch | `409` (see [Asset versioning](../../advanced/versioning/)) |
 
-你不在控制器里选择模式 — 两种情况都以同样的方式调用 `Inertia.render`；中间件和管理器选择表示形式。
+You do not pick the mode in the controller — call `Inertia.render` the same way for both; middleware + manager select the representation.
 
-## 惰性 / 缺少请求
+## Lazy / missing request
 
 ```kotlin
 // Throws if middleware has not set the current request:
@@ -74,8 +76,8 @@ Inertia.render("Pages/Home")
 Inertia.render(request, "Pages/Home", mapOf("ok" to true))
 ```
 
-## 下一步
+## Next
 
-- [请求与响应](../requests-responses/)
-- [共享数据](../shared-data/)
-- [第一个页面](../../guides/first-page/)
+- [Requests & responses](../requests-responses/)
+- [Shared data](../shared-data/)
+- [Your first page](../../guides/first-page/)

@@ -1,29 +1,19 @@
 ---
-title: 资源版本
-description: X-Inertia-Version 协商，以及 409 冲突响应。
+title: Asset versioning
+description: X-Inertia-Version negotiation and 409 conflict responses.
 ---
 
-## 目的
-
-部署新的前端资源后，Inertia 客户端应当整页重新加载，以免旧的 JS 和新的属性混在一起。服务器公布一个版本字符串；客户端在后续访问时发送 `X-Inertia-Version`。
-
-## 设置版本
+Set a version string so clients hard-reload when assets change:
 
 ```kotlin
 Inertia.version("1")
-// or config inertia.version
-// or middleware override fun version(request) = assetHash()
+// or config inertia.version / middleware version(request)
 ```
 
-## 冲突规则
+`versionConflict(request)` returns a `409` when **all** of:
 
-当下面**全部**成立时，`versionConflict(request)` 返回 `409`：
+1. The request is Inertia (`X-Inertia` present)
+2. The client sent `X-Inertia-Version`
+3. The manager version is non-empty and differs from the client
 
-1. 请求是 Inertia 请求（存在 `X-Inertia`）
-2. 客户端发送了 `X-Inertia-Version`
-3. 管理器的 `version` 非空
-4. 客户端版本 ≠ 服务器版本
-
-`409` 的正文为空；响应头包含 `X-Inertia: true`。中间件随后 `decorate`，使 `X-Inertia-Version` 与服务器一致。
-
-如果服务器版本为空，则不会产生冲突（客户端可以不发送该头）。
+The response carries `X-Inertia-Location` set to the request URL (path + query) so the adapter performs a full `window.location` visit. Middleware then `decorate`s so `X-Inertia-Version` matches the server. The body is empty and there is no `X-Inertia: true` header on the conflict response (protocol control response).
