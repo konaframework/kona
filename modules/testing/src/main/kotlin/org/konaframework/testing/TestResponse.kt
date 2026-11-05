@@ -35,6 +35,12 @@ class TestResponse(
 
     fun body(): String = response.body
 
+    /** Wire / materialized body bytes (runs a deferred stream writer when present). */
+    fun bodyBytes(): ByteArray = response.bodyBytes()
+
+    /** True when the response was built with `Response.stream` / `streamDownload` / `eventStream`. */
+    fun isStreamed(): Boolean = response.isStreamed()
+
     /** Header [name] (case-insensitive), or null. */
     fun header(name: String): String? =
         response.headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
@@ -260,6 +266,31 @@ class TestResponse(
         }
     }
 
+    // ——— Streams / SSE ———
+
+    /** Assert the response uses a deferred stream writer (`Response.stream` / `streamDownload` / `eventStream`). */
+    fun assertStreamed(): TestResponse = apply {
+        require(isStreamed()) { "Expected a streamed response" }
+    }
+
+    /** Materialize the stream (or use the buffered body) and parse every Server-Sent Event. */
+    fun sseEvents(): List<SseEvent> = sseEvents(null)
+
+    /**
+     * Materialize the stream (or use the buffered body) and parse up to [limit] Server-Sent Events.
+     * Pass `null` for [limit] to read every event in the payload.
+     */
+    fun sseEvents(limit: Int?): List<SseEvent> {
+        val text = String(bodyBytes(), Charsets.UTF_8)
+        return parseSse(text, limit)
+    }
+
+    /** Assert at least [count] SSE events are present (materializes the stream). */
+    fun assertSseEventCount(count: Int): TestResponse = apply {
+        val events = sseEvents()
+        require(events.size == count) { "Expected $count SSE events but was ${events.size}: $events" }
+    }
+
     // ——— Inertia ———
 
     /** The Inertia page of this response (`X-Inertia` JSON, or the HTML `data-page` attribute). */
@@ -326,4 +357,58 @@ class TestResponse(
 
     private fun unescapeAttribute(value: String): String =
         value.replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+
+    private fun parseSse(text: String, limit: Int?): List<SseEvent> {
+        val events = ArrayList<SseEvent>()
+        var event = "message"
+        var id: String? = null
+        val data = StringBuilder()
+        fun hasPayload(): Boolean = data.isNotEmpty() || event != "message" || id != null
+        fun flush() {
+            if (!hasPayload()) {
+                return
+            }
+            events += SseEvent(event = event, data = data.toString(), id = id)
+            event = "message"
+            id = null
+            data.setLength(0)
+        }
+        for (raw in text.split("\n")) {
+            val line = raw.trimEnd('\r')
+            if (line.isEmpty()) {
+                flush()
+                if (limit != null && events.size >= limit) {
+                    return events.take(limit)
+                }
+                continue
+            }
+            if (line.startsWith(":")) {
+                continue
+            }
+            if (line.startsWith("event:")) {
+                event = line.substringAfter("event:").trim()
+            } else if (line.startsWith("id:")) {
+                id = line.substringAfter("id:").trim()
+            } else if (line.startsWith("data:")) {
+                val value = line.substringAfter("data:")
+                val payload = if (value.startsWith(" ")) value.drop(1) else value
+                if (data.isNotEmpty()) {
+                    data.append('\n')
+                }
+                data.append(payload)
+            }
+        }
+        flush()
+        if (limit == null) {
+            return events
+        }
+        return events.take(limit)
+    }
 }
+
+/** One Server-Sent Event parsed from a streamed response body. */
+data class SseEvent(
+    val event: String,
+    val data: String,
+    val id: String? = null,
+)

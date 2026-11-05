@@ -30,7 +30,8 @@ import java.util.concurrent.atomic.AtomicReference
  * Netty HTTP adapter + Virtual Threads. Thin adapter kept fully unit-testable via [HttpKernel].
  *
  * I/O uses Netty (epoll on Linux when available, otherwise NIO). Each request is handled on a
- * virtual thread so application code may block freely.
+ * virtual thread so application code may block freely — including long [Response.stream] /
+ * [Response.eventStream] writers that flush HTTP chunks as they produce data.
  */
 class KonaHttpServer @JvmOverloads constructor(
     kernel: HttpKernel,
@@ -161,8 +162,12 @@ internal class KonaNettyHandler(
             try {
                 val request = NettyHttpBridge.toRequest(msg)
                 val response = resolveKernel().handle(request)
-                val netty = NettyHttpBridge.toResponse(response, head, keepAlive)
-                writeResponse(ctx, netty, keepAlive)
+                if (response.isStreamed()) {
+                    writeStreamed(ctx, request, response, head, keepAlive)
+                } else {
+                    val netty = NettyHttpBridge.toResponse(response, head, keepAlive)
+                    writeResponse(ctx, netty, keepAlive)
+                }
             } catch (t: Throwable) {
                 Log.error("Unhandled server error", t)
                 writeError(ctx)
@@ -188,6 +193,51 @@ internal class KonaNettyHandler(
                 if (!keepAlive) {
                     future.addListener(ChannelFutureListener.CLOSE)
                 }
+            }
+        }
+
+        internal fun writeStreamed(
+            ctx: ChannelHandlerContext,
+            request: Request,
+            response: Response,
+            head: Boolean,
+            keepAlive: Boolean,
+        ) {
+            val stream = NettyChunkedOutputStream(ctx, NettyChunkedOutputStream.Hooks.forContext(ctx))
+            try {
+                NettyChunkedOutputStream.writeHeaders(ctx, response, head, keepAlive)
+                if (head) {
+                    NettyChunkedOutputStream.writeEmptyBody(ctx, keepAlive)
+                    return
+                }
+                val body = response.streamedBody
+                val eventBody = body as? StreamedBody.EventStream
+                val callbackBody = body as? StreamedBody.Callback
+                val context =
+                    StreamedBody.StreamContext(
+                        connectedCheck = { ctx.channel().isActive },
+                        lastEventId = request.header("Last-Event-ID") ?: eventBody?.lastEventId,
+                        heartbeat = eventBody?.heartbeat,
+                        timeout = callbackBody?.timeout ?: eventBody?.timeout,
+                        live = true,
+                    )
+                try {
+                    response.writeStreamedBody(stream, context)
+                } catch (_: StreamAbortedException) {
+                    // Client gone or deadline — finish/close below based on channel state.
+                }
+                if (ctx.channel().isActive) {
+                    stream.finish()
+                    if (!keepAlive) {
+                        ctx.channel().eventLoop().execute { ctx.close() }
+                    }
+                } else {
+                    stream.close()
+                }
+            } catch (t: Throwable) {
+                stream.close()
+                Log.error("Streamed response failed", t)
+                ctx.close()
             }
         }
 
