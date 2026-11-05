@@ -1,11 +1,11 @@
 ---
 title: Broadcasting
-description: Broadcast events to named channels.
+description: Broadcast events over Reverb websockets with channel authorization and Echo.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-**Broadcasting** pushes application events to named channels so listeners (in-process websocket subscribers, tests, or a future network driver) can react.
+**Broadcasting** pushes application events to named channels. Kona ships a first-party **Reverb-class** Netty websocket server (Pusher protocol), `/broadcasting/auth` channel authorization, optional Redis scale-out, and a JavaScript Echo client with Vue composables.
 
 ## Register
 
@@ -16,12 +16,14 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 app.register(BroadcastServiceProvider())
 ```
 
-Config keys:
+Config keys (`config/Broadcasting`):
 
 | Key | Meaning |
 |-----|---------|
 | `broadcasting.default` | Connection name (default `log`) |
-| `broadcasting.connections.{name}.driver` | `log`, `null` / `none`, or `websocket` / `ws` |
+| `broadcasting.connections.{name}.driver` | `log`, `null` / `none`, `websocket` / `ws`, `reverb`, `pusher`, `ably` |
+| `broadcasting.connections.websocket.key/secret/host/port` | Reverb app credentials and bind address |
+| `broadcasting.reverb.scaling` | `false` or `redis` for horizontal fan-out |
 
 ## ShouldBroadcast events
 
@@ -45,10 +47,55 @@ Broadcast.event(new OrderShipped());
 </TabItem>
 </Tabs>
 
-## Ad-hoc broadcasts
+## Reverb websocket server
 
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
+Start the Pusher-protocol server (separate process or `--once` in tests):
+
+```bash
+./grind reverb:start
+# ws://127.0.0.1:8080/app/{REVERB_APP_KEY}
+```
+
+Point the default connection at `reverb` (or `websocket` for in-process listeners) and broadcast as usual. Private / presence channel names are normalized to Pusher wire form (`private-…`, `presence-…`) by [Channel.pusherName].
+
+Embed the hub in-process:
+
+```kotlin
+val hub = Broadcast.manager().hub()
+val reverb = Broadcast.manager().reverb()
+ReverbServer(hub, key = "app-key", host = "127.0.0.1", port = 8080).start()
+```
+
+### Redis scale-out
+
+Set `broadcasting.reverb.scaling=redis` (and register `RedisServiceProvider`). Each Reverb node publishes to Redis pub/sub (`kona:reverb` by default) so sibling nodes fan events to their local sockets.
+
+## Channel authorization
+
+Register `routes/channels` callbacks and POST to `/broadcasting/auth` (registered by `BroadcastServiceProvider` when HTTP is present):
+
+```kotlin
+Broadcast.channel("orders.{orderId}") { user, params ->
+    user != null && params[0] == "42"
+}
+
+Broadcast.channel("chat.{room}") { user, _ ->
+    mapOf("user_id" to "1", "user_info" to mapOf("name" to "Ada"))
+}
+```
+
+Private channels return `{ "auth": "key:signature" }`. Presence channels also include `channel_data`.
+
+## toOthers / socket exclusion
+
+```kotlin
+Broadcast.socket(request.header("X-Socket-Id"))
+Broadcast.to(Channel.publicChannel("orders")).toOthers().event("typing", mapOf("user" to 1))
+```
+
+`ShouldBroadcast` events also honor the thread-local socket id set via `Broadcast.socket(...)`.
+
+## Ad-hoc broadcasts
 
 ```kotlin
 Broadcast.to(Channel.publicChannel("orders"), Channel.privateOf("user.1"))
@@ -59,30 +106,47 @@ Broadcast.to(Channel.publicChannel("orders"), Channel.privateOf("user.1"))
 
 | Driver | Behavior |
 |--------|----------|
-| `log` | Stores payloads in memory (`Broadcast.manager().log().messages()`) — ideal for tests |
+| `log` | Stores payloads in memory — ideal for tests |
 | `null` / `none` | No-op |
-| `websocket` / `ws` | In-process fan-out to registered connection handlers (`WebsocketBroadcaster`) |
+| `websocket` / `ws` | In-process fan-out (`WebsocketBroadcaster`) |
+| `reverb` | Local Reverb hub (+ optional Redis scale-out) |
+| `pusher` | Optional HTTP trigger to Pusher / compatible hosts |
+| `ably` | Optional Ably REST publish |
 
-### Websocket (in-process)
+## JavaScript client (`@konaframework/echo`)
 
-`WebsocketBroadcaster` keeps a channel → listener map. Subscribe locally, then broadcast; each distinct connection receives the payload once even if it listens on multiple matching channels. There is no network socket in this release — the driver is the websocket *shape* (subscribe + fan-out) for tests and Java callers, ready to wrap a Netty endpoint later.
-
-```kotlin
-val ws = Broadcast.manager().websocket()
-ws.subscribe("orders") { channels, event, payload ->
-    // deliver to a client connection
-}
-app.config.set("broadcasting.default", "websocket")
-Broadcast.event(OrderShipped())
+```bash
+npm install @konaframework/echo
 ```
 
-</TabItem>
-<TabItem label="Java">
+```js
+import Echo from '@konaframework/echo'
 
-```java
-WebsocketBroadcaster ws = Broadcast.manager().websocket();
-ws.subscribe("orders", (channels, event, payload) -> { /* … */ });
+window.Echo = new Echo({
+  key: import.meta.env.VITE_REVERB_APP_KEY,
+  wsHost: import.meta.env.VITE_REVERB_HOST ?? '127.0.0.1',
+  wsPort: import.meta.env.VITE_REVERB_PORT ?? 8080,
+  forceTLS: false,
+  authEndpoint: '/broadcasting/auth',
+})
+
+Echo.channel('orders').listen('order.shipped', (e) => console.log(e))
+Echo.private(`user.${id}`).listen('.OrderUpdated', handler)
+Echo.join('kitchen').here(console.log).joining(console.log).leaving(console.log)
 ```
 
-</TabItem>
-</Tabs>
+### Vue composables
+
+```js
+import { useEcho, useEchoPublic } from '@konaframework/echo/vue'
+
+useEchoPublic('orders', {
+  'order.shipped': (payload) => { /* … */ },
+})
+
+useEcho(`orders.${orderId}`, {
+  OrderUpdated: (payload) => { /* … */ },
+})
+```
+
+Wire’s `effects.echo` listeners continue to work when `window.Echo` is present.

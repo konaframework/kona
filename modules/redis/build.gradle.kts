@@ -16,6 +16,13 @@ dependencies {
 kover {
     reports {
         total {
+            filters {
+                excludes {
+                    // Live Lettuce pub/sub — needs RedisClient.connectPubSub(); unit-tested via injected subscriber.
+                    classes("org.konaframework.redis.LettucePubSub")
+                    classes("org.konaframework.redis.LettucePubSub\$*")
+                }
+            }
             verify {
                 rule {
                     bound {

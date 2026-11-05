@@ -4,6 +4,8 @@ import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.sync.RedisCommands
+import io.lettuce.core.pubsub.RedisPubSubAdapter
+import io.lettuce.core.pubsub.StatefulRedisPubSubConnection
 
 /**
  * Narrow sync command surface used by [LettuceRedisConnection] so command
@@ -29,6 +31,8 @@ internal interface RedisSync {
     fun flushdb()
 
     fun ping(): String
+
+    fun publish(channel: String, message: String): Long
 }
 
 /** Adapts Lettuce [RedisCommands] to [RedisSync]. */
@@ -60,6 +64,8 @@ internal class LettuceSync(
     }
 
     override fun ping(): String = commands.ping()
+
+    override fun publish(channel: String, message: String): Long = commands.publish(channel, message)
 }
 
 /**
@@ -67,6 +73,7 @@ internal class LettuceSync(
  */
 class LettuceRedisConnection internal constructor(
     private val sync: RedisSync,
+    private val subscriber: ((Array<out String>, (String, String) -> Unit) -> AutoCloseable)? = null,
     private val onClose: () -> Unit,
 ) : RedisConnection {
     constructor(
@@ -74,6 +81,7 @@ class LettuceRedisConnection internal constructor(
         connection: StatefulRedisConnection<String, String>,
     ) : this(
         LettuceSync(connection.sync()),
+        subscriber = LettucePubSub.factory(client),
         onClose = {
             connection.close()
             client.shutdown()
@@ -110,6 +118,19 @@ class LettuceRedisConnection internal constructor(
     }
 
     override fun ping(): String = sync.ping()
+
+    override fun publish(channel: String, message: String): Long = sync.publish(channel, message)
+
+    override fun subscribe(
+        vararg channels: String,
+        onMessage: (channel: String, message: String) -> Unit,
+    ): AutoCloseable {
+        val sub = subscriber
+            ?: throw UnsupportedOperationException(
+                "Lettuce pub/sub is unavailable on this connection",
+            )
+        return sub(channels, onMessage)
+    }
 
     override fun close() {
         onClose()
@@ -152,4 +173,23 @@ class LettuceRedisConnection internal constructor(
             return LettuceRedisConnection(client, connection)
         }
     }
+}
+
+/**
+ * Live Lettuce pub/sub wiring. Excluded from kover — requires a real [RedisClient.connectPubSub].
+ */
+internal object LettucePubSub {
+    fun factory(client: RedisClient): (Array<out String>, (String, String) -> Unit) -> AutoCloseable =
+        { channels, onMessage ->
+            val pubsub: StatefulRedisPubSubConnection<String, String> = client.connectPubSub()
+            pubsub.addListener(
+                object : RedisPubSubAdapter<String, String>() {
+                    override fun message(channel: String, message: String) {
+                        onMessage(channel, message)
+                    }
+                },
+            )
+            pubsub.sync().subscribe(*channels)
+            AutoCloseable { pubsub.close() }
+        }
 }

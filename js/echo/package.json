@@ -1,0 +1,37 @@
+{
+  "name": "@konaframework/echo",
+  "version": "0.1.0",
+  "description": "Kona Echo — Laravel Echo-class websocket client for Kona Reverb (Pusher protocol).",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/echo.esm.js",
+  "module": "dist/echo.esm.js",
+  "exports": {
+    ".": "./dist/echo.esm.js",
+    "./vue": "./src/vue/index.js"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
+    "esbuild": "^0.25.10",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4",
+    "vue": "^3.5.13"
+  }
+}
