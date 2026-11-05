@@ -64,9 +64,24 @@ internal object FireflyPolicies {
         if (gate == null || Firefly.policyFor(model) == null) return allowWithoutPolicy
         // Prefer the panel request scope; fall back to the app Auth guard (same user after
         // reuseAppGuard + Auth.setRequest) so nav/canViewAny still works if the scope is missing.
-        val user = FireflyAuth.user() ?: runCatching { Auth.user() }.getOrNull()
+        val user = resolvePolicyUser()
         return gate.allows(user, ability, record ?: model)
     }
+
+    /** FireflyAuth first; Auth.user() when the panel scope is empty but the session guard is bound. */
+    private fun resolvePolicyUser(): Authenticatable? {
+        val scoped = FireflyAuth.user()
+        if (scoped != null) return scoped
+        return authUserOrNull()
+    }
+
+    /** Safe [Auth.user] — null when no manager / request is bound. */
+    internal fun authUserOrNull(): Authenticatable? =
+        try {
+            Auth.user()
+        } catch (_: Throwable) {
+            null
+        }
 
     fun hasPolicy(model: Class<*>): Boolean = Firefly.policyFor(model) != null
 

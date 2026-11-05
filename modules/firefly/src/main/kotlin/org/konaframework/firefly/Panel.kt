@@ -560,7 +560,10 @@ open class Panel {
         val signedIn = guard.check()
         // Prefer the guard; fall back to Auth.user() after setRequest so FireflyAuth is never empty
         // when the session is signed in (nav canViewAny / ResourcePolicy need a non-null user).
-        val user = if (signedIn) (guard.user() ?: runCatching { Auth.user() }.getOrNull()) else null
+        val user = when {
+            !signedIn -> null
+            else -> guard.user() ?: FireflyPolicies.authUserOrNull()
+        }
         FireflyAuth.actingAs(user, Supplier {
             val config = tenancy
             if (!route.open && signedIn && !permits(user)) {
