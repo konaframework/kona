@@ -3,6 +3,7 @@ package org.konaframework.redis
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Process-local Redis stand-in for tests and default boot without a server.
@@ -13,6 +14,8 @@ class InMemoryRedisConnection @JvmOverloads constructor(
     private data class Entry(val value: String, val expiresAt: Instant?)
 
     private val store = ConcurrentHashMap<String, Entry>()
+    private val subscribers =
+        ConcurrentHashMap<String, CopyOnWriteArrayList<(channel: String, message: String) -> Unit>>()
 
     override fun get(key: String): String? {
         val entry = store[key] ?: return null
@@ -78,8 +81,34 @@ class InMemoryRedisConnection @JvmOverloads constructor(
 
     override fun ping(): String = "PONG"
 
+    override fun publish(channel: String, message: String): Long {
+        val listeners = subscribers[channel] ?: return 0
+        for (listener in listeners) {
+            listener(channel, message)
+        }
+        return listeners.size.toLong()
+    }
+
+    override fun subscribe(
+        vararg channels: String,
+        onMessage: (channel: String, message: String) -> Unit,
+    ): AutoCloseable {
+        for (channel in channels) {
+            subscribers.getOrPut(channel) { CopyOnWriteArrayList() }.add(onMessage)
+        }
+        return AutoCloseable {
+            for (channel in channels) {
+                subscribers[channel]?.remove(onMessage)
+                if (subscribers[channel]?.isEmpty() == true) {
+                    subscribers.remove(channel)
+                }
+            }
+        }
+    }
+
     override fun close() {
         store.clear()
+        subscribers.clear()
     }
 
     private fun isExpired(entry: Entry): Boolean {

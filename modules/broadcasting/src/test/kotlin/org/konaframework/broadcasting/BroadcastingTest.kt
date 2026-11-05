@@ -5,8 +5,14 @@ import org.konaframework.cadence.DB
 import org.konaframework.cadence.Database
 import org.konaframework.core.Application
 import org.konaframework.core.Config
+import org.konaframework.http.HttpServiceProvider
+import org.konaframework.http.Request
+import org.konaframework.http.Router
+import org.konaframework.redis.InMemoryRedisConnection
+import org.konaframework.redis.RedisManager
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -43,6 +49,7 @@ class BroadcastingTest {
     @AfterEach
     fun clearDb() {
         Database.clearGlobal()
+        Broadcast.clearSocketId()
     }
 
     @Test
@@ -92,6 +99,7 @@ class BroadcastingTest {
         app.config.set("broadcasting.connections.none.driver", "none")
         app.config.set("broadcasting.connections.websocket.driver", "websocket")
         app.config.set("broadcasting.connections.ws.driver", "ws")
+        app.register(HttpServiceProvider())
         app.register(BroadcastServiceProvider()).boot()
 
         val manager = app.resolve(BroadcastManager::class.java)
@@ -111,6 +119,9 @@ class BroadcastingTest {
         assertEquals(7, logs[0].payload["id"])
         assertTrue(!Channel.publicChannel("orders").isPrivate())
         assertTrue(Channel.privateOf("p").isPrivate())
+        assertTrue(Channel.presence("room").isPresence())
+        assertEquals("presence-room", Channel.presence("room").pusherName())
+        assertEquals("private-p", Channel.privateOf("p").pusherName())
 
         Broadcast.event(DefaultsEvent())
         assertTrue(manager.log().messages().any { it.event == "DefaultsEvent" })
@@ -128,6 +139,8 @@ class BroadcastingTest {
             app.config.set("broadcasting.connections.bad.driver", "redis")
             manager.connection("bad")
         }
+
+        assertTrue(app.resolve(Router::class.java).all().any { it.uri.contains("broadcasting/auth") })
     }
 
     @Test
@@ -153,9 +166,9 @@ class BroadcastingTest {
             received += Triple(channels, event, payload)
         }
         val other = WebsocketBroadcaster.Connection { _, _, _ -> }
-        val sub = ws.subscribe("orders", connection)
-        ws.subscribe("orders", other)
-        ws.subscribe("user.1", connection)
+        val sub = ws.subscribe("orders", connection, "sock.1")
+        ws.subscribe("orders", other, "sock.2")
+        ws.subscribe("user.1", connection, "sock.1")
         assertEquals(2, ws.listenerCount("orders"))
         assertEquals(0, ws.listenerCount("missing"))
 
@@ -166,8 +179,14 @@ class BroadcastingTest {
         assertEquals(7, received[0].third["id"])
         assertEquals(1, ws.messages().size)
 
-        ws.broadcast(listOf(Channel.publicChannel("ghost")), "noop", emptyMap())
+        received.clear()
+        Broadcast.socket("sock.1")
+        Broadcast.to(Channel.publicChannel("orders")).toOthers().event("secret", mapOf("x" to 1))
+        assertEquals(0, received.size)
         assertEquals(2, ws.messages().size)
+
+        ws.broadcast(listOf(Channel.publicChannel("ghost")), "noop", emptyMap())
+        assertEquals(3, ws.messages().size)
 
         ws.unsubscribe("orders", other)
         assertEquals(1, ws.listenerCount("orders"))
@@ -178,6 +197,156 @@ class BroadcastingTest {
         assertEquals(0, ws.listenerCount("user.1"))
         ws.clear()
         assertTrue(ws.messages().isEmpty())
+    }
+
+    @Test
+    fun channelAuthorizationAndAuthEndpoint(@TempDir base: Path) {
+        val app = Application(base)
+        app.config.set("broadcasting.default", "websocket")
+        app.config.set("broadcasting.connections.websocket.driver", "websocket")
+        app.config.set("broadcasting.connections.websocket.key", "app-key")
+        app.config.set("broadcasting.connections.websocket.secret", "app-secret")
+        app.register(HttpServiceProvider())
+        app.register(BroadcastServiceProvider()).boot()
+
+        Broadcast.channel("orders.{orderId}") { user, params ->
+            user == "alice" && params == listOf("42")
+        }
+        Broadcast.channel("chat.{room}") { _, _ ->
+            mapOf("user_id" to "9", "user_info" to mapOf("name" to "Ada"))
+        }
+
+        val auth =
+            BroadcastAuth(
+                channels = Broadcast.channels(),
+                key = "app-key",
+                secret = "app-secret",
+                userResolver = { "alice" },
+            )
+        val ok =
+            auth.handle(
+                Request.post(
+                    "/broadcasting/auth",
+                    "socket_id=1.2&channel_name=private-orders.42",
+                ).let {
+                    Request(
+                        "POST",
+                        "/broadcasting/auth",
+                        headers = mapOf("Content-Type" to "application/x-www-form-urlencoded"),
+                        body = "socket_id=1.2&channel_name=private-orders.42",
+                    )
+                },
+            )
+        assertEquals(200, ok.status)
+        assertTrue(ok.body.contains("auth"))
+
+        val denied =
+            auth.handle(
+                Request(
+                    "POST",
+                    "/broadcasting/auth",
+                    headers = mapOf("Content-Type" to "application/x-www-form-urlencoded"),
+                    body = "socket_id=1.2&channel_name=private-orders.99",
+                ),
+            )
+        assertEquals(403, denied.status)
+
+        val presence =
+            auth.handle(
+                Request(
+                    "POST",
+                    "/broadcasting/auth",
+                    headers = mapOf("Content-Type" to "application/x-www-form-urlencoded"),
+                    body = "socket_id=1.2&channel_name=presence-chat.lobby",
+                ),
+            )
+        assertEquals(200, presence.status)
+        assertTrue(presence.body.contains("channel_data"))
+
+        val missing =
+            auth.handle(
+                Request(
+                    "POST",
+                    "/broadcasting/auth",
+                    headers = mapOf("Content-Type" to "application/x-www-form-urlencoded"),
+                    body = "socket_id=&channel_name=",
+                ),
+            )
+        assertEquals(422, missing.status)
+
+        assertTrue(PusherSigner.verify("app-key", "app-secret", "1.2", "private-orders.42", null).not())
+        val signed = PusherSigner.authString("app-key", "app-secret", "1.2", "private-orders.42")
+        assertTrue(PusherSigner.verify("app-key", "app-secret", "1.2", "private-orders.42", signed))
+    }
+
+    @Test
+    fun redisScaleOutAndHttpDrivers(@TempDir base: Path) {
+        val redis = InMemoryRedisConnection()
+        val app = Application(base)
+        app.config.set("broadcasting.default", "reverb")
+        app.config.set("broadcasting.connections.reverb.driver", "reverb")
+        app.config.set("broadcasting.connections.reverb.key", "k")
+        app.config.set("broadcasting.connections.reverb.secret", "s")
+        app.config.set("broadcasting.reverb.scaling", "redis")
+        app.config.set("broadcasting.connections.pusher.driver", "pusher")
+        app.config.set("broadcasting.connections.pusher.app_id", "1")
+        app.config.set("broadcasting.connections.pusher.key", "k")
+        app.config.set("broadcasting.connections.pusher.secret", "s")
+        app.config.set("broadcasting.connections.pusher.port", 443)
+        app.config.set("broadcasting.connections.ably.driver", "ably")
+        app.config.set("broadcasting.connections.ably.key", "ably:key")
+        app.container.singleton(RedisManager::class.java) {
+            RedisManager(app.config).also {
+                // force memory client
+            }
+        }
+        app.config.set("redis.client", "memory")
+        app.register(BroadcastServiceProvider()).boot()
+
+        val manager = app.resolve(BroadcastManager::class.java)
+        val reverb = manager.reverb()
+        reverb.startScaleOutListener()
+        reverb.startScaleOutListener()
+
+        val hub = manager.hub()
+        val received = mutableListOf<String>()
+        val client =
+            object : org.konaframework.broadcasting.reverb.ReverbHub.Client {
+                override fun send(message: String) {
+                    received += message
+                }
+
+                override fun socketId(): String = "9.9"
+            }
+        hub.register(client)
+        hub.subscribe("9.9", "orders", null, null)
+        reverb.broadcast(listOf(Channel.publicChannel("orders")), "ping", mapOf("ok" to true))
+        assertTrue(received.any { it.contains("ping") })
+
+        val pusherRequests = mutableListOf<java.net.http.HttpRequest>()
+        val pusher =
+            PusherBroadcaster("1", "k", "s", host = "example.test", scheme = "http", port = 80) {
+                pusherRequests += it
+            }
+        pusher.broadcast(listOf(Channel.publicChannel("a")), "e", mapOf("x" to 1), "sock")
+        assertEquals(1, pusher.messages().size)
+        assertEquals(1, pusherRequests.size)
+        pusher.clear()
+        assertTrue(pusher.messages().isEmpty())
+
+        val ablyRequests = mutableListOf<java.net.http.HttpRequest>()
+        val ably = AblyBroadcaster("key") { ablyRequests += it }
+        ably.broadcast(listOf(Channel.publicChannel("b")), "e2", mapOf("y" to 2))
+        assertEquals(1, ably.messages().size)
+        assertEquals(1, ablyRequests.size)
+        ably.clear()
+
+        // Resolve optional drivers through the manager (live senders are not invoked here).
+        assertTrue(manager.connection("pusher") is PusherBroadcaster)
+        assertTrue(manager.connection("ably") is AblyBroadcaster)
+
+        reverb.stopScaleOutListener()
+        redis.close()
     }
 
     companion object {

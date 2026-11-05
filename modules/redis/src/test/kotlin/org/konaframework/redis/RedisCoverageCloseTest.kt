@@ -55,6 +55,7 @@ class RedisCoverageCloseTest {
             override fun keys(pattern: String) = emptyList<String>()
             override fun flushdb() {}
             override fun ping() = "PONG"
+            override fun publish(channel: String, message: String) = 0L
         }) {}
         assertEquals(
             fake,

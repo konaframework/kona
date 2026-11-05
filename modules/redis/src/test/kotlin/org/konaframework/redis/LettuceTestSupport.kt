@@ -18,6 +18,7 @@ object LettuceTestSupport {
                 override fun keys(pattern: String): List<String> = emptyList()
                 override fun flushdb() {}
                 override fun ping(): String = "PONG"
+                override fun publish(channel: String, message: String): Long = 0
             },
         ) {}
 

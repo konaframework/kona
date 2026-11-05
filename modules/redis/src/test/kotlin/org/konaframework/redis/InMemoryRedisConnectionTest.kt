@@ -84,4 +84,24 @@ class InMemoryRedisConnectionTest {
         now = start.plusSeconds(2)
         assertEquals(listOf("live"), redis.keys("*"))
     }
+
+    @Test
+    fun publishSubscribeDeliversMessages() {
+        val redis = InMemoryRedisConnection(clock)
+        val received = mutableListOf<Pair<String, String>>()
+        assertEquals(0, redis.publish("ch", "nobody"))
+        val sub = redis.subscribe("ch", "other") { channel, message ->
+            received += channel to message
+        }
+        assertEquals(1, redis.publish("ch", "hi"))
+        assertEquals(listOf("ch" to "hi"), received)
+        val first = redis.subscribe("ch") { _, _ -> }
+        val second = redis.subscribe("ch") { _, _ -> }
+        first.close() // bucket remains (second still subscribed)
+        second.close()
+        sub.close()
+        sub.close() // idempotent — channel already gone
+        assertEquals(0, redis.publish("ch", "again"))
+        redis.close()
+    }
 }

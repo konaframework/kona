@@ -63,6 +63,11 @@ class LettuceRedisConnectionTest {
                 calls += "ping"
                 return "PONG"
             }
+
+            override fun publish(channel: String, message: String): Long {
+                calls += "publish:$channel:$message"
+                return 1
+            }
         }
         var closed = false
         val redis = LettuceRedisConnection(sync) { closed = true }
@@ -77,9 +82,35 @@ class LettuceRedisConnectionTest {
         assertEquals(listOf("a", "b"), redis.keys("*"))
         redis.flushDb()
         assertEquals("PONG", redis.ping())
+        assertEquals(1, redis.publish("ch", "msg"))
+        assertThrows(UnsupportedOperationException::class.java) {
+            redis.subscribe("ch") { _, _ -> }
+        }
         redis.close()
         assertTrue(closed)
         assertTrue(calls.contains("flushdb"))
+    }
+
+    @Test
+    fun subscribeUsesInjectedSubscriber() {
+        var closed = false
+        val redis =
+            LettuceRedisConnection(
+                object : RedisSync by ThrowingSync {
+                    override fun ping(): String = "PONG"
+                    override fun publish(channel: String, message: String): Long = 0
+                },
+                subscriber = { channels, onMessage ->
+                    onMessage(channels.first(), "hi")
+                    AutoCloseable { closed = true }
+                },
+            ) {}
+        val got = mutableListOf<String>()
+        val handle = redis.subscribe("ch") { channel, message -> got += "$channel:$message" }
+        assertEquals(listOf("ch:hi"), got)
+        handle.close()
+        assertTrue(closed)
+        redis.close()
     }
 
     @Test
@@ -103,6 +134,7 @@ class LettuceRedisConnectionTest {
             keys = { listOf("z", "a") },
             flushdb = { "OK" },
             ping = { "PONG" },
+            publish = { _, _ -> 3L },
         )
         val sync = LettuceSync(commands)
         assertEquals("g", sync.get("k"))
@@ -115,6 +147,7 @@ class LettuceRedisConnectionTest {
         assertEquals(listOf("z", "a"), sync.keys("*"))
         sync.flushdb()
         assertEquals("PONG", sync.ping())
+        assertEquals(3, sync.publish("ch", "hi"))
     }
 
     @Test
@@ -231,6 +264,7 @@ class LettuceRedisConnectionTest {
         override fun keys(pattern: String): List<String> = error("unused")
         override fun flushdb() = error("unused")
         override fun ping(): String = error("unused")
+        override fun publish(channel: String, message: String): Long = error("unused")
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -245,6 +279,7 @@ class LettuceRedisConnectionTest {
         keys: (String) -> List<String>,
         flushdb: () -> String,
         ping: () -> String,
+        publish: (String, String) -> Long = { _, _ -> 0L },
     ): RedisCommands<String, String> {
         return Proxy.newProxyInstance(
             RedisCommands::class.java.classLoader,
@@ -277,6 +312,7 @@ class LettuceRedisConnectionTest {
                 "keys" -> keys(args!![0] as String)
                 "flushdb" -> flushdb()
                 "ping" -> ping()
+                "publish" -> publish(args!![0] as String, args[1] as String)
                 else -> null
             }
         } as RedisCommands<String, String>
