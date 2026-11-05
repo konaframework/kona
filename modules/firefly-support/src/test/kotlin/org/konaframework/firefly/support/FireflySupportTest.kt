@@ -349,6 +349,17 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-column-toggle-panel"))
         assertTrue(css.contains("flex-direction: row"))
         assertTrue(css.contains(".ff-panel .ff-sidebar-brand"))
+        assertTrue(css.contains(".ff-panel .ff-nav-side"))
+        // SIDE nav scroller: slim, hover/focus-within-only thumb (#497).
+        assertTrue(css.contains("scrollbar-width: thin"))
+        assertTrue(css.contains("scrollbar-color: transparent transparent"))
+        assertTrue(css.contains(".ff-panel .ff-sidebar:hover .ff-nav-side"))
+        assertTrue(css.contains(".ff-panel .ff-sidebar:focus-within .ff-nav-side"))
+        assertTrue(css.contains(".ff-panel .ff-nav-side::-webkit-scrollbar"))
+        assertTrue(css.contains(".ff-panel .ff-nav-side::-webkit-scrollbar-thumb"))
+        // SIDE active parent group: subtle left border (#498).
+        assertTrue(css.contains(".ff-panel .ff-nav-side .ff-nav-group.ff-nav-group-active"))
+        assertTrue(css.contains("border-left: 2px solid transparent"))
         assertTrue(css.contains(".ff-panel .ff-nav-item"))
         assertTrue(css.contains(".ff-panel .ff-page-heading"))
         assertTrue(css.contains(".ff-panel .ff-page-toolbar"))
@@ -620,6 +631,11 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-table-nav"))
         assertTrue(html.contains("data-ff-mobile-sort"))
         assertTrue(html.contains("data-ff-column-toggle"))
+        // SIDE exclusive accordion chrome (#494 / #496): live toggle closes siblings.
+        assertTrue(html.contains("data-ff-nav-accordion"))
+        assertTrue(html.contains("collapseSiblings"))
+        assertTrue(html.contains("onSummaryClick"))
+        assertTrue(html.contains("data-ff-nav-accordion-armed"))
         assertEquals("", RenderHooks().render(Hook.BODY_START))
 
         val auth = Panel()

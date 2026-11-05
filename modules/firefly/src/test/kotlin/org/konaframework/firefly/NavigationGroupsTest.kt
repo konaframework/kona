@@ -202,6 +202,62 @@ class NavigationGroupsTest {
     }
 
     @Test
+    fun activeParentGroupMarkedWhenHoldingCurrentPage() {
+        fun build() =
+            panel()
+                .navigationGroups(
+                    NavigationGroup.make("Sales").collapsed(),
+                    NavigationGroup.make("Accounting"),
+                )
+                .resource(listed("orders").navigationGroup("Sales"))
+                .resource(listed("invoices").navigationGroup("Accounting"))
+        val idle = sidebar(body(build(), "/admin"))
+        assertFalse(idle.contains("ff-nav-group-active"))
+        val onOrders = sidebar(body(build(), "/admin/orders/list"))
+        assertTrue(
+            onOrders.contains(
+                """<details class="ff-nav-group ff-nav-group-collapsible ff-nav-group-active" data-ff-nav-group="Sales" open>""",
+            ),
+        )
+        assertTrue(onOrders.contains("""<section class="ff-nav-group" data-ff-nav-group="Accounting">"""))
+        val onInvoices = sidebar(body(build(), "/admin/invoices/list"))
+        assertTrue(
+            onInvoices.contains("""<section class="ff-nav-group ff-nav-group-active" data-ff-nav-group="Accounting">"""),
+        )
+        assertFalse(onInvoices.contains("ff-nav-group-collapsible ff-nav-group-active"))
+    }
+
+    @Test
+    fun navigationAccordionMarksSideNavOnly() {
+        val with =
+            panel()
+                .navigationAccordion()
+                .navigationGroups(
+                    NavigationGroup.make("Sales").collapsed(),
+                    NavigationGroup.make("Accounting").collapsed(),
+                )
+                .resource(listed("orders").navigationGroup("Sales"))
+                .resource(listed("invoices").navigationGroup("Accounting"))
+        // Script source also mentions the attribute name — assert on the nav opening tag only.
+        assertTrue(body(with).contains("""<nav class="ff-nav ff-nav-side" data-ff-nav-accordion>"""))
+        val without =
+            panel()
+                .navigationGroups(NavigationGroup.make("Sales").collapsible())
+                .resource(listed("orders").navigationGroup("Sales"))
+        assertFalse(body(without).contains("""<nav class="ff-nav ff-nav-side" data-ff-nav-accordion>"""))
+        // APP chrome ignores accordion even when requested.
+        val app =
+            Panel()
+                .path("admin")
+                .authenticate(false)
+                .navigation(NavigationType.APP)
+                .navigationAccordion()
+                .navigationGroups(NavigationGroup.make("Sales").collapsed())
+                .resource(listed("orders").navigationGroup("Sales"))
+        assertFalse(body(app).contains("""<nav class="ff-nav ff-nav-side" data-ff-nav-accordion>"""))
+    }
+
+    @Test
     fun withoutGroupsTheListStaysFlatAndSortedByLabelThenSort() {
         val panel = panel()
             .resource(listed("b").navigationLabel("Bravo"))
