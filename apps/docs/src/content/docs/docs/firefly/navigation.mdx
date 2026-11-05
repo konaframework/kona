@@ -123,6 +123,8 @@ A blank group, label or color throws `FireflyException`.
 | `collapsible()` | The heading folds its links. It renders as a `<details>` element, so it needs no script |
 | `collapsed()` | Starts folded (and collapsible). A group that holds the current page stays open |
 
+By default every collapsible group opens and closes on its own. For **SIDE** chrome only, call `Panel.navigationAccordion(true)` so opening one collapsible group closes the others (exclusive accordion). The attribute `data-ff-nav-accordion` marks the sidebar nav; a small chrome script enforces exclusivity. APP and TOP ignore the flag.
+
 `Panel.navigationGroups(...)` takes the groups in display order and fails when a label repeats. A group that no item names is not drawn. A group some item names but nobody declared is drawn as a plain heading after the declared ones.
 
 The order in the sidebar is: links with no group, then each declared group, then undeclared groups in the order their first link appears.

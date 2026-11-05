@@ -64,7 +64,7 @@ class DefaultLayout(
                 "body" to body,
                 "footer" to footer,
                 "themeInitScript" to THEME_INIT_SCRIPT,
-                "chromeScript" to chromeScript() + FILTERS_SCRIPT + WIDGETS_SCRIPT,
+                "chromeScript" to chromeScript() + FILTERS_SCRIPT + WIDGETS_SCRIPT + NAV_ACCORDION_SCRIPT,
                 "bodyBackground" to tokens.bodyBackground,
                 "bodyColor" to tokens.heading,
                 "maxWidth" to maxWidth,
@@ -106,6 +106,11 @@ class DefaultLayout(
 
         internal val WIDGETS_SCRIPT: String by lazy {
             "<script>" + Stylesheet.readCss("/org/konaframework/firefly/support/form-widgets.js").trim() + "</script>"
+        }
+
+        /** SIDE exclusive accordion for collapsible nav groups (`data-ff-nav-accordion`). */
+        internal val NAV_ACCORDION_SCRIPT: String by lazy {
+            "<script>" + Stylesheet.readCss("/org/konaframework/firefly/support/nav-accordion.js").trim() + "</script>"
         }
 
         internal fun chromeScript(): String =

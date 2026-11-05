@@ -202,6 +202,36 @@ class NavigationGroupsTest {
     }
 
     @Test
+    fun navigationAccordionMarksSideNavOnly() {
+        val with =
+            panel()
+                .navigationAccordion()
+                .navigationGroups(
+                    NavigationGroup.make("Sales").collapsed(),
+                    NavigationGroup.make("Accounting").collapsed(),
+                )
+                .resource(listed("orders").navigationGroup("Sales"))
+                .resource(listed("invoices").navigationGroup("Accounting"))
+        // Script source also mentions the attribute name — assert on the nav opening tag only.
+        assertTrue(body(with).contains("""<nav class="ff-nav ff-nav-side" data-ff-nav-accordion>"""))
+        val without =
+            panel()
+                .navigationGroups(NavigationGroup.make("Sales").collapsible())
+                .resource(listed("orders").navigationGroup("Sales"))
+        assertFalse(body(without).contains("""<nav class="ff-nav ff-nav-side" data-ff-nav-accordion>"""))
+        // APP chrome ignores accordion even when requested.
+        val app =
+            Panel()
+                .path("admin")
+                .authenticate(false)
+                .navigation(NavigationType.APP)
+                .navigationAccordion()
+                .navigationGroups(NavigationGroup.make("Sales").collapsed())
+                .resource(listed("orders").navigationGroup("Sales"))
+        assertFalse(body(app).contains("""<nav class="ff-nav ff-nav-side" data-ff-nav-accordion>"""))
+    }
+
+    @Test
     fun withoutGroupsTheListStaysFlatAndSortedByLabelThenSort() {
         val panel = panel()
             .resource(listed("b").navigationLabel("Bravo"))

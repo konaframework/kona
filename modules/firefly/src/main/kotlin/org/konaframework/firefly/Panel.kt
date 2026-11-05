@@ -71,6 +71,8 @@ open class Panel {
     private var domainUsing: Function<Get, String>? = null
     private var navigationLiteral: NavigationType = NavigationType.APP
     private var navigationUsing: Function<Get, NavigationType>? = null
+    /** SIDE only: opening one collapsible group closes the others (#494). */
+    private var navigationAccordionFlag: Boolean = false
     private var theme: FireflyTheme = KonaTheme()
     private var layout: PanelLayout = DefaultLayout()
     private val hooks = ArrayList<Pair<Hook, String>>()
@@ -183,6 +185,14 @@ open class Panel {
     }
 
     fun topNavigation(): Panel = navigation(NavigationType.TOP)
+
+    /**
+     * When true (SIDE chrome), only one collapsible navigation group stays open at a time —
+     * opening a group closes its siblings. Non-collapsible groups are unchanged. APP/TOP ignore
+     * this flag. Requires chrome script (`data-ff-nav-accordion` on the sidebar nav).
+     */
+    @JvmOverloads
+    fun navigationAccordion(on: Boolean = true): Panel = apply { navigationAccordionFlag = on }
 
     fun theme(theme: FireflyTheme): Panel = apply { this.theme = theme }
 
@@ -1705,12 +1715,13 @@ open class Panel {
             """<div class="ff-sidebar-brand$logoClass">${brandMarkHtml(branding)}""" +
                 """<button type="button" class="ff-sidebar-close" data-ff-sidebar-close aria-label="Close navigation">${Icon.X.svg()}</button></div>"""
         // TOP already returned. APP: L1 roots only (groups promote to clusters; children go to the top bar).
-        // SIDE: full nested tree with group headings in the sidebar.
+        // SIDE: full nested tree with group headings in the sidebar. Accordion is SIDE-only.
         val nav = if (type == NavigationType.APP) {
             val roots = appLevelOnes(items, navigationGroupList, get)
             """<nav class="ff-nav ff-nav-side">${renderItems(roots, path, spaMode, get, false)}</nav>"""
         } else {
-            """<nav class="ff-nav ff-nav-side">${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
+            val accordion = if (navigationAccordionFlag) " data-ff-nav-accordion" else ""
+            """<nav class="ff-nav ff-nav-side"$accordion>${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
         }
         return brandBlock + nav + sidebarFootHtml(user, branding)
     }

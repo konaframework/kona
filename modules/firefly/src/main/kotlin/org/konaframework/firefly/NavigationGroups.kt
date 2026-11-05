@@ -26,7 +26,10 @@ class NavigationGroup private constructor(val label: String) {
     /** kona-icons name (short or `heroicon-o-…`) drawn beside the heading. */
     fun icon(name: String): NavigationGroup = apply { iconLiteral = name }
 
-    /** Lets the user fold the group. Rendered as `<details>`, so it needs no script. */
+    /**
+     * Lets the user fold the group. Rendered as `<details>`, so it needs no script. Groups stay
+     * independently open unless the panel calls [Panel.navigationAccordion].
+     */
     @JvmOverloads
     fun collapsible(on: Boolean = true): NavigationGroup = apply { collapsibleFlag = on }
 
