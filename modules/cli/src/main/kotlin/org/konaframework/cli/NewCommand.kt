@@ -255,8 +255,10 @@ constructor(
         }
         applyKit(lang, kit, target, variables)
         ScaffoldFrontends.apply(target, kit, css, frontend, script)
-        // Vue auth pages / controllers replace the generic Inertia welcome + Crema login routes.
-        if (kit == "inertia" && (frontend.isEmpty() || frontend == "vue")) {
+        // Vue auth pages / controllers replace the generic Inertia Crema login routes.
+        // Empty frontend matches ScaffoldFrontends (defaults to vue).
+        val inertiaAdapter = frontend.ifEmpty { "vue" }
+        if (kit == "inertia" && inertiaAdapter == "vue") {
             overlayKit("inertia-vue", lang, target, variables)
         }
     }
