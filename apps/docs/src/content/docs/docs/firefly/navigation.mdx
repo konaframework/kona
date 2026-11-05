@@ -137,7 +137,13 @@ Group and badge settings never override [authorization](/docs/firefly/authorizat
 
 ### Groups and the navigation type
 
-With `SIDE` and `APP`, a group is a heading in the sidebar. With `TOP` there is no sidebar, so each group becomes a top-bar entry that holds its links.
+| Type | How groups render |
+|------|-------------------|
+| `SIDE` | A heading in the sidebar above its links |
+| `APP` | Each group becomes an L1 cluster in the sidebar; the active group’s links render in the top bar (same split as nested `NavigationItem` children) |
+| `TOP` | No sidebar — each group becomes a top-bar cluster that holds its links |
+
+Ungrouped level-1 links stay in the sidebar for `APP` and `SIDE`. Clicking an APP group root opens the first link in that group.
 
 ## Build the tree yourself
 

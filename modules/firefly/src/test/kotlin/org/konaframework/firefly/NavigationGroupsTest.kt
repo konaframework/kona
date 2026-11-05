@@ -265,7 +265,8 @@ class NavigationGroupsTest {
             override fun table(table: Table<*, *>): Table<*, *> = table
         }
         val router = Router()
-        Panel().id("desk").path("admin").guard(guard)
+        // SIDE keeps group headings; visibility of empty/denied groups is the same under APP roots.
+        Panel().id("desk").path("admin").guard(guard).navigation(NavigationType.SIDE)
             .navigationGroups(NavigationGroup.make("Content").collapsible(), NavigationGroup.make("Empty"))
             .resource(posts)
             .resource(listed("free").navigationGroup("Misc"))
@@ -310,13 +311,49 @@ class NavigationGroupsTest {
         assertTrue(html.substringAfter("ff-nav-group").contains("""href="/admin/orders/list""""))
     }
 
+    private fun promotedSales(): Panel = Panel().path("admin").authenticate(false)
+        .navigationGroups(NavigationGroup.make("Sales").icon("shopping-bag"))
+        .resource(listed("orders").navigationGroup("Sales").navigationLabel("Sales orders"))
+        .resource(listed("quotes").navigationGroup("Sales").navigationSort(1))
+        .resource(listed("loose").navigationLabel("Loose"))
+
     @Test
-    fun appNavigationKeepsGroupsInTheSidebar() {
-        val panel = Panel().path("admin").authenticate(false)
-            .navigationGroups(NavigationGroup.make("Sales"))
-            .resource(listed("orders").navigationGroup("Sales"))
+    fun appNavigationPromotesGroupsToSidebarRoots() {
+        val panel = promotedSales()
         val html = body(panel, "/admin/orders/list")
-        assertTrue(sidebar(html).contains("""data-ff-nav-group="Sales""""))
-        assertTrue(sidebar(html).contains("""href="/admin/orders/list""""))
+        val side = sidebar(html)
+        // APP: group label is an L1 cluster in the sidebar; leaves are not SIDE-style group sections.
+        assertTrue(side.contains(">Sales<"))
+        assertTrue(side.contains("ff-cluster"))
+        assertFalse(side.contains("""data-ff-nav-group="Sales""""))
+        assertFalse(side.contains(">Sales orders<"))
+        assertFalse(side.contains(">quotes<"))
+        assertTrue(side.contains(">Loose<"))
+        // Active group’s children sit in the top bar.
+        val top = html.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        assertTrue(top.contains(">Sales orders<"))
+        assertTrue(top.contains("""href="/admin/quotes/list""""))
+        assertFalse(top.contains(">Loose<"))
+        assertFalse(top.contains(">Sales<"))
+        // Second member: the cluster stays active via its child, not its own (first-member) URL.
+        val quotes = body(promotedSales(), "/admin/quotes/list")
+        assertTrue(sidebar(quotes).contains("ff-nav-item ff-cluster ff-active"))
+        assertTrue(quotes.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>").contains("ff-active"))
+    }
+
+    @Test
+    fun appNavigationOmitsBlankIconsAndEmptyClusterUrls() {
+        val plain = Panel().path("admin").authenticate(false)
+            .navigationGroups(NavigationGroup.make("Tools"))
+            .item(NavigationItem("calc").label("Calc").group("Tools"))
+            .resource(listed("loose"))
+        val side = sidebar(body(plain))
+        assertTrue(side.contains(">Tools<"))
+        assertTrue(side.contains("ff-cluster"))
+        assertFalse(side.contains("href=\"/admin/calc\""))
+        // No groups: APP stays a flat list (the early return in appLevelOnes).
+        val flat = sidebar(body(Panel().path("admin").authenticate(false).resource(listed("loose"))))
+        assertFalse(flat.contains("ff-cluster"))
+        assertTrue(flat.contains("""href="/admin/loose/list""""), flat)
     }
 }

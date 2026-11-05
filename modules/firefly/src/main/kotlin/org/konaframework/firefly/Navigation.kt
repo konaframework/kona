@@ -12,8 +12,9 @@ import java.util.function.Predicate
  * Where panel navigation links sit in the chrome.
  *
  * - [APP] — level 1 in the sidebar; levels 2–3 of the active level-1 item in the top bar (Shamar shell).
- * - [SIDE] — the full tree in the sidebar.
- * - [TOP] — the full tree in the top bar (no sidebar).
+ *   Navigation groups promote to level-1 clusters; their members render in the top bar.
+ * - [SIDE] — the full tree in the sidebar (groups are headings).
+ * - [TOP] — the full tree in the top bar (no sidebar; groups are inline clusters).
  */
 enum class NavigationType {
     APP,
@@ -233,7 +234,8 @@ internal fun renderItems(
 
 internal fun renderItem(item: NavigationItem, path: String, spa: Boolean, get: Get, nested: Boolean): String {
     val url = item.urlText(get)
-    val active = if (item.isActive(path, get)) " ff-active" else ""
+    // Clusters (APP group roots, manual parents) stay highlighted when a descendant matches.
+    val active = if (itemOrDescendantActive(item, path, get)) " ff-active" else ""
     val cluster = if (item.isCluster()) " ff-cluster" else ""
     val navigate = if (spa && url.isNotEmpty()) " wire:navigate" else ""
     val href = if (url.isEmpty()) "" else " href=\"${escapeHtml(url)}\""
