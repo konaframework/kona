@@ -28,7 +28,9 @@ Durable deepen tracker for `kona-http` (and middleware-linked session CSRF only 
 | API | Status | Notes |
 |-----|--------|-------|
 | Core factories + `withHeaders` | **done** | B1 |
-| `stream` | **done** | B2 — buffered `OutputStream` callback |
+| `stream` | **done** | B2 buffered → [#456](https://github.com/konaframework/kona/issues/456) true chunked Netty stream |
+| `streamDownload` | **done** | [#456](https://github.com/konaframework/kona/issues/456) |
+| `eventStream` / SSE | **done** | [#456](https://github.com/konaframework/kona/issues/456) heartbeat, `Last-Event-ID`, end marker |
 
 ## Middleware
 

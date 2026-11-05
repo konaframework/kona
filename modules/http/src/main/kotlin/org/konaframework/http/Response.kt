@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
 import java.util.function.Consumer
 
 /**
@@ -16,7 +17,9 @@ import java.util.function.Consumer
  * `StartSession` before the session is saved (redirect `with` / `withInput` / `withErrors`).
  *
  * Binary payloads use [bodyBytes]; text factories keep UTF-8 [body] and derive bytes on write.
- * [stream] buffers the callback into memory so every server adapter can serve it today.
+ * [stream], [streamDownload], and [eventStream] defer writing until the server adapter flushes
+ * chunks (`Transfer-Encoding: chunked` on Netty). [bodyBytes] still materializes the writer for
+ * in-process tests.
  */
 class Response(
     var status: Int = 200,
@@ -27,6 +30,10 @@ class Response(
 ) {
     private var binaryBody: ByteArray? = bodyBytes
 
+    /** Deferred chunked body; null for ordinary buffered responses. */
+    internal var streamedBody: StreamedBody? = null
+        private set
+
     /** Pending flash key→value pairs applied on the next request. */
     val sessionFlash: MutableMap<String, Any?> = linkedMapOf()
 
@@ -36,8 +43,34 @@ class Response(
     /** Pending validation errors flashed as `errors`. */
     var sessionErrors: Map<String, List<String>>? = null
 
-    /** Wire body bytes (binary when set; otherwise UTF-8 of [body]). */
-    fun bodyBytes(): ByteArray = binaryBody ?: body.toByteArray(Charsets.UTF_8)
+    /** True when this response writes through a deferred stream callback. */
+    fun isStreamed(): Boolean = streamedBody != null
+
+    /** Wire body bytes (binary when set; otherwise UTF-8 of [body]; streams are materialized). */
+    fun bodyBytes(): ByteArray {
+        binaryBody?.let { return it }
+        val streamed = streamedBody
+        if (streamed != null) {
+            val buffer = ByteArrayOutputStream()
+            runCatching {
+                streamed.writeTo(buffer, StreamedBody.StreamContext.materialize(streamedLastEventId()))
+            }.onFailure { error ->
+                if (error !is StreamAbortedException) {
+                    throw error
+                }
+            }
+            return buffer.toByteArray()
+        }
+        return body.toByteArray(Charsets.UTF_8)
+    }
+
+    /**
+     * Write the deferred stream to [out]. Used by the Netty adapter for true chunked transfer.
+     * No-op when [isStreamed] is false.
+     */
+    fun writeStreamedBody(out: OutputStream, context: StreamedBody.StreamContext = StreamedBody.StreamContext.materialize()) {
+        streamedBody?.writeTo(out, context)
+    }
 
     fun header(name: String, value: String): Response {
         headers[name] = value
@@ -86,12 +119,14 @@ class Response(
     fun withBody(content: String): Response {
         body = content
         binaryBody = null
+        streamedBody = null
         return this
     }
 
     fun withBodyBytes(bytes: ByteArray): Response {
         binaryBody = bytes
         body = ""
+        streamedBody = null
         return this
     }
 
@@ -112,6 +147,9 @@ class Response(
         sessionErrors = LinkedHashMap(errors.mapValues { (_, v) -> v.toList() })
         return this
     }
+
+    private fun streamedLastEventId(): String? =
+        (streamedBody as? StreamedBody.EventStream)?.lastEventId
 
     companion object {
         @JvmStatic
@@ -171,9 +209,11 @@ class Response(
             )
 
         /**
-         * Stream-shaped response: [writer] receives an [OutputStream] and may write incrementally.
-         * The result is buffered in memory so sync adapters can emit a complete body
-         * (Laravel `stream` shape for app code; wire chunking can land later).
+         * True streamed response: [writer] receives an [OutputStream] and Netty flushes each write
+         * as an HTTP chunk on a virtual thread (Laravel `response()->stream`).
+         *
+         * [timeout] bounds how long the writer may run; null means no deadline. Client disconnect
+         * surfaces as [StreamAbortedException].
          */
         @JvmStatic
         @JvmOverloads
@@ -181,11 +221,107 @@ class Response(
             writer: Consumer<OutputStream>,
             contentType: String = "application/octet-stream",
             status: Int = 200,
+            timeout: Duration? = null,
         ): Response {
-            val buffer = ByteArrayOutputStream()
-            writer.accept(buffer)
-            return binary(buffer.toByteArray(), contentType, status)
+            val response =
+                Response(
+                    status = status,
+                    body = "",
+                    headers = linkedMapOf("Content-Type" to contentType),
+                )
+            response.streamedBody = StreamedBody.Callback(writer, timeout)
+            return response
         }
+
+        /**
+         * Streamed file download (Laravel `streamDownload`): same chunked transfer as [stream]
+         * with `Content-Disposition` set for [filename].
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun streamDownload(
+            writer: Consumer<OutputStream>,
+            filename: String,
+            headers: Map<String, String> = emptyMap(),
+            contentType: String? = null,
+            disposition: String = "attachment",
+            status: Int = 200,
+            timeout: Duration? = null,
+        ): Response {
+            val type = contentType ?: MimeTypes.guess(filename)
+            val response = stream(writer, type, status, timeout)
+            response.header("Content-Disposition", contentDisposition(disposition, filename))
+            if (headers.isNotEmpty()) {
+                response.withHeaders(headers)
+            }
+            return response
+        }
+
+        /**
+         * Server-Sent Events stream (`text/event-stream`). The [callback] receives an [SseEmitter]
+         * to emit named events; a comment heartbeat keeps proxies alive; [lastEventId] is exposed
+         * for reconnect replay (pass [Request] via the overload).
+         *
+         * When the callback returns, an `update` event with [endStreamWith] is written unless that
+         * value is null/blank (Laravel default `</stream>`).
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun eventStream(
+            callback: Consumer<SseEmitter>,
+            headers: Map<String, String> = emptyMap(),
+            endStreamWith: String? = StreamedBody.EventStream.DEFAULT_END,
+            heartbeat: Duration = StreamedBody.EventStream.DEFAULT_HEARTBEAT,
+            timeout: Duration? = null,
+            lastEventId: String? = null,
+        ): Response {
+            val response =
+                Response(
+                    status = 200,
+                    body = "",
+                    headers =
+                        linkedMapOf(
+                            "Content-Type" to "text/event-stream; charset=utf-8",
+                            "Cache-Control" to "no-cache",
+                            "Connection" to "keep-alive",
+                            "X-Accel-Buffering" to "no",
+                        ),
+                )
+            if (headers.isNotEmpty()) {
+                response.withHeaders(headers)
+            }
+            response.streamedBody =
+                StreamedBody.EventStream(
+                    callback = callback,
+                    endStreamWith = endStreamWith,
+                    heartbeat = heartbeat,
+                    timeout = timeout,
+                    lastEventId = lastEventId,
+                )
+            return response
+        }
+
+        /**
+         * [eventStream] that reads `Last-Event-ID` from [request] for reconnect support.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun eventStream(
+            request: Request,
+            callback: Consumer<SseEmitter>,
+            headers: Map<String, String> = emptyMap(),
+            endStreamWith: String? = StreamedBody.EventStream.DEFAULT_END,
+            heartbeat: Duration = StreamedBody.EventStream.DEFAULT_HEARTBEAT,
+            timeout: Duration? = null,
+        ): Response =
+            eventStream(
+                callback = callback,
+                headers = headers,
+                endStreamWith = endStreamWith,
+                heartbeat = heartbeat,
+                timeout = timeout,
+                lastEventId = request.header("Last-Event-ID"),
+            )
 
         /**
          * Inline file response (Laravel `Response::file` shape).

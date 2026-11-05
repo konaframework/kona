@@ -292,7 +292,9 @@ Static factories cover the common cases. Body factories set a `Content-Type` for
 | `Response.redirect(to, status)` | Empty, status `302` by default | Sets `Location` |
 | `Response.back(request, fallback, status)` | Empty redirect | Previous URL → `Referer` → `fallback` |
 | `Response.binary(bytes, contentType, status)` | Raw bytes | Defaults to `application/octet-stream` |
-| `Response.stream(writer, contentType, status)` | Bytes produced by writing to an `OutputStream` (buffered in memory for adapters) | Defaults to `application/octet-stream` |
+| `Response.stream(writer, contentType, status, timeout)` | Chunked body written to an `OutputStream` as the writer runs | Defaults to `application/octet-stream`; Netty uses `Transfer-Encoding: chunked` |
+| `Response.streamDownload(writer, filename, …)` | Chunked attachment download | Sets `Content-Disposition`; optional headers / content type |
+| `Response.eventStream(callback, …)` / `eventStream(request, …)` | Server-Sent Events (`text/event-stream`) | Heartbeat comments, `Last-Event-ID`, optional end marker `</stream>` |
 | `Response.file(bytes|path, …)` | Inline file bytes | Optional `Content-Disposition: inline` |
 | `Response.download(bytes|path, filename, …)` | Attachment bytes | `Content-Disposition: attachment` |
 
@@ -308,7 +310,17 @@ Scaffolded `GET /api/users` returns `User.all().map { it.toArray() }` through `R
 
 Binary factories set `bodyBytes()` so the embedded server writes the payload without UTF-8 re-encoding. Prefer them for PDFs, images, and anything that is not text.
 
-Chain `header(name, value)`, `withHeaders(map)`, `cookie(...)`, `withStatus`, and `withBody` / `withBodyBytes` on any response. `Response.stream` lets app code write incrementally to an `OutputStream`; the result is buffered so every server adapter can emit a complete body today.
+Chain `header(name, value)`, `withHeaders(map)`, `cookie(...)`, `withStatus`, and `withBody` / `withBodyBytes` on any response.
+
+### Streamed responses
+
+`Response.stream`, `streamDownload`, and `eventStream` defer the body until the Netty adapter writes it. Each write is flushed as an HTTP chunk on the request's virtual thread (`Transfer-Encoding: chunked`). Client disconnect and optional `timeout` deadlines surface as `StreamAbortedException` — stop writing and return. Backpressure waits when the channel write buffer is above the high water mark.
+
+`bodyBytes()` still materializes the writer in-process (feature tests, non-Netty adapters). Prefer a live server when you need to assert incremental flush behaviour.
+
+**SSE.** `Response.eventStream` sets `Content-Type: text/event-stream`, disables proxy buffering (`X-Accel-Buffering: no`), and passes an `SseEmitter` to your callback. Use the `Request` overload (or `lastEventId`) so reconnects can read `Last-Event-ID`. A comment heartbeat (default 15s) keeps idle proxies from closing the socket. When the callback returns, an `update` event with `</stream>` is written unless you pass a blank/`null` end marker.
+
+In tests, `TestResponse.assertStreamed()`, `sseEvents(limit)`, and `assertSseEventCount(n)` cover the common assertions.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -323,6 +335,18 @@ router.post("/users") { Response.json(mapOf("id" to 43), 201) }
 router.delete("/users/{id}") { Response.noContent() }
 router.post("/save") { Response.redirect("/done").with("status", "Saved") }
 router.get("/report.pdf") { Response.download(pdfBytes, "report.pdf") }
+router.get("/export.csv") {
+    Response.streamDownload({ out ->
+        out.write("id,name\n".toByteArray())
+        out.write("1,Ada\n".toByteArray())
+    }, "export.csv", contentType = "text/csv")
+}
+router.get("/events") { request ->
+    Response.eventStream(request) { emit ->
+        emit.emit("hello")
+        emit.emit(StreamedEvent("ping", mapOf("ok" to true)))
+    }
+}
 ```
 
 </TabItem>
@@ -338,6 +362,14 @@ router.post("/users", request -> Response.json(Map.of("id", 43), 201));
 router.delete("/users/{id}", request -> Response.noContent());
 router.post("/save", request -> Response.redirect("/done").with("status", "Saved"));
 router.get("/report.pdf", request -> Response.download(pdfBytes, "report.pdf"));
+router.get("/export.csv", request -> Response.streamDownload(out -> {
+    out.write("id,name\n".getBytes());
+    out.write("1,Ada\n".getBytes());
+}, "export.csv"));
+router.get("/events", request -> Response.eventStream(request, emit -> {
+    emit.emit("hello");
+    emit.emit(new StreamedEvent("ping", Map.of("ok", true)));
+}));
 ```
 
 </TabItem>

@@ -107,6 +107,54 @@ class FeatureCoverageTest {
         TestResponse(Response.json(mapOf("ok" to true)), mapper2).assertOk()
         TestResponse(Response.json(mapOf("ok" to true)), mapper2, null).assertOk()
         TestResponse(Response.json(mapOf("ok" to true)), mapper2, null) { _, _ -> "/" }.assertOk()
+        val streamed =
+            TestResponse(
+                Response.eventStream(
+                    { emit ->
+                        emit.emit("one")
+                        emit.emit(org.konaframework.http.StreamedEvent("ping", "two"))
+                    },
+                    endStreamWith = null,
+                    heartbeat = java.time.Duration.ZERO,
+                ),
+            )
+        streamed.assertStreamed().assertSseEventCount(2)
+        assertEquals("one", streamed.sseEvents(1).single().data)
+        assertEquals("ping", streamed.sseEvents()[1].event)
+        assertThrows(IllegalArgumentException::class.java) {
+            TestResponse(Response.text("x")).assertStreamed()
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            streamed.assertSseEventCount(9)
+        }
+        val rawSse =
+            TestResponse(
+                Response.text(
+                    ": keep\n\n" +
+                        "id: 1\nevent: note\ndata:a\ndata: b\n\n" +
+                        "data:trailing",
+                ),
+            )
+        val parsed = rawSse.sseEvents()
+        assertEquals(2, parsed.size)
+        assertEquals("1", parsed[0].id)
+        assertEquals("note", parsed[0].event)
+        assertEquals("a\nb", parsed[0].data)
+        assertEquals("trailing", parsed[1].data)
+        assertEquals(1, rawSse.sseEvents(1).size)
+        assertEquals(2, rawSse.sseEvents(null).size)
+        assertEquals(2, rawSse.sseEvents(10).size)
+        assertTrue(rawSse.bodyBytes().isNotEmpty())
+        assertTrue(!rawSse.isStreamed())
+        val namedEmpty = TestResponse(Response.text("event: only\n\nid: 9\n\n")).sseEvents()
+        assertEquals("only", namedEmpty[0].event)
+        assertEquals("9", namedEmpty[1].id)
+        assertTrue(TestResponse(Response.text("\n\n")).sseEvents().isEmpty())
+        assertEquals("x", TestResponse(Response.text("data:x\n\n")).sseEvents().single().data)
+        assertEquals(
+            "x",
+            TestResponse(Response.text("retry: 10\nfoo: bar\ndata:x\n\n")).sseEvents().single().data,
+        )
         assertThrows(IllegalArgumentException::class.java) {
             TestResponse(Response.text("x", 302).header("Location", "")).assertRedirect()
         }
