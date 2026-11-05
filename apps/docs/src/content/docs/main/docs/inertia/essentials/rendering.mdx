@@ -44,11 +44,13 @@ Inertia.render("Pages/Users/Index", Map.of(
 | Field | Meaning |
 |-------|---------|
 | `component` | Client component name (e.g. `Pages/Home`) |
-| `props` | Merged shared + request-shared + local props |
-| `url` | `request.path` |
+| `props` | Merged shared + request-shared + local props (resolved) |
+| `url` | Path + query string |
 | `version` | Manager version, or `null` when empty |
+| `encryptHistory` / `clearHistory` | History flags |
+| `deferredProps` / `mergeProps` / … | Inertia 2 metadata when applicable |
 
-Prop merge order: **global shared** → **per-request shared** (middleware) → **local props** (wins on key clash).
+Prop merge order: **global shared** → **per-request shared** (middleware) → **local props** (wins on key clash). See [Prop types](../prop-types/) for `optional` / `defer` / `merge`.
 
 ## Component naming
 

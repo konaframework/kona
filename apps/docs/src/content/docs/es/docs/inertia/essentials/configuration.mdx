@@ -1,31 +1,37 @@
 ---
-title: Configuración
-description: Todas las claves inertia.* y cómo las aplica InertiaServiceProvider.
+title: Configuration
+description: All inertia.* config keys and how InertiaServiceProvider applies them.
 ---
 
-`InertiaServiceProvider` lee la configuración en `register` / `boot`:
+`InertiaServiceProvider` reads config in `register` / `boot`:
 
-| Clave | Tipo | Efecto |
-|-------|------|--------|
-| `inertia.root_view` | string | Asigna `InertiaManager.rootView` |
-| `inertia.root_html` | string | Asigna `InertiaManager.rootHtml` |
-| `inertia.version` | string | Asigna `InertiaManager.version` |
-| `inertia.public_path` | string de ruta | Directorio público de Vite; predeterminado `<app.basePath>/public` |
+| Key | Type | Effect |
+|-----|------|--------|
+| `inertia.root_view` | string | Sets `InertiaManager.rootView` |
+| `inertia.root_html` | string | Sets `InertiaManager.rootHtml` (`@page`, `@vite`, `@ssrHead`, `@ssrBody`) |
+| `inertia.version` | string | Sets `InertiaManager.version` |
+| `inertia.public_path` | path string | Vite public directory; default `<app.basePath>/public` |
+| `inertia.history.encrypt` | `true` / `1` | Default `encryptHistory` page flag |
+| `inertia.ssr.enabled` | `true` / `1` | Enable Node SSR gateway |
+| `inertia.ssr.url` | URL | SSR base (default `http://127.0.0.1:13714`) |
 
-Ejemplo:
+Example:
 
 ```kotlin
 .configure { cfg ->
     cfg.set("inertia.root_view", "app")
     cfg.set("inertia.version", "1")
+    cfg.set("inertia.history.encrypt", "false")
+    cfg.set("inertia.ssr.enabled", "false")
     cfg.set("inertia.public_path", app.basePath.resolve("public").toString())
 }
 ```
 
-Cambios en runtime después del arranque:
+Runtime changes after boot:
 
 ```kotlin
 Inertia.version("2")
 Inertia.manager().rootView = "shell"
 Inertia.manager().viteEntries = listOf("resources/js/app.js")
+Inertia.manager().ssr.enabled = true
 ```

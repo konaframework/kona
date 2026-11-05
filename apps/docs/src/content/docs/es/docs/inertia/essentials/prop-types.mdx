@@ -1,0 +1,71 @@
+---
+title: Prop types
+description: optional, always, defer, merge, and deepMerge props for Inertia 2.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Inertia 2 props can be plain values or wrappers that change when they resolve and how the client merges them.
+
+| Helper | Full visit | Partial visit | Page metadata |
+|--------|------------|---------------|---------------|
+| plain value / lambda | included | if selected | — |
+| `Inertia.optional { }` | omitted | if selected | — |
+| `Inertia.lazy { }` | same as optional (deprecated alias) | if selected | — |
+| `Inertia.always(...)` | included | **always** | — |
+| `Inertia.defer { }` | omitted; listed under `deferredProps` | if selected | `deferredProps` |
+| `Inertia.merge(...)` | included | if selected | `mergeProps` |
+| `Inertia.deepMerge(...)` | included | if selected | `deepMergeProps` |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Inertia.render(
+    "Users/Index",
+    mapOf(
+        "users" to User.all(),
+        "permissions" to Inertia.defer { Permission.all() },
+        "roles" to Inertia.defer({ Role.all() }, "attributes"),
+        "results" to Inertia.merge(page),
+        "filters" to Inertia.deepMerge(filters),
+        "heavy" to Inertia.optional { expensive() },
+    ),
+)
+```
+
+Chain on deferred props: `Inertia.defer { rows() }.deepMerge()`.
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Inertia.render("Users/Index", Map.of(
+    "users", User.all(),
+    "permissions", Inertia.defer(Permission::all),
+    "roles", Inertia.defer(Role::all, "attributes"),
+    "results", Inertia.merge(page),
+    "filters", Inertia.deepMerge(filters),
+    "heavy", Inertia.optional(this::expensive)
+));
+```
+
+</TabItem>
+</Tabs>
+
+## Deferred groups
+
+Deferred props share a group name (default `"default"`). The client issues one partial reload per group after the first paint. Pass the group as the second argument to `Inertia.defer`.
+
+## Merge / prepend / match
+
+- `Inertia.merge(value)` → append on partial reload (`mergeProps`)
+- `.prepend()` on a `MergeProp` / `DeferProp` → `prependProps`
+- `Inertia.deepMerge(value)` → `deepMergeProps`
+- `.matchOn("id")` → `matchPropsOn` entries like `results.id`
+- `X-Inertia-Reset` drops merge metadata for those keys on that request
+
+## Related
+
+- [Partial reloads](../partial-reloads/)
+- [Rendering pages](../rendering/)

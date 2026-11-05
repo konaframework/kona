@@ -1,31 +1,37 @@
 ---
-title: 配置
-description: 全部 inertia.* 配置键，以及 InertiaServiceProvider 如何应用它们。
+title: Configuration
+description: All inertia.* config keys and how InertiaServiceProvider applies them.
 ---
 
-`InertiaServiceProvider` 在 `register` / `boot` 中读取配置：
+`InertiaServiceProvider` reads config in `register` / `boot`:
 
-| 键 | 类型 | 作用 |
-|----|------|------|
-| `inertia.root_view` | 字符串 | 设置 `InertiaManager.rootView` |
-| `inertia.root_html` | 字符串 | 设置 `InertiaManager.rootHtml` |
-| `inertia.version` | 字符串 | 设置 `InertiaManager.version` |
-| `inertia.public_path` | 路径字符串 | Vite 的 public 目录；默认 `<app.basePath>/public` |
+| Key | Type | Effect |
+|-----|------|--------|
+| `inertia.root_view` | string | Sets `InertiaManager.rootView` |
+| `inertia.root_html` | string | Sets `InertiaManager.rootHtml` (`@page`, `@vite`, `@ssrHead`, `@ssrBody`) |
+| `inertia.version` | string | Sets `InertiaManager.version` |
+| `inertia.public_path` | path string | Vite public directory; default `<app.basePath>/public` |
+| `inertia.history.encrypt` | `true` / `1` | Default `encryptHistory` page flag |
+| `inertia.ssr.enabled` | `true` / `1` | Enable Node SSR gateway |
+| `inertia.ssr.url` | URL | SSR base (default `http://127.0.0.1:13714`) |
 
-示例：
+Example:
 
 ```kotlin
 .configure { cfg ->
     cfg.set("inertia.root_view", "app")
     cfg.set("inertia.version", "1")
+    cfg.set("inertia.history.encrypt", "false")
+    cfg.set("inertia.ssr.enabled", "false")
     cfg.set("inertia.public_path", app.basePath.resolve("public").toString())
 }
 ```
 
-启动之后的运行时修改：
+Runtime changes after boot:
 
 ```kotlin
 Inertia.version("2")
 Inertia.manager().rootView = "shell"
 Inertia.manager().viteEntries = listOf("resources/js/app.js")
+Inertia.manager().ssr.enabled = true
 ```

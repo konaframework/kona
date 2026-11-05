@@ -1,26 +1,28 @@
 ---
-title: Kotlin 与 Java API
-description: 可供 Java 调用的表面、重载，以及本仓库里的示例应用。
+title: Kotlin & Java API
+description: Java-callable surface, prop helpers, and sample apps.
 ---
 
-每个公开入口都是 `@JvmStatic` 或开放的 Java 类，因此 Java 应用调用的是同一套 API。
+Every public entry point is `@JvmStatic` or an open Java class so Java apps call the same API.
 
-## 门面（`Inertia`）
+## Facade (`Inertia`)
 
 - `setManager` / `manager` / `reset`
-- `render`（1 到 3 个参数的重载）
-- `share`（键值对和映射）
+- `render` (1–3 argument overloads)
+- `share` (key/value and map)
 - `version`
 - `location`
+- `encryptHistory()` / `encryptHistory(boolean)` / `clearHistory()`
+- `optional` / `lazy` / `always` / `defer` / `merge` / `deepMerge`
 
-## 中间件
+## Middleware
 
-扩展 `HandleInertiaRequests` 并覆盖 `share` / `version`。返回类型使用 Java 可以用 `Map.of` 构造的映射。
+Extend `HandleInertiaRequests` and override `share` / `version` / `defaultShare`. Return types use maps that Java can construct with `Map.of`.
 
-## 示例
+## Samples
 
-| 示例 | 路径 |
-|------|------|
+| Sample | Path |
+|--------|------|
 | Kotlin | `samples/inertia-kotlin` |
 | Java | `samples/inertia-java` |
 

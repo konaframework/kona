@@ -1,6 +1,6 @@
 ---
-title: Conflit de version
-description: Forcez un 409 lorsque la version des assets du client est périmée.
+title: Version conflict
+description: Force a 409 when the client asset version is stale.
 ---
 
 ```kotlin
@@ -13,7 +13,7 @@ val response = kernel.handle(
         "X-Inertia-Version" to "client",
     )),
 )
-// status 409, X-Inertia: true, X-Inertia-Version: server
+// status 409, X-Inertia-Location: /, X-Inertia-Version: server
 ```
 
-Les clients traitent `409` comme le signal d’un rechargement complet de la page.
+Clients treat `409` + `X-Inertia-Location` as a signal to perform a full `window.location` visit.

@@ -13,7 +13,7 @@ val response = kernel.handle(
         "X-Inertia-Version" to "client",
     )),
 )
-// status 409, X-Inertia: true, X-Inertia-Version: server
+// status 409, X-Inertia-Location: /, X-Inertia-Version: server
 ```
 
-Clients treat `409` as a signal to perform a full page reload.
+Clients treat `409` + `X-Inertia-Location` as a signal to perform a full `window.location` visit.

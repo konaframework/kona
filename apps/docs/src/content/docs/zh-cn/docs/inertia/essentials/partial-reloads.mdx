@@ -1,0 +1,61 @@
+---
+title: Partial reloads
+description: Honor X-Inertia-Partial-Component, Partial-Data, and Partial-Except.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Partial reloads ask the server for a subset of props on a later visit to the **same** page component. The client sends:
+
+| Header | Meaning |
+|--------|---------|
+| `X-Inertia-Partial-Component` | Component name that must match the rendered page |
+| `X-Inertia-Partial-Data` | Comma-separated props to include (`only`) |
+| `X-Inertia-Partial-Except` | Comma-separated props to exclude |
+
+When the partial component header is missing or does not match, Kona treats the visit as a full reload.
+
+## Filtering rules
+
+1. If `X-Inertia-Partial-Data` is present, start from that prop list.
+2. If `X-Inertia-Partial-Except` is present, remove those keys (except wins when a key appears in both).
+3. Props wrapped in `Inertia.always(...)` are always merged back in (typical for `errors`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/pos") {
+    Inertia.render(
+        "Pos/Register",
+        mapOf(
+            "catalog" to catalog(),
+            "cart" to cart(),
+            "errors" to Inertia.always(emptyMap<String, Any?>()),
+        ),
+    )
+}
+```
+
+Client: `router.reload({ only: ['cart'] })` → server returns `cart` + always props.
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/pos", request ->
+    Inertia.render("Pos/Register", Map.of(
+        "catalog", catalog(),
+        "cart", cart(),
+        "errors", Inertia.always(Map.of())
+    ))
+);
+```
+
+</TabItem>
+</Tabs>
+
+## Related
+
+- [Prop types](../prop-types/) — optional, deferred, merge
+- [Requests & responses](../requests-responses/)

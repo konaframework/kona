@@ -1,25 +1,27 @@
 ---
-title: API Kotlin et Java
-description: Surface appelable depuis Java, surcharges et applications d’exemple de ce dépôt.
+title: Kotlin & Java API
+description: Java-callable surface, prop helpers, and sample apps.
 ---
 
-Chaque point d’entrée public est `@JvmStatic` ou une classe Java ouverte, afin que les applications Java appellent la même API.
+Every public entry point is `@JvmStatic` or an open Java class so Java apps call the same API.
 
-## Façade (`Inertia`)
+## Facade (`Inertia`)
 
 - `setManager` / `manager` / `reset`
-- `render` (surcharges à 1–3 arguments)
-- `share` (clé/valeur et map)
+- `render` (1–3 argument overloads)
+- `share` (key/value and map)
 - `version`
 - `location`
+- `encryptHistory()` / `encryptHistory(boolean)` / `clearHistory()`
+- `optional` / `lazy` / `always` / `defer` / `merge` / `deepMerge`
 
 ## Middleware
 
-Étendez `HandleInertiaRequests` et surchargez `share` / `version`. Les types de retour utilisent des maps que Java peut construire avec `Map.of`.
+Extend `HandleInertiaRequests` and override `share` / `version` / `defaultShare`. Return types use maps that Java can construct with `Map.of`.
 
-## Exemples
+## Samples
 
-| Exemple | Chemin |
+| Sample | Path |
 |--------|------|
 | Kotlin | `samples/inertia-kotlin` |
 | Java | `samples/inertia-java` |

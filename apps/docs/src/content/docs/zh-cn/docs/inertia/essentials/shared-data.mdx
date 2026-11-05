@@ -1,13 +1,13 @@
 ---
-title: 共享数据
-description: 全局 Inertia.share、每次请求的中间件共享，以及合并规则。
+title: Shared data
+description: Global share, middleware defaults (errors + flash), and merge rules.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-## 全局共享
+## Global share
 
-在进程存活期间一直存在（或直到被清空）：
+Lives for the life of the process (or until cleared):
 
 ```kotlin
 Inertia.share("appName", "Kona")
@@ -19,11 +19,18 @@ Inertia.share("appName", "Kona");
 Inertia.share(Map.of("features", List.of("a", "b")));
 ```
 
-用 `Inertia.manager().shared()` 查看。用 `manager.clearShared()` 清空。
+Inspect with `Inertia.manager().shared()`. Clear with `manager.clearShared()`.
 
-## 每次请求的共享
+## Middleware defaults
 
-子类化中间件：
+`HandleInertiaRequests` always merges **default share** before your `share(request)` override:
+
+| Prop | Source |
+|------|--------|
+| `errors` | Session `errors` flash as `Inertia.always(...)` (first message per field). With `X-Inertia-Error-Bag`, nested under that bag name. |
+| `flash` | Session keys `success`, `error`, `warning`, `info`, `status` |
+
+Override `defaultShare(request)` to replace those defaults, or override `share(request)` to add app props (they win on key clash).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -31,7 +38,6 @@ Inertia.share(Map.of("features", List.of("a", "b")));
 ```kotlin
 class HandleInertia : HandleInertiaRequests() {
     override fun share(request: Request) = mapOf(
-        "path" to request.path,
         "auth" to mapOf("user" to currentUser(request)),
     )
 }
@@ -52,24 +58,17 @@ public class HandleInertia extends HandleInertiaRequests {
 </TabItem>
 </Tabs>
 
-内部会在本次请求期间调用 `manager.shareForRequest(props)`。中间件结束时会清空 ThreadLocal 映射。
+## Merge order
 
-## 合并顺序
+1. Global `share`
+2. Middleware `defaultShare` + `share` / `shareForRequest`
+3. Props passed to `Inertia.render` (highest priority)
 
-1. 全局 `share`
-2. 中间件 / `shareForRequest`
-3. 传给 `Inertia.render` 的属性（优先级最高）
+## Validation errors
 
-重复的键以后面的层为准。把稳定的应用元数据放在全局共享里，把随请求变化的闪存和认证放在中间件里，控制器就可以保持精简。
+`ValidationException` already redirects back with flashed errors for non-JSON requests (Inertia clients send HTML Accept). The next Inertia render picks them up via `errors`. Partial reloads still receive `errors` because they are wrapped in `Inertia.always`.
 
-## 闪存式做法
+## Related
 
-`kona-inertia` 里没有单独的“闪存”袋。常见做法：
-
-1. 在控制器或过滤器里把闪存放进会话。
-2. 在 `share(request)` 里读取并清除该会话键，放进属性（例如 `"flash" to mapOf("success" to …)`）。
-3. 在客户端从 `usePage().props.flash` 显示（Vue/React 适配器 API — 见 [inertiajs.com](https://inertiajs.com/shared-data)）。
-
-## 测试共享属性
-
-在单元测试里启动管理器，调用 `share` / `shareForRequest`，用显式的 `Request` 渲染，并断言 JSON 属性映射。见[测试](../../dx/testing/)。
+- [Prop types](../prop-types/)
+- [Middleware](../middleware/)

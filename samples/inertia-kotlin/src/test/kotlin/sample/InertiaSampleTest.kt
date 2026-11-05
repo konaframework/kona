@@ -52,6 +52,23 @@ class InertiaSampleTest {
         assertEquals("Pages/Welcome", page["component"].asText())
         assertEquals("Welcome to Kona Inertia", page["props"]["message"].asText())
         assertEquals("Inertia sample (Kotlin)", page["props"]["appName"].asText())
+        assertTrue(page["props"].has("errors"))
+        assertTrue(page["props"].has("flash"))
+        assertTrue(page.has("deferredProps"))
+        assertTrue(page.has("mergeProps"))
         assertEquals("1", page["version"].asText())
+    }
+
+    @Test
+    fun `put redirect becomes 303 for inertia`() {
+        val response = kernel().handle(
+            Request(
+                "PUT",
+                "/profile",
+                headers = mapOf("X-Inertia" to "true", "X-Inertia-Version" to "1"),
+            ),
+        )
+        assertEquals(303, response.status)
+        assertEquals("/about", response.headers["Location"])
     }
 }

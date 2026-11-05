@@ -13,7 +13,11 @@ import org.konaframework.crema.assets.Vite
  * Config keys (optional):
  * - `inertia.root_view` — Crema view name for the HTML shell
  * - `inertia.version` — asset version string (`X-Inertia-Version`)
+ * - `inertia.root_html` — plain HTML shell with `@page` / `@vite` / `@ssrHead` / `@ssrBody`
  * - `inertia.public_path` — directory containing `hot` and `build/` (also `vite.public_path`; default `<base>/public`)
+ * - `inertia.history.encrypt` — default `encryptHistory` page flag (`true` / `false`)
+ * - `inertia.ssr.enabled` — POST page objects to a Node SSR server
+ * - `inertia.ssr.url` — SSR base URL (default `http://127.0.0.1:13714`)
  */
 class InertiaServiceProvider : ServiceProvider {
     override fun register(app: Application) {
@@ -41,5 +45,12 @@ class InertiaServiceProvider : ServiceProvider {
         app.config.getString("inertia.root_view")?.let { inertia.rootView = it }
         app.config.getString("inertia.version")?.let { inertia.version = it }
         app.config.getString("inertia.root_html")?.let { inertia.rootHtml = it }
+        app.config.getString("inertia.history.encrypt")?.let {
+            inertia.encryptHistory = it.equals("true", ignoreCase = true) || it == "1"
+        }
+        app.config.getString("inertia.ssr.enabled")?.let {
+            inertia.ssr.enabled = it.equals("true", ignoreCase = true) || it == "1"
+        }
+        app.config.getString("inertia.ssr.url")?.let { inertia.ssr.url = it }
     }
 }

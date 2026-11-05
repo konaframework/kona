@@ -1,20 +1,20 @@
 ---
-title: Renderizar páginas
-description: Sobrecargas de Inertia.render, props de página y la forma de InertiaPage.
+title: Rendering pages
+description: Inertia.render overloads, page props, and the InertiaPage shape.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-## API de la fachada
+## Facade API
 
-| Llamada | Comportamiento |
+| Call | Behavior |
 |------|----------|
-| `Inertia.render(component)` | Props vacías; usa la petición actual del middleware |
-| `Inertia.render(component, props)` | Lo mismo con un mapa de props |
-| `Inertia.render(request, component)` | Petición explícita |
-| `Inertia.render(request, component, props)` | Petición explícita + props |
+| `Inertia.render(component)` | Props empty; uses current request from middleware |
+| `Inertia.render(component, props)` | Same with props map |
+| `Inertia.render(request, component)` | Explicit request |
+| `Inertia.render(request, component, props)` | Explicit request + props |
 
-Sin middleware (o `manager.setRequest`), las llamadas que omiten `request` lanzan `InertiaException`.
+Without middleware (or `manager.setRequest`), calls that omit `request` throw `InertiaException`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -37,34 +37,36 @@ Inertia.render("Pages/Users/Index", Map.of(
 </TabItem>
 </Tabs>
 
-## Objeto de página
+## Page object
 
-Campos de `InertiaPage` serializados a JSON / `data-page`:
+`InertiaPage` fields serialized to JSON / `data-page`:
 
-| Campo | Significado |
+| Field | Meaning |
 |-------|---------|
-| `component` | Nombre del componente cliente (p. ej. `Pages/Home`) |
-| `props` | Props fusionadas: compartidas + compartidas de la petición + locales |
-| `url` | `request.path` |
-| `version` | Versión del manager, o `null` cuando está vacía |
+| `component` | Client component name (e.g. `Pages/Home`) |
+| `props` | Merged shared + request-shared + local props (resolved) |
+| `url` | Path + query string |
+| `version` | Manager version, or `null` when empty |
+| `encryptHistory` / `clearHistory` | History flags |
+| `deferredProps` / `mergeProps` / … | Inertia 2 metadata when applicable |
 
-Orden de fusión de props: **compartidas globales** → **compartidas por petición** (middleware) → **props locales** (ganan si la clave choca).
+Prop merge order: **global shared** → **per-request shared** (middleware) → **local props** (wins on key clash). See [Prop types](../prop-types/) for `optional` / `defer` / `merge`.
 
-## Nombres de componente
+## Component naming
 
-La cadena `component` es opaca para Kona — se reenvía al cliente. Por convención el kit y los esqueletos de `./grind install` usan `Pages/Name` y resuelven archivos bajo `src/main/resources/js/Pages/Name.{vue,jsx,svelte}`. Mantén el nombre del servidor y del cliente alineados o el navegador lanzará «page not found».
+The `component` string is opaque to Kona — it is echoed to the client. By convention the kit and `./grind install` scaffolds use `Pages/Name` and resolve files under `src/main/resources/js/Pages/Name.{vue,jsx,svelte}`. Keep server and client naming in lockstep or the browser will throw “page not found”.
 
-## Cuándo se elige HTML o JSON
+## When HTML vs JSON is chosen
 
-| Condición | Cuerpo |
+| Condition | Body |
 |-----------|------|
-| Sin cabecera de petición `X-Inertia` | Cáscara HTML raíz (`root_view` / `root_html`) con `data-page` |
-| `X-Inertia: true` y versión correcta | Objeto de página JSON |
-| `X-Inertia: true` y versión distinta | `409` (consulta [Versionado de assets](../../advanced/versioning/)) |
+| No `X-Inertia` request header | HTML root shell (`root_view` / `root_html`) with `data-page` |
+| `X-Inertia: true` and version OK | JSON page object |
+| `X-Inertia: true` and version mismatch | `409` (see [Asset versioning](../../advanced/versioning/)) |
 
-No eliges el modo en el controlador — llama a `Inertia.render` igual en ambos casos; el middleware y el manager seleccionan la representación.
+You do not pick the mode in the controller — call `Inertia.render` the same way for both; middleware + manager select the representation.
 
-## Petición perezosa o ausente
+## Lazy / missing request
 
 ```kotlin
 // Throws if middleware has not set the current request:
@@ -74,8 +76,8 @@ Inertia.render("Pages/Home")
 Inertia.render(request, "Pages/Home", mapOf("ok" to true))
 ```
 
-## Siguiente
+## Next
 
-- [Peticiones y respuestas](../requests-responses/)
-- [Datos compartidos](../shared-data/)
-- [Tu primera página](../../guides/first-page/)
+- [Requests & responses](../requests-responses/)
+- [Shared data](../shared-data/)
+- [Your first page](../../guides/first-page/)

@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Inertia sample</title>
     {!! vite !!}
+    {!! ssrHead !!}
   </head>
   <body>
-    <div id="app" data-page="{!! pageAttr !!}"></div>
+    <div id="app" data-page="{!! pageAttr !!}">{!! ssrBody !!}</div>
   </body>
 </html>

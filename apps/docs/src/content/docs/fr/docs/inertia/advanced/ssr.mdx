@@ -1,0 +1,43 @@
+---
+title: Server-side rendering
+description: Optional Node SSR via inertia.ssr.enabled and inertia.ssr.url.
+---
+
+Kona can POST the page object to a Node Inertia SSR server and embed the returned `head` / `body` in the HTML shell. If SSR is disabled or the server errors, the manager falls back to client-side rendering (empty `@ssrHead` / `@ssrBody`).
+
+## Config
+
+| Key | Default | Effect |
+|-----|---------|--------|
+| `inertia.ssr.enabled` | `false` | When `true` / `1`, call the SSR server on first visits |
+| `inertia.ssr.url` | `http://127.0.0.1:13714` | Base URL; Kona posts to `{url}/render` and health-checks `{url}/health` |
+
+```kotlin
+.configure { cfg ->
+    cfg.set("inertia.ssr.enabled", "true")
+    cfg.set("inertia.ssr.url", "http://127.0.0.1:13714")
+}
+```
+
+## Root template placeholders
+
+| Placeholder / view data | Purpose |
+|-------------------------|---------|
+| `@ssrHead` / `ssrHead` | Markup from the SSR `head` array/string |
+| `@ssrBody` / `ssrBody` | Markup for inside `#app` |
+| `@page` / `pageAttr` | Escaped JSON page object for `data-page` |
+| `@vite` / `vite` | Vite tags |
+
+```html
+<head>
+  {!! vite !!}
+  {!! ssrHead !!}
+</head>
+<body>
+  <div id="app" data-page="{!! pageAttr !!}">{!! ssrBody !!}</div>
+</body>
+```
+
+## Runtime
+
+`InertiaManager.ssr` is an `SsrGateway`. You can toggle `enabled` / `url` after boot for tests. `isHealthy()` GETs `/health`.

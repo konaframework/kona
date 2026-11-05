@@ -1,62 +1,50 @@
 ---
-title: Peticiones y respuestas
-description: Cáscaras HTML, visitas JSON, cabeceras y cómo Inertia detecta una petición del cliente.
+title: Requests & responses
+description: HTML shells, JSON visits, partial headers, 303, and page object fields.
 ---
 
-## Detectar una petición Inertia
+## Detecting an Inertia request
 
-`InertiaManager.isInertiaRequest(request)` es verdadero cuando la petición tiene una cabecera `X-Inertia` (cualquier valor). Los clientes oficiales envían `X-Inertia: true`.
+`InertiaManager.isInertiaRequest(request)` is true when the request has an `X-Inertia` header (any value). The official clients send `X-Inertia: true`.
 
-## Primera visita → HTML
+## First visit → HTML
 
-- Estado `200`
+- Status `200`
 - `Content-Type` HTML
-- Cuerpo: vista Crema raíz o `rootHtml`
-- Datos de la vista: `page` (JSON crudo), `pageAttr` (escapado para atributos HTML), `vite` (etiquetas script/link)
-- Sin cabecera de respuesta `X-Inertia` en la cáscara HTML plana
+- Body: root Crema view or `rootHtml` with optional SSR head/body
+- View data: `page`, `pageAttr`, `vite`, `ssrHead`, `ssrBody`
+- No `X-Inertia` response header on the plain HTML shell
 
-El HTML raíz predeterminado (cuando no se usa Crema) incrusta `@page` dentro de `data-page='…'`.
+## Inertia visit → JSON
 
-## Visita Inertia → JSON
-
-- Cuerpo: mapa JSON del objeto de página
+- Body: JSON map of the page object
 - `X-Inertia: true`
 - `Vary: X-Inertia`
-- `X-Inertia-Version` cuando la versión del manager no está vacía
+- `X-Inertia-Version` when the manager version is non-empty
 
-## Decoración
+## Page object fields
 
-Después de que corre el manejador de la ruta, el middleware llama a `manager.decorate(response)`. Si la respuesta ya tiene `X-Inertia: true` o `X-Inertia-Location`, y hay una versión, se añade `X-Inertia-Version`.
+| Field | Meaning |
+|-------|---------|
+| `component` | Page component name |
+| `props` | Resolved props (always includes `errors` when missing) |
+| `url` | Path + query |
+| `version` | Asset version or `null` |
+| `encryptHistory` / `clearHistory` | History flags |
+| `deferredProps` | Group → prop keys (full visits only) |
+| `mergeProps` / `prependProps` / `deepMergeProps` / `matchPropsOn` | Client merge hints |
 
-## Render explícito de la petición
+## Status codes
 
-```kotlin
-Inertia.render(request, "Pages/Show", mapOf("id" to 42))
-```
-
-Úsalo desde rutas de código que no están bajo `HandleInertiaRequests`, o cuando quieres un objeto de petición distinto del ThreadLocal actual.
-
-## Códigos de estado que verás
-
-| Estado | Significado |
+| Status | Meaning |
 |--------|---------|
-| `200` | Cáscara HTML o página JSON |
-| `302` / `303` | Redirección ordinaria (clientes que no son Inertia); los adaptadores de Inertia siguen o convierten |
-| `409` | La versión de los assets no coincide, o `Inertia.location` para clientes Inertia ([Redirecciones](../../advanced/redirects/)) |
+| `200` | HTML shell or JSON page |
+| `302` | Ordinary redirect (GET/POST) |
+| `303` | Redirect after Inertia `PUT` / `PATCH` / `DELETE` |
+| `409` | Asset version mismatch or `Inertia.location` (`X-Inertia-Location`) |
 
-## Resumen de negociación de contenido
+## Related
 
-Siempre llamas a `Inertia.render` de la misma forma. El manager inspecciona la petición:
-
-```text
-X-Inertia present?
-  ├─ no  → HTML (root_view / root_html) + data-page
-  └─ yes → version OK? → JSON page
-                      └─ no → 409
-```
-
-## Relacionado
-
-- [Middleware](../middleware/) — dónde corren las comprobaciones de versión
-- [Plantilla raíz](../root-template/) — campos de la cáscara HTML
-- [Tu primera página](../../guides/first-page/) — ejemplo de extremo a extremo
+- [Partial reloads](../partial-reloads/)
+- [Prop types](../prop-types/)
+- [SSR](../../advanced/ssr/)
