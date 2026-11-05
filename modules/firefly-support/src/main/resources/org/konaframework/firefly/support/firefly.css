@@ -266,6 +266,33 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   min-height: 0;
   overflow-y: auto;
   padding: 0.75rem 0.65rem 1rem;
+  /* Slim scrollbar; thumb/track only while the sidebar is hovered or focused (#497). */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.ff-panel .ff-sidebar:hover .ff-nav-side,
+.ff-panel .ff-sidebar:focus-within .ff-nav-side {
+  scrollbar-color: color-mix(in srgb, var(--ff-heading) 32%, transparent) transparent;
+}
+
+.ff-panel .ff-nav-side::-webkit-scrollbar {
+  width: 0.35rem;
+  height: 0.35rem;
+}
+
+.ff-panel .ff-nav-side::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ff-panel .ff-nav-side::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.ff-panel .ff-sidebar:hover .ff-nav-side::-webkit-scrollbar-thumb,
+.ff-panel .ff-sidebar:focus-within .ff-nav-side::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ff-heading) 32%, transparent);
 }
 
 /* Chrome foot band — sidebar "Signed in as …" and main-column footer share one
