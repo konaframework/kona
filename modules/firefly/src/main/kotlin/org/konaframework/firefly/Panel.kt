@@ -3,7 +3,9 @@ package org.konaframework.firefly
 import org.konaframework.auth.Auth
 import org.konaframework.auth.Authenticatable
 import org.konaframework.auth.Guard
+import org.konaframework.cadence.Cadence
 import org.konaframework.firefly.actions.ActionResult
+import org.konaframework.firefly.tables.RecordScopes
 import org.konaframework.firefly.forms.Field
 import org.konaframework.firefly.forms.FieldValidation
 import org.konaframework.firefly.notifications.FireflyNotification
@@ -86,6 +88,7 @@ open class Panel {
     private var spaMode: Boolean = false
     private var directory: Path? = null
     private val tenantList = ArrayList<Tenant>()
+    private var tenancy: TenantConfig? = null
     private val plugins = ArrayList<FireflyPlugin>()
     private var mounted: Boolean = false
     private var resolvedPrefix: String = "admin"
@@ -296,7 +299,58 @@ open class Panel {
         if (directory == null) directory = path
     }
 
-    fun tenant(tenant: Tenant): Panel = apply { tenantList.add(tenant) }
+    fun tenant(tenant: Tenant): Panel = apply {
+        if (tenancy != null) throw FireflyException("Panel [$resolvedId] already uses a tenant model")
+        tenantList.add(tenant)
+    }
+
+    /**
+     * Makes [model] the panel's tenant (Filament multi-tenancy). The signed-in user must implement
+     * [HasTenants]; every panel route that serves a tenant checks [HasTenants.canAccessTenant] and
+     * answers 403 for a tenant the user does not belong to. The tenant sits in the URL
+     * (`/admin/{tenant}/orders`) unless [tenantDomain] puts it in the host.
+     *
+     * Models related to the tenant through [ownershipRelationship] (a `belongsTo` or `belongsToMany`
+     * on the owned model, default the tenant model's lower-case class name) are limited to the
+     * current tenant everywhere Firefly reads them (tables, relation managers, select options, record
+     * lookups) and new rows are stamped with it. A resource opts out with
+     * `scopedToTenant(false)`. [slugAttribute] names the attribute used in the URL (default the key).
+     */
+    @JvmOverloads
+    fun tenant(model: Class<*>, ownershipRelationship: String? = null, slugAttribute: String? = null): Panel = apply {
+        if (tenantList.isNotEmpty()) throw FireflyException("Panel [$resolvedId] already uses static tenants")
+        val ownership = ownershipRelationship
+            ?: model.simpleName.replaceRange(0, 1, model.simpleName.first().lowercaseChar().toString())
+        tenancy = TenantConfig(model, ownership, slugAttribute)
+    }
+
+    /** Puts the tenant in the host (`{tenant}.example.com`) instead of the path. The panel serves only matching hosts. */
+    fun tenantDomain(pattern: String): Panel = apply { tenancyConfig().domain = TenantDomain(pattern) }
+
+    /** Runs [middleware] around every request served for a tenant, in order, once access was granted. */
+    fun tenantMiddleware(vararg middleware: TenantMiddleware): Panel = apply { tenancyConfig().middleware.addAll(middleware) }
+
+    /** Shows or hides the tenant menu in the top bar (default shown). */
+    fun tenantMenu(on: Boolean): Panel = apply { tenancyConfig().menu = on }
+
+    /** Extra links at the end of the tenant menu. A `{tenant}` in a url stands for the current tenant's slug. */
+    fun tenantMenuItems(vararg items: NavigationItem): Panel = apply { tenancyConfig().menuItems.addAll(items) }
+
+    /** How the tenant menu names a tenant. Default: its `name` attribute, else its slug. */
+    fun tenantLabel(provider: Function<Any, String>): Panel = apply { tenancyConfig().label(provider) }
+
+    /** Lets signed-in users create a tenant at `/{prefix}/new`, linked from the tenant menu. */
+    fun tenantRegistration(page: TenantRegistration): Panel = apply {
+        val config = tenancyConfig()
+        page.bindModel(config.model)
+        config.registration = page
+    }
+
+    /** Lets members edit the current tenant at `/{prefix}/{tenant}/tenant-profile`, linked from the tenant menu. */
+    fun tenantProfile(page: TenantProfile): Panel = apply { tenancyConfig().profile = page }
+
+    private fun tenancyConfig(): TenantConfig =
+        tenancy ?: throw FireflyException("Panel [$resolvedId] has no tenant model; call tenant(Model.class) first")
 
     fun plugin(plugin: FireflyPlugin): Panel = apply {
         val ready = FireflyPlugin.finish(plugin)
@@ -316,11 +370,16 @@ open class Panel {
         resolvedPrefix = normalizePrefix(resolvePath(get, resolvedId))
         resolveBrand(get)
         resolveDomain(get)
+        val config = tenancy
+        if (config != null && config.domain == null && resolvedPrefix.isEmpty()) {
+            throw FireflyException("Panel [$resolvedId] needs a path to put the tenant in the URL; call path(\"admin\") or tenantDomain(...)")
+        }
         for (plugin in plugins) plugin.boot(this)
         val discovered = loadDiscovered()
         adopt(discovered)
         val planned = ArrayList<Planned>()
         authRoutes(planned)
+        tenantRoutes(planned)
         pageRoutes(planned)
         for (route in planned) {
             reserved(route.uri, route.name)
@@ -358,9 +417,10 @@ open class Panel {
         for (hook in hooks) chrome.hook(hook.first, hook.second)
         val guard = activeGuard(request)
         val user = ChromeUser(guard.id(), guard.name(), guard.email())
-        chrome.hook(Hook.TOPBAR_START, topHtml(type, request.path, branding, get))
-        chrome.hook(Hook.TOPBAR_END, tenantHtml(request) + userHtml(request, request.path, user, get))
-        chrome.hook(Hook.SIDEBAR_START, sideHtml(type, request.path, branding, user, get))
+        val path = navPath(request)
+        chrome.hook(Hook.TOPBAR_START, topHtml(type, path, branding, get))
+        chrome.hook(Hook.TOPBAR_END, tenantHtml(request) + userHtml(request, path, user, get))
+        chrome.hook(Hook.SIDEBAR_START, sideHtml(type, path, branding, user, get))
         chrome.hook(Hook.BODY_START, body)
         val toasts = flashToasts(request)
         if (toasts.isNotEmpty()) chrome.hook(Hook.BODY_END, toasts)
@@ -422,13 +482,18 @@ open class Panel {
         for (resource in resources) {
             resource.inheritAuthorizeWithoutPolicy(allowWithoutPolicy)
             resource.discoverPolicy()
+            val relationship = resource.tenantOwnershipRelationshipName()
+            val config = tenancy
+            if (relationship != null && config != null) {
+                config.ownerships.name(resource.boundModel(), relationship)
+            }
         }
         if (items.isEmpty()) {
             for (page in pages) {
                 val isHome = page.slug().isEmpty()
                 val node = NavigationItem(page.slug().ifEmpty { "dashboard" })
                     .label(page.navigationLabel())
-                    .url(panelUri(resolvedPrefix, page.slug()))
+                    .url(uri(page.slug()))
                     .visible(Predicate { page.shouldRegisterNavigation() && page.canAccess() })
                     .badge(Function { page.navigationBadge() })
                     .dashboard(isHome)
@@ -456,8 +521,8 @@ open class Panel {
                 val indexSlug = if (index == null) "" else index.slug()
                 val node = NavigationItem(resource.slug())
                     .label(resource.navigationLabel())
-                    .url(panelUri(resolvedPrefix, resourcePagePath(resource.slug(), indexSlug)))
-                    .matchPrefix(panelUri(resolvedPrefix, resource.slug()))
+                    .url(uri(resourcePagePath(resource.slug(), indexSlug)))
+                    .matchPrefix(uri(resource.slug()))
                     .visible(Predicate { resource.shouldRegisterNavigation() && resource.canViewAny() })
                     .badge(Function { resource.navigationBadge() })
                 val resourceGroup = resource.navigationGroup()
@@ -487,38 +552,148 @@ open class Panel {
     /**
      * Wraps a route: opens the [FireflyAuth] scope for the signed-in user and, unless the route is
      * [Planned.open], answers 403 to a signed-in user [permits] rejects. Guests fall through to the
-     * route, which redirects them to sign-in when the panel authenticates.
+     * route, which redirects them to sign-in when the panel authenticates. A route that serves a
+     * tenant of a model-backed tenancy runs through [tenantRoute].
      */
     private fun secured(route: Planned): Handler = Handler { request ->
         val guard = activeGuard(request)
         val signedIn = guard.check()
         val user = if (signedIn) guard.user() else null
         FireflyAuth.actingAs(user, Supplier {
+            val config = tenancy
             if (!route.open && signedIn && !permits(user)) {
                 forbidden("You do not have access to this panel")
+            } else if (config != null && route.tenant) {
+                tenantRoute(config, route, request, user)
             } else {
                 route.handler.handle(request)
             }
         })
     }
 
+    /**
+     * Serves [route] for the tenant the request names: 404 for an unknown tenant, 403 unless the
+     * user [HasTenants.canAccessTenant]. The tenant is then current ([FireflyTenant.current]), its
+     * ownership scope is active for every Cadence store, and the tenant middleware wraps the route.
+     */
+    private fun tenantRoute(config: TenantConfig, route: Planned, request: Request, user: Authenticatable?): Response {
+        if (user == null) {
+            return if (authenticatePages) Response.redirect(plainUri("login")) else forbidden("Sign in to open a tenant")
+        }
+        // Domain mode: a host that does not match yields a null slug (404). Path mode always names a segment.
+        val slug = config.slugFrom(request, resolvedPrefix) ?: return Response.html("Tenant not found", 404)
+        val tenant = config.find(slug) ?: return Response.html("Tenant not found", 404)
+        if (user !is HasTenants || !user.canAccessTenant(tenant)) return forbidden("You do not have access to this tenant")
+        request.session()?.put(tenantSessionKey(), tenant.getKey().toString())
+        val resource = route.resource
+        val unscoped = if (resource == null || resource.isScopedToTenant()) emptySet() else setOf(resource.boundModel())
+        val scope = TenantScope(tenant, config.ownerships, unscoped)
+        return FireflyTenant.useModel(tenant, Supplier {
+            RecordScopes.use(scope, Supplier { config.around(request, tenant, Supplier { route.handler.handle(request) }) })
+        })
+    }
+
+    private fun tenantSessionKey(): String = "firefly.$resolvedId.tenant"
+
+    /** `GET /{prefix}`: sends the user to the tenant they used last, their default tenant or their first. */
+    private fun tenantRoot(config: TenantConfig, request: Request): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        val guard = activeGuard(request)
+        if (!guard.check()) {
+            return if (authenticatePages) Response.redirect(plainUri("login")) else forbidden("Sign in to open a tenant")
+        }
+        val tenant = config.landing(guard.user(), this, request.session(), tenantSessionKey())
+        if (tenant != null) return Response.redirect(config.homeUrl(tenant, resolvedPrefix, request))
+        val registration = config.registration
+        if (registration != null) return Response.redirect(plainUri(registration.slug()))
+        return forbidden("You do not belong to any tenant")
+    }
+
+    /** `GET` / `POST /{prefix}/new`: the tenant registration page. */
+    private fun tenantRegistrationRoute(config: TenantConfig, page: TenantRegistration, request: Request): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        val guard = activeGuard(request)
+        if (!guard.check()) return Response.redirect(plainUri("login"))
+        if (!page.canAccess()) return forbidden("This action is unauthorized.")
+        if (request.method != "POST") return Response.html(shell(request, page.render(pageState(request, emptyMap()))))
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
+        val input = postedFields(request)
+        val tenant = try {
+            page.register(input, guard.user()) as Cadence<*>
+        } catch (e: FireflyException) {
+            return Response.html(shell(request, page.render(pageState(request, input + mapOf("error" to e.message)))), 422)
+        }
+        return Response.redirect(config.homeUrl(tenant, resolvedPrefix, request))
+    }
+
+    /** `GET` / `POST /{prefix}/{tenant}/tenant-profile`: the current tenant's profile page. */
+    private fun tenantProfileRoute(page: TenantProfile, request: Request): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (!page.canAccess()) return forbidden("This action is unauthorized.")
+        val tenant = FireflyTenant.current(Cadence::class.java)!!
+        if (request.method != "POST") return Response.html(shell(request, page.render(pageState(request, page.fill(tenant)))))
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
+        val input = postedFields(request)
+        return try {
+            val title = page.save(tenant, input)
+            val session = request.session()
+            if (session != null) {
+                FireflyNotification.make("tenant-profile").title(title).success().send(session)
+            }
+            Response.redirect(at(page.slug()))
+        } catch (e: FireflyException) {
+            Response.html(shell(request, page.render(pageState(request, page.fill(tenant) + input + mapOf("error" to e.message)))), 422)
+        }
+    }
+
+    /** Posted form fields without the CSRF token, hidden `_` fields and query parameters. */
+    private fun postedFields(request: Request): Map<String, String> {
+        val input = LinkedHashMap<String, String>()
+        for ((key, value) in request.all()) {
+            if (key == FireflyCsrf.TOKEN_KEY) continue
+            if (key.startsWith("_")) continue
+            if (key in request.query) continue
+            input[key] = value
+        }
+        return input
+    }
+
+    /** The routes of a model-backed tenancy that sit outside a tenant: the root redirect and registration. */
+    private fun tenantRoutes(planned: MutableList<Planned>) {
+        val config = tenancy ?: return
+        if (config.domain == null) {
+            planned.add(Planned("GET", plainUri(""), routeName("root")) { request -> tenantRoot(config, request) })
+        }
+        val page = config.registration
+        if (page != null) {
+            planned.add(Planned("GET", plainUri(page.slug()), routeName("tenants.new")) { request -> tenantRegistrationRoute(config, page, request) })
+            planned.add(Planned("POST", plainUri(page.slug()), routeName("tenants.new.store")) { request -> tenantRegistrationRoute(config, page, request) })
+        }
+    }
+
     private fun forbidden(message: String): Response = Response.html(escapeHtml(message), 403)
 
     private fun authRoutes(planned: MutableList<Planned>) {
-        planned.add(Planned("GET", uri("login"), routeName("login"), open = true) { request -> loginGet(request) })
-        planned.add(Planned("POST", uri("login"), routeName("login.store"), open = true) { request -> loginPost(request) })
-        planned.add(Planned("GET", uri("register"), routeName("register"), open = true) { request -> registerGet(request) })
-        planned.add(Planned("POST", uri("register"), routeName("register.store"), open = true) { request -> registerPost(request) })
-        planned.add(Planned("GET", uri("password-reset"), routeName("password"), open = true) { request -> resetGet(request) })
-        planned.add(Planned("POST", uri("password-reset"), routeName("password.store"), open = true) { request -> resetPost(request) })
-        planned.add(Planned("GET", uri("email-verify"), routeName("verify"), open = true) { request -> verifyGet(request) })
-        planned.add(Planned("POST", uri("email-verify"), routeName("verify.store"), open = true) { request -> verifyPost(request) })
-        planned.add(Planned("GET", uri("profile"), routeName("profile")) { request -> profileGet(request) })
-        planned.add(Planned("POST", uri("profile"), routeName("profile.store")) { request -> profilePost(request) })
-        planned.add(Planned("POST", uri("logout"), routeName("logout"), open = true) { request -> logoutPost(request) })
+        planned.add(Planned("GET", plainUri("login"), routeName("login"), open = true) { request -> loginGet(request) })
+        planned.add(Planned("POST", plainUri("login"), routeName("login.store"), open = true) { request -> loginPost(request) })
+        planned.add(Planned("GET", plainUri("register"), routeName("register"), open = true) { request -> registerGet(request) })
+        planned.add(Planned("POST", plainUri("register"), routeName("register.store"), open = true) { request -> registerPost(request) })
+        planned.add(Planned("GET", plainUri("password-reset"), routeName("password"), open = true) { request -> resetGet(request) })
+        planned.add(Planned("POST", plainUri("password-reset"), routeName("password.store"), open = true) { request -> resetPost(request) })
+        planned.add(Planned("GET", plainUri("email-verify"), routeName("verify"), open = true) { request -> verifyGet(request) })
+        planned.add(Planned("POST", plainUri("email-verify"), routeName("verify.store"), open = true) { request -> verifyPost(request) })
+        planned.add(Planned("GET", plainUri("profile"), routeName("profile")) { request -> profileGet(request) })
+        planned.add(Planned("POST", plainUri("profile"), routeName("profile.store")) { request -> profilePost(request) })
+        planned.add(Planned("POST", plainUri("logout"), routeName("logout"), open = true) { request -> logoutPost(request) })
     }
 
     private fun pageRoutes(planned: MutableList<Planned>) {
+        val start = planned.size
         planned.add(
             Planned("GET", uri("widgets/{widgetId}"), routeName("widgets.show")) { request ->
                 showWidget(request, widgetIdFrom(request))
@@ -537,6 +712,7 @@ open class Panel {
             })
         }
         for (resource in resources) {
+            val resourceStart = planned.size
             val resourcePages = resource.pages()
             val index = resourceIndexPage(resourcePages) ?: resourcePages.firstOrNull()
             val listSlug = if (index == null) {
@@ -552,9 +728,9 @@ open class Panel {
                             request,
                             page,
                             mapOf(
-                                "panelHome" to uri(""),
-                                "resourceList" to uri(listSlug),
-                                "resourceBase" to uri(resource.slug()),
+                                "panelHome" to at(""),
+                                "resourceList" to at(listSlug),
+                                "resourceBase" to at(resource.slug()),
                             ),
                             resource,
                         )
@@ -570,7 +746,7 @@ open class Panel {
                     // List / manage tables post their bulk-action forms back to the page URL.
                     planned.add(
                         Planned("POST", uri(slug), routeName("resources.$slug.bulk")) { request ->
-                            bulkAction(request, page, mapOf("panelHome" to uri(""), "resourceList" to uri(listSlug)), resource)
+                            bulkAction(request, page, mapOf("panelHome" to at(""), "resourceList" to at(listSlug)), resource)
                         },
                     )
                 }
@@ -614,6 +790,26 @@ open class Panel {
                 },
             )
             if (resourcePages.any { it is EditPage || it is ViewPage }) relationRoutes(planned, resource)
+            tagTenant(planned, resourceStart, resource)
+        }
+        val profile = tenancy?.profile
+        if (profile != null) {
+            planned.add(Planned("GET", uri(profile.slug()), routeName("tenants.profile")) { request ->
+                tenantProfileRoute(profile, request)
+            }.forTenant(null))
+            planned.add(Planned("POST", uri(profile.slug()), routeName("tenants.profile.store")) { request ->
+                tenantProfileRoute(profile, request)
+            }.forTenant(null))
+        }
+        tagTenant(planned, start, null)
+    }
+
+    /** Marks routes from [start] that are not yet tenant-aware as serving a tenant (and optionally [resource]). */
+    private fun tagTenant(planned: MutableList<Planned>, start: Int, resource: Resource?) {
+        if (tenancy == null) return
+        for (i in start until planned.size) {
+            val route = planned[i]
+            if (!route.tenant) planned[i] = route.forTenant(resource)
         }
     }
 
@@ -649,33 +845,32 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
-            return Response.redirect(uri("login"))
+            return Response.redirect(plainUri("login"))
         }
         val csrfError = FireflyCsrf.rejectIfInvalid(request)
         if (csrfError != null) return csrfError
-        val tenant = tenantId(request)
-        return FireflyTenant.use(tenant) {
+        return inTenant(request) {
             val runtime = relationRuntime(request, resource)
-            if (runtime !is RelationRuntime) return@use runtime as Response
+            if (runtime !is RelationRuntime) return@inTenant runtime as Response
             val back = relationBack(resource, runtime)
             val input = request.all().filterKeys { it !in request.query && it != FireflyCsrf.TOKEN_KEY }
             if (operation == RelationOperation.BULK) {
-                if (runtime.readOnly) return@use Response.html("Relation is read-only here", 403)
+                if (runtime.readOnly) return@inTenant Response.html("Relation is read-only here", 403)
                 val name = input[BULK_ACTION]
-                if (name.isNullOrBlank()) return@use Response.html("Bulk action is required", 422)
+                if (name.isNullOrBlank()) return@inTenant Response.html("Bulk action is required", 422)
                 val table = runtime.manager.table(runtime, emptyMap())
                 val keys = input[BULK_KEYS].orEmpty().split(',').map { it.trim() }
                 val data = input.filterKeys { !it.startsWith("_") }
                 val result = try {
                     RelationScope.with(runtime) { table.runBulkAction(name, keys, data, input[BULK_ALL] == "1") }
                 } catch (e: FireflyException) {
-                    return@use Response.html(escapeHtml(e.message!!), 422)
+                    return@inTenant Response.html(escapeHtml(e.message!!), 422)
                 }
                 flashBulk(request, result)
-                return@use Response.redirect(back)
+                return@inTenant Response.redirect(back)
             }
             val outcome = runtime.manager.perform(runtime, operation, input)
-            if (outcome.status == 403 || outcome.status == 404) return@use Response.html(escapeHtml(outcome.title), outcome.status)
+            if (outcome.status == 403 || outcome.status == 404) return@inTenant Response.html(escapeHtml(outcome.title), outcome.status)
             var location = back
             if (outcome.createAnother) {
                 location += "&dialog=${RelationOperation.CREATE.token}"
@@ -704,19 +899,19 @@ open class Panel {
 
     /** The edit / view page of the owner with the manager's tab open. */
     private fun relationBack(resource: Resource, runtime: RelationRuntime): String =
-        uri(resourcePagePath(resource.slug(), runtime.pageSlug)) +
+        at(resourcePagePath(resource.slug(), runtime.pageSlug)) +
             "?id=${URLEncoder.encode(runtime.ownerKey, Charsets.UTF_8)}" +
             "&relation=${URLEncoder.encode(runtime.manager.name(), Charsets.UTF_8)}"
 
     /** `POST {resource}/relations/actions/{name}`: a record action of the manager's table on a related record. */
     private fun relationRecordAction(request: Request, resource: Resource): Response = guardedPost(request) {
-        FireflyTenant.use(tenantId(request)) {
+        inTenant(request) {
             val runtime = relationRuntime(request, resource)
-            if (runtime !is RelationRuntime) return@use runtime as Response
-            if (runtime.readOnly) return@use Response.html("Relation is read-only here", 403)
+            if (runtime !is RelationRuntime) return@inTenant runtime as Response
+            if (runtime.readOnly) return@inTenant Response.html("Relation is read-only here", 403)
             @Suppress("UNCHECKED_CAST")
             val table = runtime.manager.table(runtime, emptyMap()) as org.konaframework.firefly.tables.Table<Any?, Any?>
-            val action = table.findRecordAction(actionNameFrom(request)) ?: return@use Response.html("Unknown action", 404)
+            val action = table.findRecordAction(actionNameFrom(request)) ?: return@inTenant Response.html("Unknown action", 404)
             val source = RecordActionSource(
                 action,
                 { key -> RelationScope.with(runtime) { table.findRecord(key) } },
@@ -728,9 +923,9 @@ open class Panel {
 
     /** `POST {resource}/actions/{name}`: an edit / view header action or list-table record action. */
     private fun resourceRecordAction(request: Request, resource: Resource): Response = guardedPost(request) {
-        FireflyTenant.use(tenantId(request)) {
-            val source = resource.recordActionSource(actionNameFrom(request)) ?: return@use Response.html("Unknown action", 404)
-            runRecordAction(request, source, uri(resourceListSlug(resource)))
+        inTenant(request) {
+            val source = resource.recordActionSource(actionNameFrom(request)) ?: return@inTenant Response.html("Unknown action", 404)
+            runRecordAction(request, source, at(resourceListSlug(resource)))
         }
     }
 
@@ -739,7 +934,7 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
-            return Response.redirect(uri("login"))
+            return Response.redirect(plainUri("login"))
         }
         val csrfError = FireflyCsrf.rejectIfInvalid(request)
         if (csrfError != null) return csrfError
@@ -833,15 +1028,14 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
-            return Response.redirect(uri("login"))
+            return Response.redirect(plainUri("login"))
         }
-        val tenant = tenantId(request)
-        return FireflyTenant.use(tenant) {
+        return inTenant(request) {
             val runtime = relationRuntime(request, resource)
-            if (runtime !is RelationRuntime) return@use runtime as Response
+            if (runtime !is RelationRuntime) return@inTenant runtime as Response
             val operation = RelationOperation.fromToken(request.input("op").orEmpty())
             if (operation != RelationOperation.ASSOCIATE && operation != RelationOperation.ATTACH) {
-                return@use Response.html("Unknown picker operation", 422)
+                return@inTenant Response.html("Unknown picker operation", 422)
             }
             val options = runtime.manager.options(runtime, operation, request.input("q").orEmpty()).map { (value, label) ->
                 linkedMapOf("value" to value, "label" to label, "enabled" to true)
@@ -863,7 +1057,7 @@ open class Panel {
             ?: return Response.html("Record not found", 404)
         if (!resource.allowsPage(page, key)) return Response.html("Not authorized", 403)
         val runtime = try {
-            manager.bind(owner, page, uri(resource.slug() + "/" + Resource.RELATIONS_PATH), "")
+            manager.bind(owner, page, at(resource.slug() + "/" + Resource.RELATIONS_PATH), "")
         } catch (e: FireflyException) {
             return Response.html(escapeHtml(e.message!!), 422)
         }
@@ -907,12 +1101,11 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
-            return Response.redirect(uri("login"))
+            return Response.redirect(plainUri("login"))
         }
-        val tenant = tenantId(request)
-        return FireflyTenant.use(tenant) {
+        return inTenant(request) {
             val allowed = if (resource == null) page.canAccess() else resource.allowsPage(page, recordKey(request))
-            if (!allowed) return@use forbidden("This action is unauthorized.")
+            if (!allowed) return@inTenant forbidden("This action is unauthorized.")
             Response.html(draw(request, emptyMap(), page.render(pageState(request, dashboardExtras(extras)))))
         }
     }
@@ -935,7 +1128,7 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
-            return Response.redirect(uri("login"))
+            return Response.redirect(plainUri("login"))
         }
         if (widgetId.isNullOrBlank()) return Response.html("Widget id is required", 422)
         val decoded = java.net.URLDecoder.decode(widgetId, Charsets.UTF_8)
@@ -943,8 +1136,7 @@ open class Panel {
             ?: return Response.html("Dashboard not found", 404)
         val widget = home.findWidget(decoded)
             ?: return Response.html("Widget not found", 404)
-        val tenant = tenantId(request)
-        return FireflyTenant.use(tenant) {
+        return inTenant(request) {
             val state = pageState(
                 request,
                 dashboardExtras(
@@ -961,7 +1153,7 @@ open class Panel {
 
     private fun dashboardExtras(extras: Map<String, Any?>): Map<String, Any?> {
         val out = LinkedHashMap<String, Any?>()
-        out["widgetRefreshBase"] = uri("").trimEnd('/')
+        out["widgetRefreshBase"] = at("").trimEnd('/')
         out["navigationCards"] = navigationCards()
         out.putAll(extras)
         return out
@@ -991,7 +1183,7 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
-            return Response.redirect(uri("login"))
+            return Response.redirect(plainUri("login"))
         }
         val csrfError = FireflyCsrf.rejectIfInvalid(request)
         if (csrfError != null) return csrfError
@@ -1000,17 +1192,16 @@ open class Panel {
             if (page.mountedForm() != null) return pageFormSubmit(request, page)
             return Response.html("Bulk action is required", 422)
         }
-        val tenant = tenantId(request)
-        return FireflyTenant.use(tenant) {
-            if (resource != null && !resource.allowsBulk(name)) return@use forbidden("This action is unauthorized.")
+        return inTenant(request) {
+            if (resource != null && !resource.allowsBulk(name)) return@inTenant forbidden("This action is unauthorized.")
             page.prepare(pageState(request, extras))
-            val table = page.mountedTable() ?: return@use Response.html("Page has no table", 404)
+            val table = page.mountedTable() ?: return@inTenant Response.html("Page has no table", 404)
             val keys = request.input(BULK_KEYS).orEmpty().split(',').map { it.trim() }
             val data = request.all().filterKeys { !it.startsWith("_") && it !in request.query }
             val result = try {
                 table.runBulkAction(name, keys, data, request.input(BULK_ALL) == "1")
             } catch (e: FireflyException) {
-                return@use Response.html(escapeHtml(e.message!!), 422)
+                return@inTenant Response.html(escapeHtml(e.message!!), 422)
             }
             flashBulk(request, result)
             Response.redirect(locationOf(request))
@@ -1026,7 +1217,7 @@ open class Panel {
             return Response.html("You cannot save settings", 403)
         }
         val input = request.all().filterKeys { it != FireflyCsrf.TOKEN_KEY && !it.startsWith("_") && it !in request.query }
-        val title = FireflyTenant.use(tenantId(request)) { page.submitForm(input) }
+        val title = inTenant(request) { page.submitForm(input) }
         val session = request.session()
         if (session != null) FireflyNotification.make("page-form").title(title).success().send(session)
         return Response.redirect(request.path)
@@ -1037,12 +1228,12 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
-            return Response.redirect(uri("login"))
+            return Response.redirect(plainUri("login"))
         }
         val form = page.mountedForm() ?: return Response.json(emptyList<Any>())
         val select = form.component(request.input("field").orEmpty()) as? org.konaframework.firefly.forms.Select
             ?: return Response.json(emptyList<Any>())
-        val options = FireflyTenant.use(tenantId(request)) { select.search(form, request.input("q").orEmpty()) }
+        val options = inTenant(request) { select.search(form, request.input("q").orEmpty()) }
         return Response.json(
             options.map { option ->
                 linkedMapOf("value" to option.value, "label" to option.label, "enabled" to option.enabled)
@@ -1070,7 +1261,7 @@ open class Panel {
         val state = LinkedHashMap<String, Any?>()
         state["csrfField"] = FireflyCsrf.field(FireflyCsrf.ensure(request))
         state["formAction"] = request.path
-        state["panelHome"] = uri("")
+        state["panelHome"] = at("")
         state["returnUrl"] = locationOf(request)
         val search = request.input("search")
         if (!search.isNullOrBlank()) state["search"] = search
@@ -1118,24 +1309,23 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
-            return Response.redirect(uri("login"))
+            return Response.redirect(plainUri("login"))
         }
         val csrfError = FireflyCsrf.rejectIfInvalid(request)
         if (csrfError != null) return csrfError
-        val tenant = tenantId(request)
-        return FireflyTenant.use(tenant) {
+        return inTenant(request) {
             val key = request.input("id") ?: request.input("record")
             if (key.isNullOrBlank()) {
-                return@use Response.html("Record id is required", 422)
+                return@inTenant Response.html("Record id is required", 422)
             }
             @Suppress("UNCHECKED_CAST")
             val store = org.konaframework.firefly.tables.RecordStores.open(resource.boundModel())
                 as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
-            val found = store.find(key) ?: return@use Response.html("Record not found", 404)
-            if (!resource.canDelete(found)) return@use forbidden("This action is unauthorized.")
+            val found = store.find(key) ?: return@inTenant Response.html("Record not found", 404)
+            if (!resource.canDelete(found)) return@inTenant forbidden("This action is unauthorized.")
             store.delete(found)
             flashNotice(request, FireflyToasts::deleted)
-            Response.redirect(uri(resourceListSlug(resource)))
+            Response.redirect(at(resourceListSlug(resource)))
         }
     }
 
@@ -1157,16 +1347,15 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
-            return Response.redirect(uri("login"))
+            return Response.redirect(plainUri("login"))
         }
         val csrfError = FireflyCsrf.rejectIfInvalid(request)
         if (csrfError != null) return csrfError
-        val tenant = tenantId(request)
-        return FireflyTenant.use(tenant) {
+        return inTenant(request) {
             @Suppress("UNCHECKED_CAST")
             val store = org.konaframework.firefly.tables.RecordStores.open(resource.boundModel())
                 as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
-            if (page !is EditPage && !resource.canCreate()) return@use forbidden("This action is unauthorized.")
+            if (page !is EditPage && !resource.canCreate()) return@inTenant forbidden("This action is unauthorized.")
             val attrs = LinkedHashMap<String, Any?>()
             for ((key, value) in request.all()) {
                 if (key == FireflyCsrf.TOKEN_KEY || key == "id" || key.startsWith("_")) continue
@@ -1176,11 +1365,11 @@ open class Panel {
             val record = if (page is EditPage) {
                 val key = request.input("id") ?: request.input("record")
                 if (key.isNullOrBlank()) {
-                    return@use Response.html("Record id is required", 422)
+                    return@inTenant Response.html("Record id is required", 422)
                 }
                 val found = store.find(key)
-                if (found == null) return@use Response.html("Record not found", 404)
-                if (!resource.canEdit(found)) return@use forbidden("This action is unauthorized.")
+                if (found == null) return@inTenant Response.html("Record not found", 404)
+                if (!resource.canEdit(found)) return@inTenant forbidden("This action is unauthorized.")
                 found
             } else {
                 store.newRecord()
@@ -1192,7 +1381,7 @@ open class Panel {
                 attrs,
             )
             if (submission.errors.isNotEmpty()) {
-                return@use invalidForm(request, resource, page, submission)
+                return@inTenant invalidForm(request, resource, page, submission)
             }
             store.fill(record, submission.attributes)
             store.save(record)
@@ -1201,7 +1390,7 @@ open class Panel {
             } else {
                 flashNotice(request, FireflyToasts::created)
             }
-            Response.redirect(uri(resourceListSlug(resource)))
+            Response.redirect(at(resourceListSlug(resource)))
         }
     }
 
@@ -1225,8 +1414,8 @@ open class Panel {
                 session.flashInput(old)
             }
         }
-        if (!real) return Response.redirect(uri(resourceListSlug(resource))).withErrors(errors).withInput(old)
-        var location = uri(resourcePagePath(resource.slug(), page.slug()))
+        if (!real) return Response.redirect(at(resourceListSlug(resource))).withErrors(errors).withInput(old)
+        var location = at(resourcePagePath(resource.slug(), page.slug()))
         if (edit) {
             val id = request.input("id") ?: request.input("record")
             location += "?id=${URLEncoder.encode(id, Charsets.UTF_8)}"
@@ -1247,7 +1436,7 @@ open class Panel {
         if (denied != null) return denied
         val guard = activeGuard(request)
         // A signed-in user the panel rejects stays on the sign-in form to switch accounts.
-        if (guard.check() && permits(guard.user())) return Response.redirect(uri(""))
+        if (guard.check() && permits(guard.user())) return Response.redirect(plainUri(""))
         return Response.html(authShell(request, "Sign in", authForm(request, AuthScreen.LOGIN, null)))
     }
 
@@ -1267,7 +1456,7 @@ open class Panel {
             guard.logout()
             return Response.html(authShell(request, "Sign in", authForm(request, AuthScreen.LOGIN, "You do not have access to this panel")), 403)
         }
-        return Response.redirect(uri(""))
+        return Response.redirect(plainUri(""))
     }
 
     private fun registerGet(request: Request): Response {
@@ -1290,7 +1479,7 @@ open class Panel {
         if (error != null) {
             return Response.html(authShell(request, "Register", authForm(request, AuthScreen.REGISTER, error)), 422)
         }
-        return Response.redirect(uri("login"))
+        return Response.redirect(plainUri("login"))
     }
 
     private fun resetGet(request: Request): Response {
@@ -1331,7 +1520,7 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         val guard = activeGuard(request)
-        if (!guard.check()) return Response.redirect(uri("login"))
+        if (!guard.check()) return Response.redirect(plainUri("login"))
         val page = resolveProfilePage()
         val state = pageState(request, page.fill(guard))
         return Response.html(shell(request, page.render(state)))
@@ -1341,7 +1530,7 @@ open class Panel {
         val denied = gate(request)
         if (denied != null) return denied
         val guard = activeGuard(request)
-        if (!guard.check()) return Response.redirect(uri("login"))
+        if (!guard.check()) return Response.redirect(plainUri("login"))
         val csrfError = FireflyCsrf.rejectIfInvalid(request)
         if (csrfError != null) return csrfError
         val page = resolveProfilePage()
@@ -1356,7 +1545,7 @@ open class Panel {
             val title = page.save(guard, input)
             val session = request.session()
             if (session != null) FireflyNotification.make("profile").title(title).success().send(session)
-            Response.redirect(uri("profile"))
+            Response.redirect(plainUri("profile"))
         } catch (e: FireflyException) {
             Response.html(shell(request, page.render(pageState(request, page.fill(guard) + input + mapOf("error" to e.message)))), 422)
         }
@@ -1368,7 +1557,7 @@ open class Panel {
         val csrfError = FireflyCsrf.rejectIfInvalid(request)
         if (csrfError != null) return csrfError
         activeGuard(request).logout()
-        return Response.redirect(uri("login"))
+        return Response.redirect(plainUri("login"))
     }
 
     private fun resolveProfilePage(): ProfilePage =
@@ -1390,6 +1579,10 @@ open class Panel {
     }
 
     private fun gate(request: Request): Response? {
+        val tenantDomain = tenancy?.domain
+        if (tenantDomain != null && tenantDomain.slug(request.header("Host")) == null) {
+            return Response.html("Panel [$resolvedId] expected a tenant host matching [${tenantDomain.pattern}]", 404)
+        }
         val expected = resolveDomain(SchemaBridge.open(emptyMap()))
         if (expected == null) return null
         val host = request.header("Host")
@@ -1437,7 +1630,7 @@ open class Panel {
             <div class="ff-auth-panel ${screen.css}">
               <h1 class="ff-auth-title">${escapeHtml(screen.title)}</h1>
               $message
-              <form class="ff-auth-form" method="post" action="${escapeHtml(uri(screen.action))}">
+              <form class="ff-auth-form" method="post" action="${escapeHtml(plainUri(screen.action))}">
                 ${FireflyCsrf.field(token)}
                 $fields
                 <button type="submit" class="ff-auth-submit">${escapeHtml(screen.submit)}</button>
@@ -1539,6 +1732,8 @@ open class Panel {
     }
 
     private fun tenantId(request: Request): String? {
+        val current = FireflyTenant.id()
+        if (current != null) return current
         if (tenantList.isEmpty()) return null
         val raw = request.query["tenant"]
         if (raw == null || raw.isBlank()) return null
@@ -1547,6 +1742,16 @@ open class Panel {
     }
 
     private fun tenantHtml(request: Request): String {
+        val config = tenancy
+        if (config != null) {
+            if (!config.menu) return ""
+            val user = activeGuard(request).user()
+            if (user !is HasTenants) {
+                return ""
+            }
+            val current = FireflyTenant.current(Cadence::class.java)
+            return config.menuHtml(user, this, current, request, resolvedPrefix, { bindTenant(it, current) }, SchemaBridge.open(emptyMap()))
+        }
         if (tenantList.isEmpty()) return ""
         val current = request.query["tenant"]
         val links = StringBuilder()
@@ -1558,14 +1763,32 @@ open class Panel {
         return """<nav class="ff-tenants">$links</nav>"""
     }
 
+    /**
+     * Runs [block] with the request's tenant: model-backed tenancy already opened the scope in
+     * [tenantRoute], so this is a no-op there; static tenants set [FireflyTenant.id] from `?tenant=`.
+     */
+    private fun <R> inTenant(request: Request, block: () -> R): R {
+        if (tenancy != null) return block()
+        return FireflyTenant.use(tenantId(request), java.util.function.Supplier { block() })
+    }
+
+    /** Request path with the current tenant slug replaced by `{tenant}` so nav urls match. */
+    private fun navPath(request: Request): String {
+        val config = tenancy
+        val tenant = FireflyTenant.current(Cadence::class.java)
+        if (config == null || config.domain != null || tenant == null) return request.path
+        val slug = TenantConfig.encode(config.slugOf(tenant))
+        return request.path.replace("/$slug", "/$TENANT_TOKEN")
+    }
+
     private fun userHtml(request: Request, path: String, user: ChromeUser, get: Get): String {
         val initial = avatarInitial(user.primary)
-        val profileLink = """<a class="ff-menu-link" href="${escapeHtml(uri("profile"))}">Profile</a>"""
+        val profileLink = """<a class="ff-menu-link" href="${escapeHtml(plainUri("profile"))}">Profile</a>"""
         val extraLinks = userMenuLinksHtml(path, get)
         val signOut =
             if (user.signedIn) {
                 val token = FireflyCsrf.ensure(request)
-                """<div class="ff-menu-sep"></div><form class="ff-menu-form" method="post" action="${escapeHtml(uri("logout"))}">${FireflyCsrf.field(token)}<button type="submit" class="ff-menu-item">Sign out</button></form>"""
+                """<div class="ff-menu-sep"></div><form class="ff-menu-form" method="post" action="${escapeHtml(plainUri("logout"))}">${FireflyCsrf.field(token)}<button type="submit" class="ff-menu-item">Sign out</button></form>"""
             } else {
                 ""
             }
@@ -1616,7 +1839,28 @@ open class Panel {
             """<div class="ff-menu-panel" data-ff-menu-panel><div class="ff-menu-head"><span class="ff-menu-name">Notifications</span></div>""" +
             """<p class="ff-menu-empty">You're all caught up.</p></div></div>"""
 
-    private fun uri(slug: String): String = panelUri(resolvedPrefix, slug)
+    /**
+     * The route of a tenant page: with a tenant in the path it is `/{prefix}/{tenant}/{slug}`, where
+     * `{tenant}` is a route parameter and the token navigation urls carry until a request fills it in.
+     */
+    private fun uri(slug: String): String {
+        val config = tenancy
+        if (config == null || config.domain != null) return panelUri(resolvedPrefix, slug)
+        return panelUri("$resolvedPrefix/$TENANT_TOKEN", slug)
+    }
+
+    /** The URL of a page outside any tenant (sign-in, profile, sign-out, tenant registration, root). */
+    private fun plainUri(slug: String): String = panelUri(resolvedPrefix, slug)
+
+    /** [uri] for the tenant of the request on this thread; the same as [uri] without one. */
+    private fun at(slug: String): String = bindTenant(uri(slug), FireflyTenant.current() as Cadence<*>?)
+
+    /** Replaces the `{tenant}` token in [url] with the slug of [tenant]. */
+    private fun bindTenant(url: String, tenant: Cadence<*>?): String {
+        val config = tenancy
+        if (config == null || tenant == null) return url
+        return url.replace(TENANT_TOKEN, TenantConfig.encode(config.slugOf(tenant)))
+    }
 
     private fun routeName(suffix: String): String = "firefly.$resolvedId.$suffix"
 
@@ -1690,8 +1934,13 @@ open class Panel {
         val uri: String,
         val name: String,
         val open: Boolean = false,
+        val tenant: Boolean = false,
+        val resource: Resource? = null,
         val handler: Handler,
-    )
+    ) {
+        /** The same route, served for a tenant. [resource] names the resource it belongs to, when any. */
+        fun forTenant(resource: Resource?): Planned = Planned(method, uri, name, open, true, resource, handler)
+    }
 
     private class Discovered(val pages: List<PanelPage>, val resources: List<Resource>, val widgets: List<Widget>)
 }

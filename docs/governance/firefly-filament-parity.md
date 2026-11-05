@@ -69,6 +69,21 @@ Resources, actions and panels honor Kona Gates and policies. Docs: Firefly → A
 | AUTH-8 | Policy discovery | `Gate.discoverPolicy` over `app.policies` (config `firefly.policies`, `Firefly.policyPackages`); `Firefly.gate(Gate)` | done (#457) |
 | AUTH-9 | Custom page and navigation visibility | `PanelPage.canAccess()`, `NavigationItem.visible` | done (#457) |
 
+
+### Multi-tenancy (#458)
+
+Model-backed tenants with memberships, URL tenants, automatic scoping and association. Docs: Firefly → Tenancy.
+
+| ID | Filament surface | Firefly | Status |
+|----|------------------|---------|--------|
+| TEN-1 | `Panel::tenant(Model::class, ownershipRelationship, slugAttribute)` | `Panel.tenant(model, ownershipRelationship, slugAttribute)` | done (#458) |
+| TEN-2 | `HasTenants` / `canAccessTenant` | `HasTenants`, `HasDefaultTenant`; 403 when denied | done (#458) |
+| TEN-3 | Tenant in URL path / domain | `/admin/{tenant}/…`, `tenantDomain("{tenant}.example.com")` | done (#458) |
+| TEN-4 | `Filament::getTenant()` | `Firefly.getTenant()` / `FireflyTenant.current()` | done (#458) |
+| TEN-5 | Auto scope + associate; `isScopedToTenant` | `RecordScopes` + `TenantScope`; `scopedToTenant(false)` | done (#458) |
+| TEN-6 | Tenant menu / registration / profile | tenant menu, `TenantRegistration`, `TenantProfile` | done (#458) |
+| TEN-7 | `tenantMiddleware` | `Panel.tenantMiddleware` | done (#458) |
+
 ### Navigation groups (#465)
 
 Auto-discovered navigation can be grouped, sorted and badged. Docs: Firefly → Navigation.

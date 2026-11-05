@@ -40,6 +40,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private var modelUsing: Function<Get, Class<*>?>? = null
     private var simpleFlag = false
     private var tenantColumn: String? = null
+    private var scopedToTenantFlag = true
+    private var ownershipName: String? = null
     private var resolvedPages: List<PanelPage>? = null
     private var maxWidthLiteral: String? = null
     private var formColumnCount: Int? = null
@@ -528,6 +530,29 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         if (column.isBlank()) throw FireflyException("Tenant column is blank")
         tenantColumn = column
     }
+
+    /**
+     * Whether this resource's queries and new records follow the panel's model-backed tenant
+     * ([Panel.tenant] with a model class). On by default; turn it off for a model every tenant shares.
+     * The panel limits the model's rows to the current tenant through its ownership relationship and
+     * stamps new rows with it.
+     */
+    fun scopedToTenant(on: Boolean): Resource = apply { scopedToTenantFlag = on }
+
+    /** Whether this resource follows the current tenant. Override it, or call [scopedToTenant]. */
+    open fun isScopedToTenant(): Boolean = scopedToTenantFlag
+
+    /**
+     * Names the relationship of the model that points at the tenant, when it differs from the one the
+     * panel was given (Filament `$tenantOwnershipRelationshipName`).
+     */
+    fun tenantOwnershipRelationship(name: String): Resource = apply {
+        if (name.isBlank()) throw FireflyException("Tenant ownership relationship is blank")
+        ownershipName = name
+    }
+
+    /** The ownership relationship this resource names for its model, or null for the panel's. */
+    open fun tenantOwnershipRelationshipName(): String? = ownershipName
 
     /**
      * Default content max-width for this resource's pages (`xs`…`7xl`, `full`, `screen`, `prose`).

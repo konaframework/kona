@@ -1,56 +1,93 @@
 ---
 title: Tenancy
-description: "Add a tenant link in the top bar, then name the column on the resource so query() filters that tenant’s rows."
+description: "Model-backed multi-tenancy: memberships, access checks, URL tenants, and automatic query scoping."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Add a tenant when one panel serves more than one customer and a resource should only query that customer’s rows. The link is a label in the top bar. The id is what the current request filters on.
+A panel can serve many companies (or teams) while each signed-in user only sees the ones they belong to. Firefly puts the current tenant in the URL, checks membership on every request, scopes Cadence queries to that tenant, and stamps new records with it.
 
 <FireflyShot file="section-tenancy.png" description="Sidebar area used for tenant switching." />
 
-You add the tenant. Your resource names the column. The link sets `?tenant=acme`. While that request renders, `FireflyTenant.id()` is `acme`.
+## Model-backed tenancy
 
-<FireflyShot file="tenant-menu.png" description="A panel top bar with a tenant link labeled Acme that sets the tenant query parameter to acme." />
-
-## Filter a resource by the selected tenant
-
-`tenant(Tenant("acme").label("Acme"))` adds the link. A resource that calls `tenant("tenant_id")` adds that column to `query()` when the id is set. A Cadence model still returns a `ModelBuilder`. An unknown tenant id fails at the page and names the id.
-
-A blank tenant id or a blank label throws `FireflyException`. A blank column name throws `Tenant column is blank`.
+Pass the tenant model to `Panel.tenant`. The user model implements `HasTenants` (`getTenants`, `canAccessTenant`). Optionally implement `HasDefaultTenant` for the first company after sign-in.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-Panel().path("admin").tenant(Tenant("acme").label("Acme"))
-Resource("orders").model(Order::class.java).tenant("tenant_id")
+Panel().path("admin")
+    .tenant(Company::class.java, ownershipRelationship = "company", slugAttribute = "slug")
+
+class User : Authenticatable, HasTenants, HasDefaultTenant {
+    override fun getTenants(panel: Panel) = companies
+    override fun canAccessTenant(tenant: Any) = companies.any { it.getKey() == (tenant as Company).getKey() }
+    override fun getDefaultTenant(panel: Panel) = companies.firstOrNull()
+}
+
+Resource("orders").model(Order::class.java) // Order.company() belongsTo Company
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-new Panel().path("admin").tenant(new Tenant("acme").label("Acme"));
-new Resource("orders").model(Order.class).tenant("tenant_id");
+new Panel().path("admin")
+    .tenant(Company.class, "company", "slug");
+
+public class User implements Authenticatable, HasTenants, HasDefaultTenant {
+    public Collection<?> getTenants(Panel panel) { return companies; }
+    public boolean canAccessTenant(Object tenant) { return companies.contains(tenant); }
+    public Object getDefaultTenant(Panel panel) { return companies.isEmpty() ? null : companies.get(0); }
+}
+
+new Resource("orders").model(Order.class); // Order.company() belongsTo Company
 ```
 
 </TabItem>
 </Tabs>
 
-Open `/admin/orders/list?tenant=acme`. The orders query includes `tenant_id`. `label` accepts a string or a closure that receives `Get`. `FireflyTenant.use(id) { ... }` sets the id for the current thread and restores the previous value when the block returns. `mount` already does that around the page response. Call `use` yourself in a test.
+Routes become `/admin/{tenant}/orders/list` (here `{tenant}` is the company slug). Visiting `/admin` redirects to the tenant used last in the session, the default tenant, or the first of `getTenants`. A tenant the user cannot access answers **403**. An unknown slug answers **404**.
 
-`FireflyTenant.id()` is null when the query string has no `tenant` parameter.
+While a tenant route runs:
+
+- `Firefly.getTenant()` / `FireflyTenant.current()` is the company model; `FireflyTenant.id()` is its key
+- Every Cadence record store query over a model that owns a `company` (or your `ownershipRelationship`) relationship is limited to that company
+- New rows of those models are stamped with the company on create (belongsTo sets the foreign key; belongsToMany attaches after save)
+- Relation managers, select options, and record lookups go through the same stores, so they inherit the scope
+
+Turn scoping off for a shared catalog with `scopedToTenant(false)`. Name a different ownership relationship per resource with `tenantOwnershipRelationship("owner")`.
+
+### Tenant menu, registration, and profile
+
+The top bar shows a tenant switcher from `getTenants`. Hide it with `tenantMenu(false)`. Add links with `tenantMenuItems(...)`. Customize the label with `tenantLabel { company -> ... }`.
+
+`tenantRegistration(TenantRegistration())` serves `/{prefix}/new` so a signed-in user can create a company (override `register` to attach the user). `tenantProfile(TenantProfile())` serves `/{prefix}/{tenant}/tenant-profile` to edit the current company.
+
+### Domain mode and middleware
+
+`tenantDomain("{tenant}.example.com")` reads the slug from the host instead of the path. Switcher links then point at that host.
+
+`tenantMiddleware({ request, tenant, next -> ... })` runs after access is granted. Use it to install a Cadence global scope or other app-wide context for the request, then call `next.get()`.
+
+### Static tenants (simple demos)
+
+`tenant(Tenant("acme").label("Acme"))` still works for a fixed list and `?tenant=acme`. A resource that calls `tenant("tenant_id")` adds that column to `query()` when the id is set. Do not mix static tenants with a tenant model on the same panel.
+
+<FireflyShot file="tenant-menu.png" description="A panel top bar with a tenant switcher." />
 
 ## Methods
 
 | Type | Methods |
 |------|---------|
-| `Tenant` | `label(value)`, `label(provider)`, `label()` |
-| `Panel` | `tenant(tenant)` |
-| `Resource` | `tenant(column)` |
-| `FireflyTenant` | `id()`, `use(id, supplier)` |
+| `Panel` | `tenant(model, ownershipRelationship?, slugAttribute?)`, `tenantDomain`, `tenantMiddleware`, `tenantMenu`, `tenantMenuItems`, `tenantLabel`, `tenantRegistration`, `tenantProfile`, `tenant(Tenant)` (static) |
+| `Resource` | `scopedToTenant`, `isScopedToTenant`, `tenantOwnershipRelationship`, `tenant(column)` (static) |
+| `HasTenants` | `getTenants`, `canAccessTenant` |
+| `HasDefaultTenant` | `getDefaultTenant` |
+| `TenantRegistration` / `TenantProfile` | `register` / `fill` / `save`, form schema hooks |
+| `Firefly` / `FireflyTenant` | `getTenant()`, `current()`, `id()`, `use`, `useModel` |
 
 ## Next
 

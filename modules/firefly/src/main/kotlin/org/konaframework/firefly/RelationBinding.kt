@@ -32,6 +32,9 @@ internal class RelationBinding(val owner: Cadence<*>, val name: String) {
         return RecordStores.open(relatedClass) as RecordStore<Any?, Any?>
     }
 
+    /** A query over the related model through its record store, so an active record scope (tenancy) applies. */
+    private fun scopedQuery(): ModelBuilder<*> = store().query() as ModelBuilder<*>
+
     fun softDeletes(): Boolean = SoftDeletes::class.java.isAssignableFrom(relatedClass)
 
     /** Limit [query] (a related-model builder) to the owner's related rows; selects [pivotColumns]. */
@@ -80,7 +83,7 @@ internal class RelationBinding(val owner: Cadence<*>, val name: String) {
         inverse: String?,
         modify: (ModelBuilder<*>) -> Unit,
     ): List<Cadence<*>> {
-        val query = related.newQuery()
+        val query = scopedQuery()
         val relation = probe
         val excludeViaInverse = when {
             inverse.isNullOrBlank() -> false
@@ -144,7 +147,7 @@ internal class RelationBinding(val owner: Cadence<*>, val name: String) {
 
     /** A related record in the owner's scope; [withTrashed] also finds soft-deleted rows. */
     fun find(key: String, withTrashed: Boolean, modify: (ModelBuilder<*>) -> Unit): Cadence<*>? {
-        val query = related.newQuery()
+        val query = scopedQuery()
         if (withTrashed) query.withTrashed()
         scope(query, emptyList())
         modify(query)
@@ -154,12 +157,10 @@ internal class RelationBinding(val owner: Cadence<*>, val name: String) {
 
     fun create(attributes: Map<String, Any?>, pivot: Map<String, Any?>): Cadence<*> {
         val relation = open()
-        if (relation is HasOneOrMany<*, *>) return relation.create(attributes)
         val store = store()
-        val model = store.newRecord()
-        store.fill(model, attributes)
+        val model = if (relation is HasOneOrMany<*, *>) relation.make(attributes) else store.fill(store.newRecord(), attributes)
         store.save(model)
-        (relation as BelongsToMany<*>).attach(listOf(model), pivot)
+        if (relation is BelongsToMany<*>) relation.attach(listOf(model), pivot)
         return model as Cadence<*>
     }
 

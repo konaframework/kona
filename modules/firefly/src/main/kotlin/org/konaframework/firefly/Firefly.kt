@@ -74,6 +74,15 @@ object Firefly {
 
     internal fun resolveDefaultProfilePage(): ProfilePage? = defaultProfile?.get()
 
+    /** The tenant model of the current panel request, or null. Same as [FireflyTenant.current]. */
+    @JvmStatic
+    fun getTenant(): Any? = FireflyTenant.current()
+
+    /** [getTenant] as [type]. */
+    @JvmStatic
+    fun <T> getTenant(type: Class<T>): T? = FireflyTenant.current(type)
+
+
     /** Keeps [panel] and mounts it on the next [mount]. The same instance is used. */
     @JvmStatic
     fun register(panel: Panel): Firefly = apply {
