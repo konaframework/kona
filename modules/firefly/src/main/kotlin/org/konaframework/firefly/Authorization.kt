@@ -1,5 +1,6 @@
 package org.konaframework.firefly
 
+import org.konaframework.auth.Auth
 import org.konaframework.auth.Authenticatable
 import org.konaframework.auth.authorization.Gate
 import org.konaframework.auth.authorization.Policy
@@ -61,9 +62,26 @@ internal object FireflyPolicies {
     fun allows(model: Class<*>, ability: String, record: Any?, allowWithoutPolicy: Boolean): Boolean {
         val gate = Firefly.activeGate()
         if (gate == null || Firefly.policyFor(model) == null) return allowWithoutPolicy
-        val user = FireflyAuth.user()
+        // Prefer the panel request scope; fall back to the app Auth guard (same user after
+        // reuseAppGuard + Auth.setRequest) so nav/canViewAny still works if the scope is missing.
+        val user = resolvePolicyUser()
         return gate.allows(user, ability, record ?: model)
     }
+
+    /** FireflyAuth first; Auth.user() when the panel scope is empty but the session guard is bound. */
+    private fun resolvePolicyUser(): Authenticatable? {
+        val scoped = FireflyAuth.user()
+        if (scoped != null) return scoped
+        return authUserOrNull()
+    }
+
+    /** Safe [Auth.user] — null when no manager / request is bound. */
+    internal fun authUserOrNull(): Authenticatable? =
+        try {
+            Auth.user()
+        } catch (_: Throwable) {
+            null
+        }
 
     fun hasPolicy(model: Class<*>): Boolean = Firefly.policyFor(model) != null
 

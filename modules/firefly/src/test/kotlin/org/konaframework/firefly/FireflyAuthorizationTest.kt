@@ -528,6 +528,25 @@ class FireflyAuthorizationTest {
         assertEquals("editor", AuthPanelGuard(app).user()!!.getAuthIdentifier())
     }
 
+    @Test
+    fun policiesFallBackToAuthUserWhenFireflyScopeIsEmpty() {
+        val resource = posts()
+        assertFalse(resource.canViewAny())
+        assertNull(FireflyPolicies.authUserOrNull())
+        val app = StubGuard(azUser("viewer"))
+        org.konaframework.auth.Auth.setManager(
+            org.konaframework.auth.AuthManager().extend("web", app),
+        )
+        try {
+            assertEquals("viewer", FireflyPolicies.authUserOrNull()!!.getAuthIdentifier())
+            assertTrue(resource.canViewAny(), "Gate uses Auth.user when FireflyAuth scope is empty")
+            assertFalse(as_(null) { resource.canCreate() })
+        } finally {
+            org.konaframework.auth.Auth.clearManager()
+        }
+        assertNull(FireflyPolicies.authUserOrNull())
+    }
+
     // ——— Helpers ———
 
     private fun posts(): Resource = object : Resource("posts") {
