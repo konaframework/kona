@@ -455,7 +455,7 @@ constructor(
                 "src/main/resources/js/Layouts/AppLayout.vue",
                 "src/main/resources/js/Components/InputError.vue",
                 "src/main/resources/js/Components/TextLink.vue",
-                "src/main/resources/js/Pages/Welcome.vue",
+                // Welcome.vue stays from ScaffoldFrontends (CSS + optional TypeScript).
                 "src/main/resources/js/Pages/Dashboard.vue",
                 "src/main/resources/js/Pages/Auth/Login.vue",
                 "src/main/resources/js/Pages/Auth/Register.vue",

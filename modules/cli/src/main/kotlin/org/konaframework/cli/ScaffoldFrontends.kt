@@ -364,6 +364,7 @@ internal object ScaffoldFrontends {
             "tailwind" ->
                 """
                 <script setup>
+                import { Link } from '@inertiajs/vue3';
                 defineProps({
                   title: { type: String, default: 'Welcome' },
                   message: { type: String, default: '' },
@@ -374,15 +375,18 @@ internal object ScaffoldFrontends {
                   <main class="min-h-screen bg-foam text-ink p-8 max-w-xl">
                     <h1 class="text-3xl font-bold text-accent">{{ title }}</h1>
                     <p v-if="message" class="mt-4 opacity-90">{{ message }}</p>
-                    <p class="mt-8 text-sm">
+                    <div class="mt-8 flex gap-4 text-sm">
+                      <Link href="/login" class="text-caramel">Sign in</Link>
+                      <Link href="/register" class="text-caramel">Register</Link>
                       <a class="text-caramel" href="https://docs.konaframework.org/">docs.konaframework.org</a>
-                    </p>
+                    </div>
                   </main>
                 </template>
                 """.trimIndent() + "\n"
             "bootstrap" ->
                 """
                 <script setup>
+                import { Link } from '@inertiajs/vue3';
                 defineProps({
                   title: { type: String, default: 'Welcome' },
                   message: { type: String, default: '' },
@@ -394,6 +398,10 @@ internal object ScaffoldFrontends {
                     <h1 class="display-6">{{ title }}</h1>
                     <p v-if="message" class="lead">{{ message }}</p>
                     <p class="mt-4">
+                      <Link href="/login">Sign in</Link>
+                      ·
+                      <Link href="/register">Register</Link>
+                      ·
                       <a href="https://docs.konaframework.org/">docs.konaframework.org</a>
                     </p>
                   </main>
@@ -402,6 +410,7 @@ internal object ScaffoldFrontends {
             else ->
                 """
                 <script setup>
+                import { Link } from '@inertiajs/vue3';
                 defineProps({
                   title: { type: String, default: 'Welcome' },
                   message: { type: String, default: '' },
@@ -412,7 +421,13 @@ internal object ScaffoldFrontends {
                   <main style="font-family: system-ui, sans-serif; padding: 2rem; max-width: 40rem;">
                     <h1>{{ title }}</h1>
                     <p v-if="message">{{ message }}</p>
-                    <p><a href="https://docs.konaframework.org/">docs.konaframework.org</a></p>
+                    <p>
+                      <Link href="/login">Sign in</Link>
+                      ·
+                      <Link href="/register">Register</Link>
+                      ·
+                      <a href="https://docs.konaframework.org/">docs.konaframework.org</a>
+                    </p>
                   </main>
                 </template>
                 """.trimIndent() + "\n"

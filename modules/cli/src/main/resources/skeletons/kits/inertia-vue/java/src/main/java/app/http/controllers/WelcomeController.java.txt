@@ -10,7 +10,7 @@ public class WelcomeController {
     public Response index(Request request) {
         return Inertia.render("Welcome", Map.of(
             "title", Env.getOrDefault("APP_NAME", "{{appName}}"),
-            "message", "Inertia + Vue auth starter"
+            "message", "Inertia + Vue auth starter — https://docs.konaframework.org/"
         ));
     }
 }
