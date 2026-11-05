@@ -440,4 +440,29 @@ class EnvConfigApplicationTest {
                 .basePath.isAbsolute,
         )
     }
+
+    @Test
+    fun requestedEnvironmentLayersItsEnvFileOverDotEnv() {
+        val base = Files.createTempDirectory("kona-env-testing")
+        Files.writeString(base.resolve(".env"), "APP_ENV=local\nAPP_NAME=Base\nDB_NAME=kona\n")
+        Files.writeString(base.resolve(".env.testing"), "APP_NAME=Under Test\nDB_NAME=kona_test\n")
+        Env.set("APP_ENV", "testing")
+        val app = Kona.start(base)
+        assertEquals("testing", app.config.getString("app.env"))
+        assertEquals("Under Test", app.config.getString("app.name"))
+        assertEquals("kona_test", Env.get("DB_NAME"))
+        Kona.reset()
+
+        // Without a requested environment `.env` alone applies, and a missing layer is ignored.
+        Files.writeString(base.resolve(".env"), "APP_ENV=staging\nAPP_NAME=Base\n")
+        val plain = Kona.start(base)
+        assertEquals("staging", plain.config.getString("app.env"))
+        assertEquals("Base", plain.config.getString("app.name"))
+        Kona.reset()
+
+        Env.set("APP_ENV", "qa")
+        val missing = Kona.start(base)
+        assertEquals("qa", missing.config.getString("app.env"))
+        assertEquals("Base", missing.config.getString("app.name"))
+    }
 }

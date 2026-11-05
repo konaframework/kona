@@ -361,6 +361,7 @@ export async function buildSidebar() {
         { label: 'Themes and CSS', translations: { es: 'Temas y CSS', fr: 'Thèmes et CSS', 'zh-CN': '主题与 CSS' }, slug: 'docs/firefly/themes' },
         { label: 'Panel chrome', translations: { es: 'Cromo del panel', fr: 'Chrome du panneau', 'zh-CN': '面板外观' }, slug: 'docs/firefly/chrome' },
         { label: 'Dialog', translations: { es: 'Diálogo', fr: 'Dialogue', 'zh-CN': '对话框' }, slug: 'docs/firefly/dialog' },
+        { label: 'Testing', translations: { es: 'Pruebas', fr: 'Tests', 'zh-CN': '测试' }, slug: 'docs/firefly/testing' },
       ],
     },
     {
@@ -369,6 +370,7 @@ export async function buildSidebar() {
       items: [
         { label: 'Getting started', translations: { es: 'Primeros pasos', fr: 'Premiers pas', 'zh-CN': '入门' }, slug: 'docs/testing' },
         { label: 'HTTP tests', translations: { es: 'Pruebas HTTP', fr: 'Tests HTTP', 'zh-CN': 'HTTP 测试' }, slug: 'docs/testing/http-console' },
+        { label: 'Feature tests', translations: { es: 'Pruebas de función', fr: 'Tests fonctionnels', 'zh-CN': '功能测试' }, slug: 'docs/testing/feature' },
         { label: 'Console tests', translations: { es: 'Pruebas de consola', fr: 'Tests console', 'zh-CN': '控制台测试' }, slug: 'docs/testing/console' },
         { label: 'Database & fakes', translations: { es: 'Base de datos y fakes', fr: 'Base de données et doubles', 'zh-CN': '数据库与替身' }, slug: 'docs/testing/database-fakes' },
       ],

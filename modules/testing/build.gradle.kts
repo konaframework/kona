@@ -8,6 +8,8 @@ dependencies {
     api(project(":kona-core"))
     api(project(":kona-http"))
     api(project(":kona-cadence"))
+    api(project(":kona-session"))
+    api(project(":kona-auth"))
     api(project(":kona-mail"))
     api(project(":kona-queue"))
     api(project(":kona-notifications"))

@@ -55,7 +55,14 @@ object Kona {
     }
 
     private fun bootstrap(application: Application) {
+        // An environment requested before boot (process env or `Env.set("APP_ENV", …)`, e.g. by
+        // kona-testing) layers `.env.{environment}` over `.env`, and `.env` cannot change it back.
+        val requested = Env.get("APP_ENV")
         Env.load(application.path(".env"))
+        if (requested != null) {
+            Env.load(application.path(".env.$requested"))
+            Env.set("APP_ENV", requested)
+        }
         val config = application.config
         config.set("app.name", Env.getOrDefault("APP_NAME", "Kona"))
         config.set("app.env", Env.getOrDefault("APP_ENV", "local"))
