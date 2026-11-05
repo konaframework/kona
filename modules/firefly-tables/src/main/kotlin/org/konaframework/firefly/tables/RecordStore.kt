@@ -340,7 +340,11 @@ open class MemoryRecordStore(
 open class CadenceRecordStore<T : Cadence<T>>(
     private val modelClass: Class<T>,
 ) : RecordStore<T, ModelBuilder<T>> {
-    override fun query(): ModelBuilder<T> = prototype().newQuery()
+    override fun query(): ModelBuilder<T> {
+        val query = prototype().newQuery()
+        RecordScopes.current()?.constrain(modelClass, query)
+        return query
+    }
 
     override fun find(key: String): T? = try {
         query().where(keyName(), coerce(key)).first()
@@ -359,7 +363,11 @@ open class CadenceRecordStore<T : Cadence<T>>(
 
     override fun fill(record: T, attributes: Map<String, Any?>): T = record.fill(attributes)
 
-    override fun save(record: T): T = record.apply { save() }
+    override fun save(record: T): T {
+        val scope = RecordScopes.current()
+        if (scope == null || record.exists()) record.save() else scope.create(record) { record.save() }
+        return record
+    }
 
     override fun delete(record: T) {
         if (record.getKey() == null) throw FireflyException("Record is missing [${record.primaryKey}]")
