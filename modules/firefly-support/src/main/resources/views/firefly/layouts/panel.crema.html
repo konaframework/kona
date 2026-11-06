@@ -22,7 +22,9 @@
   <body class="ff-body-root" style="margin:0;background:{{ bodyBackground }};color:{{ bodyColor }}">
     <div class="ff-panel"@if(maxWidth) data-ff-max-width="{{ maxWidth }}"@endif>
       <div class="ff-backdrop" data-ff-backdrop aria-hidden="true"></div>
-      {!! sidebar !!}
+      @if(sidebar)
+        {!! sidebar !!}
+      @endif
       <div class="ff-column">
         {!! topbar !!}
         <div class="ff-scroll">

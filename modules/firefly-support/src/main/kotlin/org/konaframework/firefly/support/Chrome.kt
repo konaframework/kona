@@ -783,6 +783,7 @@ class Panel {
     private var mode: ChromeMode = ChromeMode.PANEL
     private var maxWidth: String? = null
     private var branding: FireflyBranding = FireflyBranding.DEFAULT
+    private var includeSidebarFlag: Boolean = true
 
     fun theme(theme: FireflyTheme): Panel = apply { this.theme = theme }
 
@@ -805,6 +806,9 @@ class Panel {
 
     fun mode(mode: ChromeMode): Panel = apply { this.mode = mode }
 
+    /** When false, the sidebar partial is empty and the layout omits the aside. */
+    fun includeSidebar(on: Boolean): Panel = apply { includeSidebarFlag = on }
+
     /**
      * Default content max-width for pages and resources in this chrome
      * (`xs`…`7xl`, `full`, `screen`, `prose`). Emits `data-ff-max-width` on `.ff-panel`.
@@ -817,6 +821,10 @@ class Panel {
         val partials = linkedMapOf<String, String>()
         val slots = if (mode == ChromeMode.AUTH) listOf("body") else SLOTS
         for (slot in slots) {
+            if (slot == "sidebar" && !includeSidebarFlag) {
+                partials[slot] = ""
+                continue
+            }
             val fromApp = overrides[slot]
             val fromTheme = theme.partial(slot)
             val chosen = when {

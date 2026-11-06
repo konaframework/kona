@@ -21,14 +21,15 @@ On the hello samples that means a link for Desk, plus one sidebar entry each for
 | Type | Level 1 | Levels 2 and 3 |
 |------|---------|----------------|
 | `NavigationType.APP` (the default) | Sidebar | Top bar, for the active level-1 item’s children |
+| `NavigationType.INVERSE` | Top bar | Sidebar, for the active level-1 item’s children |
 | `NavigationType.SIDE` | Sidebar | Sidebar |
 | `NavigationType.TOP` | Top bar | Top bar |
 
-`topNavigation()` is `navigation(NavigationType.TOP)`. `navigation` accepts the enum or a closure that receives `Get`.
+`INVERSE` is the inverse of `APP`: the same level-1 roots (ungrouped links, plus one cluster per navigation group), drawn in the top bar, with that root’s children in the sidebar. `topNavigation()` is `navigation(NavigationType.TOP)`. `navigation` accepts the enum or a closure that receives `Get`.
 
 Nesting stops at level 3. A fourth level fails when the panel mounts, and the message names the item. `cluster("Catalog")` adds a parent with no URL of its own. `userMenu(...)` entries render inside the user-menu dropdown in the top bar. `spa(true)` adds `wire:navigate` on links that have a URL.
 
-With `SIDE` and `APP` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar and has no sidebar or drawer.
+With `SIDE`, `APP`, and `INVERSE` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar. It does not render a sidebar, and the layout does not reserve a sidebar column.
 
 ## What the hello samples show
 

@@ -194,6 +194,9 @@ class FireflyPanelTest {
         val topHtml = send(top, "GET", "/top/one").body
         assertTrue(topHtml.contains("""class="ff-nav ff-nav-top""""))
         assertFalse(topHtml.contains("""class="ff-nav ff-nav-side""""))
+        // TOP does not mount the sidebar column (#499).
+        assertFalse(topHtml.contains("""<aside class="ff-sidebar""""))
+        assertTrue(topHtml.contains(".ff-panel > .ff-sidebar:empty"))
 
         val deep = NavigationItem("Desk")
         val tree = NavigationItem("Sales").child(NavigationItem("Orders").child(NavigationItem("Open").child(deep)))
@@ -1014,6 +1017,7 @@ class FireflyPanelTest {
         val top = send(topRouter, "GET", "/t/one").body
         assertFalse(top.contains("""<button type="button" class="ff-hamburger""""))
         assertFalse(top.contains("""<div class="ff-sidebar-foot">"""))
+        assertFalse(top.contains("""<aside class="ff-sidebar""""))
         assertTrue(top.contains("""class="ff-brand">Toply<"""))
         assertTrue(top.contains("ff-theme-toggle"))
     }

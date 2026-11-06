@@ -13,11 +13,14 @@ import java.util.function.Predicate
  *
  * - [APP] — level 1 in the sidebar; levels 2–3 of the active level-1 item in the top bar (Shamar shell).
  *   Navigation groups promote to level-1 clusters; their members render in the top bar.
+ * - [INVERSE] — the inverse of [APP]: level 1 in the top bar; levels 2–3 of the active level-1 item
+ *   in the sidebar. Groups promote to top-bar clusters; their members render in the sidebar.
  * - [SIDE] — the full tree in the sidebar (groups are headings).
- * - [TOP] — the full tree in the top bar (no sidebar; groups are inline clusters).
+ * - [TOP] — the full tree in the top bar (no sidebar column; groups are inline clusters).
  */
 enum class NavigationType {
     APP,
+    INVERSE,
     SIDE,
     TOP,
 }

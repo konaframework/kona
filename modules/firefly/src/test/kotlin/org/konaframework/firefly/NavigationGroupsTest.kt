@@ -255,6 +255,15 @@ class NavigationGroupsTest {
                 .navigationGroups(NavigationGroup.make("Sales").collapsed())
                 .resource(listed("orders").navigationGroup("Sales"))
         assertFalse(body(app).contains("""<nav class="ff-nav ff-nav-side" data-ff-nav-accordion>"""))
+        val inverse =
+            Panel()
+                .path("admin")
+                .authenticate(false)
+                .navigation(NavigationType.INVERSE)
+                .navigationAccordion()
+                .navigationGroups(NavigationGroup.make("Sales").collapsed())
+                .resource(listed("orders").navigationGroup("Sales"))
+        assertFalse(body(inverse).contains("""<nav class="ff-nav ff-nav-side" data-ff-nav-accordion>"""))
     }
 
     @Test
@@ -411,5 +420,43 @@ class NavigationGroupsTest {
         val flat = sidebar(body(Panel().path("admin").authenticate(false).resource(listed("loose"))))
         assertFalse(flat.contains("ff-cluster"))
         assertTrue(flat.contains("""href="/admin/loose/list""""), flat)
+    }
+
+    @Test
+    fun inverseNavigationPutsGroupsOnTopAndChildrenInTheSidebar() {
+        val panel = promotedSales().navigation(NavigationType.INVERSE)
+        val html = body(panel, "/admin/orders/list")
+        val top = html.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        val side = sidebar(html)
+        assertTrue(html.contains("""<aside class="ff-sidebar""""))
+        assertTrue(top.contains(">Sales<"))
+        assertTrue(top.contains("ff-cluster"))
+        assertTrue(top.contains(">Loose<"))
+        assertFalse(top.contains(">Sales orders<"))
+        assertFalse(top.contains("""data-ff-nav-group="Sales""""))
+        assertTrue(side.contains(">Sales orders<"))
+        assertTrue(side.contains("""href="/admin/quotes/list""""))
+        assertFalse(side.contains(">Loose<"))
+        assertFalse(side.contains(">Sales<"))
+        assertFalse(side.contains("""data-ff-nav-group="Sales""""))
+        val quotes = body(promotedSales().navigation(NavigationType.INVERSE), "/admin/quotes/list")
+        assertTrue(quotes.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>").contains("ff-nav-item ff-cluster ff-active"))
+        assertTrue(sidebar(quotes).contains("ff-active"))
+        // Active root with no children: top bar keeps the roots, sidebar nav is omitted.
+        val loose = body(promotedSales().navigation(NavigationType.INVERSE), "/admin/loose/list")
+        assertTrue(loose.contains("""<nav class="ff-nav ff-nav-top">"""))
+        assertFalse(loose.contains("""<nav class="ff-nav ff-nav-side">"""))
+        assertTrue(loose.contains("ff-sidebar-brand"))
+    }
+
+    @Test
+    fun inverseNavigationOmitsBothMenusWhenNothingIsVisible() {
+        val panel = Panel().path("admin").authenticate(false).navigation(NavigationType.INVERSE)
+            .item(NavigationItem("hidden").label("Hidden").url("/admin/hidden").visible(false))
+            .page(ListPage("one"))
+        val html = body(panel, "/admin/one")
+        assertFalse(html.contains("""<nav class="ff-nav ff-nav-top">"""))
+        assertFalse(html.contains("""<nav class="ff-nav ff-nav-side">"""))
+        assertTrue(html.contains("""<aside class="ff-sidebar""""))
     }
 }
