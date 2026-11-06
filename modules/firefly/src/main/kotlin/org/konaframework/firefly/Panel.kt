@@ -55,6 +55,9 @@ private const val BULK_ALL = "_bulk_all"
  * Call [mount] to add the panel's own paths. `/_firefly/` and `/wire/update` are never registered.
  *
  * The panel guard is `firefly-{id}` unless [reuseAppGuard] names the application guard.
+ *
+ * Prefer [panel] on a subclass when you want a typed chain. Configuration in `init` still
+ * applies; [mount] and rendering call [panel] once on top of it.
  */
 open class Panel {
     private var idLiteral: String = "admin"
@@ -98,6 +101,43 @@ open class Panel {
     private var maxWidthLiteral: String? = null
     private var accessUsing: Predicate<Authenticatable?>? = null
     private var allowWithoutPolicy: Boolean? = null
+    private var panelConfigured: Boolean = false
+
+    /**
+     * Preferred configuration hook (#501). [mount] and chrome rendering call this once with
+     * this panel.
+     *
+     * The default returns [panel] unchanged, so setters called from `init` or the constructor
+     * still configure the panel. Override it and return the chain:
+     *
+     * ```
+     * override fun panel(panel: Panel): Panel =
+     *     panel.id("admin").path("admin").reuseAppGuard().authenticate(true)
+     * ```
+     *
+     * When the subclass is also named `Panel`, import the framework type
+     * (`import org.konaframework.firefly.Panel as FireflyPanel`) so the parameter type is the
+     * framework panel and completion lists these setters. Fluent setters return this instance.
+     * Returning a different [Panel] throws [FireflyException].
+     *
+     * Pages, widgets, and resources are not scanned from the classpath. Register them with
+     * [page], [pages], [resource], [resources], [widget], [widgets], [plugin], and [plugins],
+     * or point [discover] at the panel directory (`pages/`, `widgets/`, `resources/`).
+     * [Firefly.mount] discovers panel classes under `app/panels`. There is no panel-wide HTTP
+     * middleware stack; tenant requests use [tenantMiddleware]. Sign-in stays on [authenticate],
+     * [reuseAppGuard], [useAuthGuard], [guard], and [canAccess].
+     */
+    open fun panel(panel: Panel): Panel = panel
+
+    private fun applyPanelConfiguration() {
+        if (panelConfigured) return
+        panelConfigured = true
+        val configured = panel(this)
+        if (configured !== this) {
+            panelConfigured = false
+            throw FireflyException("Panel.panel() must return this panel")
+        }
+    }
 
     fun id(value: String): Panel = apply {
         if (value.isBlank()) throw FireflyException("Panel id is blank")
@@ -298,9 +338,24 @@ open class Panel {
 
     fun page(page: PanelPage): Panel = apply { pages.add(page) }
 
+    /** Registers each page. Same as calling [page] once per entry. */
+    fun pages(vararg pages: PanelPage): Panel = apply {
+        for (entry in pages) page(entry)
+    }
+
     fun resource(resource: Resource): Panel = apply { resources.add(resource) }
 
+    /** Registers each resource. Same as calling [resource] once per entry. */
+    fun resources(vararg resources: Resource): Panel = apply {
+        for (entry in resources) resource(entry)
+    }
+
     fun widget(widget: Widget): Panel = apply { widgets.add(widget) }
+
+    /** Registers each widget on the dashboard. Same as calling [widget] once per entry. */
+    fun widgets(vararg widgets: Widget): Panel = apply {
+        for (entry in widgets) widget(entry)
+    }
 
     fun discover(panelDirectory: Path): Panel = apply { directory = panelDirectory }
 
@@ -371,9 +426,15 @@ open class Panel {
         plugins.add(ready)
     }
 
+    /** Registers each plugin. Same as calling [plugin] once per entry. */
+    fun plugins(vararg plugins: FireflyPlugin): Panel = apply {
+        for (entry in plugins) plugin(entry)
+    }
+
     fun mount(router: Router): Panel = mount(router, emptyMap())
 
     fun mount(router: Router, state: Map<String, Any?>): Panel {
+        applyPanelConfiguration()
         if (mounted) throw FireflyException("Panel [$resolvedId] is already mounted")
         val get = SchemaBridge.open(state)
         resolvedId = resolveId(get)
@@ -412,6 +473,7 @@ open class Panel {
     fun render(request: Request, state: Map<String, Any?>): String = draw(request, state, "")
 
     private fun draw(request: Request, state: Map<String, Any?>, body: String): String {
+        applyPanelConfiguration()
         val get = SchemaBridge.open(state)
         val type = resolveNavigation(get)
         val branding = effectiveBranding(request)
@@ -455,6 +517,7 @@ open class Panel {
     }
 
     private fun drawAuth(request: Request, title: String, body: String): String {
+        applyPanelConfiguration()
         val branding = effectiveBranding(request)
         val brand = branding.brandName
         val token = FireflyCsrf.ensure(request)

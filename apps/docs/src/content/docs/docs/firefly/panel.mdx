@@ -51,6 +51,42 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 
 `mount(router, state)` evaluates closures against that state map. A second `mount` throws `Panel [id] is already mounted`.
 
+## Configure a panel class
+
+Prefer `panel(panel)` on the subclass. `mount` and `render` call it once with this panel and expect the same instance back. Fluent setters return that instance, so the parameter is what the IDE completes. An `init` block (or a Java constructor) that calls the same setters still works and still runs first. Use one style.
+
+When the subclass is also named `Panel`, alias the framework type so the parameter is not the subclass:
+
+```kotlin
+import org.konaframework.firefly.Panel as FireflyPanel
+
+class Panel : FireflyPanel() {
+    override fun panel(panel: FireflyPanel): FireflyPanel =
+        panel
+            .id("admin")
+            .path("admin")
+            .reuseAppGuard()
+            .authenticate(true)
+            .navigation(NavigationType.SIDE)
+}
+```
+
+```java
+@Override
+public org.konaframework.firefly.Panel panel(org.konaframework.firefly.Panel panel) {
+    return panel
+        .id("admin")
+        .path("admin")
+        .reuseAppGuard()
+        .authenticate(true)
+        .navigation(NavigationType.SIDE);
+}
+```
+
+Returning a different panel throws `FireflyException`. `./grind make:firefly-panel` writes this hook.
+
+Firefly does not scan the classpath for pages, resources, or widgets. Register them on the chain with `page` / `pages`, `resource` / `resources`, `widget` / `widgets`, and `plugin` / `plugins`, or call `discover(path)` for the panel directory (`pages/`, `widgets/`, `resources/`). Panel classes under `app/panels` are discovered by the provider. There is no panel-wide HTTP middleware stack. Tenant requests use `tenantMiddleware`. Sign-in stays on `authenticate`, `reuseAppGuard`, `useAuthGuard`, `guard`, and `canAccess`.
+
 ## Methods you will call
 
 | Method | What you get |
@@ -68,10 +104,11 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 | `authenticate(false)` | Pages skip the login redirect. The hello samples do this |
 | `guard` / `useAuthGuard` / `reuseAppGuard` | Who is signed in. See below |
 | `item` / `cluster` / `userMenu` | Navigation tree. See [Navigation](/docs/firefly/navigation/) |
-| `page` / `resource` / `widget` | Register one instance without discovery |
+| `panel(panel)` | Preferred subclass hook. Return the same panel. `init` still works. See [Configure a panel class](#configure-a-panel-class) |
+| `page` / `pages`, `resource` / `resources`, `widget` / `widgets` | Register instances without discovery. Plurals take the same arguments as the singular methods |
 | `discover(path)` | Load `pages/`, `widgets/`, and `resources/`. See [Register a panel](/docs/firefly/registration/) |
 | `tenant` | Adds a tenant link. See [Tenancy](/docs/firefly/tenancy/) |
-| `plugin` | Calls `register` immediately. `boot` runs inside `mount`. See [Plugins](/docs/firefly/plugins/) |
+| `plugin` / `plugins` | Calls `register` immediately. `boot` runs inside `mount`. See [Plugins](/docs/firefly/plugins/) |
 | `mount(router)` | Registers routes |
 | `render(request)` | The chrome for a request, without a page body |
 | `guardName()` | `firefly-{id}`, or the name you passed to `reuseAppGuard` |

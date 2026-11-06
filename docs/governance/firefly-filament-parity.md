@@ -97,6 +97,15 @@ Auto-discovered navigation can be grouped, sorted and badged. Docs: Firefly → 
 | NAV-5 | Denied items and empty groups hidden | Items hidden by `canViewAny` / `canAccess` / `visible` / `shouldRegisterNavigation` leave the sidebar; a group with no visible item is not drawn | done (#465) |
 | NAV-6 | Groups on a manual tree | `NavigationItem.group` / `sort` / `badge`; TOP navigation draws a group as a cluster entry | done (#465) |
 
+### Panel configuration (#501)
+
+`panel(panel)` is the preferred subclass hook. `init` and the Java constructor still configure a panel. Fluent setters return the same instance. Directory discovery (`app/panels`, plus `pages/`, `widgets/`, `resources/` via `discover`) is unchanged — Firefly does not scan arbitrary classes. There is no panel-wide HTTP middleware; tenant requests use `tenantMiddleware`.
+
+| ID | Filament surface | Firefly | Status |
+|----|------------------|---------|--------|
+| PNL-1 | `panel(Panel $panel): Panel` | `Panel.panel(panel)` once from `mount` and render; return the same instance | done (#501) |
+| PNL-2 | `->pages()` / `->resources()` / `->widgets()` / `->plugins()` | vararg `pages` / `resources` / `widgets` / `plugins`, delegating to the singular methods | done (#501) |
+
 ## M28 — support (`kona-firefly-support`)
 
 | ID | Filament surface | Firefly | Status |
