@@ -490,8 +490,8 @@ open class Panel {
         val guard = activeGuard(request)
         val user = ChromeUser(guard.id(), guard.name(), guard.email())
         val path = navPath(request)
-        // TOP has no sidebar. Drop the aside so the flex row does not keep --ff-sidebar-width (#499).
-        if (type == NavigationType.TOP) chrome.includeSidebar(false)
+        // TOP still emits a sidebar, but only for the narrow-screen drawer. Desktop CSS
+        // collapses that aside so the bar stays full width (#502).
         chrome.hook(Hook.TOPBAR_START, topHtml(type, path, branding, get))
         chrome.hook(Hook.TOPBAR_END, tenantHtml(request) + userHtml(request, path, user, get))
         chrome.hook(Hook.SIDEBAR_START, sideHtml(type, path, branding, user, get))
@@ -1744,25 +1744,27 @@ open class Panel {
 
     private fun topHtml(type: NavigationType, path: String, branding: FireflyBranding, get: Get): String {
         val lead = StringBuilder("""<div class="ff-topbar-lead">""")
-        // SIDE/APP own a sidebar, so the bar gets a drawer toggle + a mobile-only brand.
-        // TOP has no sidebar, so its brand stays visible in the bar on every width.
+        // Every layout can open the drawer. The control is hidden on wide screens.
+        // TOP keeps its brand in the bar at every width; the others show it there only on mobile.
+        lead.append(
+            """<button type="button" class="ff-hamburger" data-ff-sidebar-toggle aria-label="Open navigation">${Icon.BARS.svg()}</button>""",
+        )
         if (type == NavigationType.TOP) {
             lead.append(brandMarkHtml(branding))
         } else {
-            lead.append(
-                """<button type="button" class="ff-hamburger" data-ff-sidebar-toggle aria-label="Open navigation">${Icon.BARS.svg()}</button>""",
-            )
             lead.append(brandMarkHtml(branding, "ff-topbar-brand"))
         }
-        // APP: children of the active L1 root. INVERSE: L1 roots (groups are clusters). TOP: full tree.
+        // APP: children of the active L1 root (nested links are dropdowns).
+        // INVERSE: L1 roots only (children stay in the sidebar).
+        // TOP: groups are dropdown triggers; their links are not a second row.
         when (type) {
             NavigationType.TOP ->
-                lead.append("""<nav class="ff-nav ff-nav-top">${renderGrouped(items, navigationGroupList, path, spaMode, get, true, true)}</nav>""")
+                lead.append("""<nav class="ff-nav ff-nav-top">${renderGrouped(items, navigationGroupList, path, spaMode, get, false, true)}</nav>""")
             NavigationType.APP -> {
                 val nested = activeLevelChildren(path, get)
                 if (nested.isNotEmpty()) {
                     lead.append(
-                        """<nav class="ff-nav ff-nav-top">${renderItems(nested, path, spaMode, get, true)}</nav>""",
+                        """<nav class="ff-nav ff-nav-top">${renderItems(nested, path, spaMode, get, true, true)}</nav>""",
                     )
                 }
             }
@@ -1781,16 +1783,17 @@ open class Panel {
     }
 
     private fun sideHtml(type: NavigationType, path: String, branding: FireflyBranding, user: ChromeUser, get: Get): String {
-        if (type == NavigationType.TOP) return ""
         // Brand block is the elevated top strip; it carries the drawer close button on mobile.
         val logoClass = if (branding.showLogo) " ff-sidebar-brand--logo" else ""
         val brandBlock =
             """<div class="ff-sidebar-brand$logoClass">${brandMarkHtml(branding)}""" +
                 """<button type="button" class="ff-sidebar-close" data-ff-sidebar-close aria-label="Close navigation">${Icon.X.svg()}</button></div>"""
-        // TOP already returned. APP: L1 roots only (groups promote to clusters; children go to the top bar).
-        // INVERSE: children of the active L1 root (groups are top-bar clusters). SIDE: full tree.
-        // Accordion is SIDE-only.
+        // Marker so desktop CSS can drop the TOP column without removing the mobile drawer.
+        val offcanvas = if (type == NavigationType.TOP) """<div class="ff-sidebar-offcanvas" hidden></div>""" else ""
+        // APP: L1 roots only. INVERSE: children of the active L1 root. SIDE: full tree.
+        // TOP has no desktop sidebar nav. Accordion on the desktop tree is SIDE-only.
         val nav = when (type) {
+            NavigationType.TOP -> ""
             NavigationType.APP -> {
                 val roots = appLevelOnes(items, navigationGroupList, get)
                 """<nav class="ff-nav ff-nav-side">${renderItems(roots, path, spaMode, get, false)}</nav>"""
@@ -1803,13 +1806,22 @@ open class Panel {
                     """<nav class="ff-nav ff-nav-side">${renderItems(nested, path, spaMode, get, true)}</nav>"""
                 }
             }
-            else -> {
-                // SIDE. TOP already returned above, so it never reserves this column.
+            NavigationType.SIDE -> {
                 val accordion = if (navigationAccordionFlag) " data-ff-nav-accordion" else ""
                 """<nav class="ff-nav ff-nav-side"$accordion>${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
             }
         }
-        return brandBlock + nav + sidebarFootHtml(user, branding)
+        return offcanvas + brandBlock + nav + drawerNav(path, get) + sidebarFootHtml(user, branding)
+    }
+
+    /**
+     * Narrow-screen drawer: the full tree, one collapsible group at a time.
+     * Hidden on wide screens. Desktop SIDE/APP/INVERSE nav above it is unchanged.
+     */
+    private fun drawerNav(path: String, get: Get): String {
+        val tree = renderGrouped(items, navigationGroupList, path, spaMode, get, true, false, true)
+        if (tree.isBlank()) return ""
+        return """<nav class="ff-nav ff-nav-drawer" data-ff-nav-accordion>$tree</nav>"""
     }
 
     /** Sidebar footer with the "Signed in as …" line (Shamar sidebar user block). */

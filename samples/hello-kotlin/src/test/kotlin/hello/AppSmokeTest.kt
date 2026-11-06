@@ -95,10 +95,11 @@ class AppSmokeTest {
         val topRouter = Router()
         Panel().path("top").topNavigation().authenticate(false).page(ListPage("one")).mount(topRouter)
         val top = topRouter.find("GET", "/top/one")!!.route.action.handle(Request.get("/top/one")).body
-        assertFalse(top.contains("""<aside class="ff-sidebar""""), top)
         assertTrue(top.contains("""class="ff-nav ff-nav-top""""), top)
         assertFalse(top.contains("""class="ff-nav ff-nav-side""""), top)
-        assertTrue(top.contains(".ff-panel > .ff-sidebar:empty"), top)
+        assertTrue(top.contains("ff-sidebar-offcanvas"), top)
+        assertTrue(top.contains("ff-nav-drawer"), top)
+        assertTrue(top.contains(".ff-panel > .ff-sidebar:has(> .ff-sidebar-offcanvas)"), top)
 
         val inverse = Router()
         Panel().path("inv").authenticate(false).navigation(NavigationType.INVERSE)

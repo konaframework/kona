@@ -291,8 +291,8 @@ class NavigationGroupsTest {
         assertTrue(html().contains("""<span class="ff-nav-badge" data-ff-color="danger">4</span>"""))
         count = 12
         assertTrue(html().contains("""<span class="ff-nav-badge" data-ff-color="danger">12</span>"""))
-        // Null hides it; text and color are escaped.
-        assertEquals(2, html().split("ff-nav-badge\"").size - 1)
+        // Null hides it; text and color are escaped. Each badge is drawn twice: the desktop nav and the drawer.
+        assertEquals(4, html().split("ff-nav-badge\"").size - 1)
         assertTrue(html().contains("&lt;b&gt;"))
         assertFalse(html().contains("<b>"))
     }
@@ -371,9 +371,58 @@ class NavigationGroupsTest {
             .resource(listed("orders").navigationGroup("Sales"))
             .resource(listed("loose"))
         val html = body(panel).substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
-        assertTrue(html.contains("""<li class="ff-nav-item ff-cluster ff-nav-group">"""))
+        assertTrue(html.contains("ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown"))
+        assertTrue(html.contains("""class="ff-nav-dropdown-trigger" aria-haspopup="menu" aria-expanded="false""""))
+        assertTrue(html.contains("""<ul class="ff-nav-list" role="menu">"""))
         assertTrue(html.indexOf("loose") < html.indexOf("Sales") || html.indexOf("Loose") < html.indexOf("Sales"))
         assertTrue(html.substringAfter("ff-nav-group").contains("""href="/admin/orders/list""""))
+        // The group's links live in its menu, not as a second top-level row.
+        assertTrue(html.substringAfter(">Sales<").substringBefore("</ul>").contains("""href="/admin/orders/list""""))
+    }
+
+    @Test
+    fun topMenusKeepNestingAndTheDrawerIsAnAccordion() {
+        val panel = Panel().path("admin").authenticate(false).topNavigation()
+            .navigationGroups(
+                NavigationGroup.make("Sales"),
+                NavigationGroup.make("Accounting"),
+            )
+            .resource(listed("orders").navigationGroup("Sales"))
+            .resource(listed("invoices").navigationGroup("Accounting"))
+        val html = body(panel, "/admin/orders/list")
+        val top = html.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        assertTrue(top.contains("""aria-haspopup="menu""""))
+        assertTrue(top.contains("""href="/admin/orders/list""""))
+        assertFalse(html.contains("""<nav class="ff-nav ff-nav-side">"""))
+        val drawer = html.substringAfter("""<nav class="ff-nav ff-nav-drawer" data-ff-nav-accordion>""").substringBefore("</nav>")
+        assertTrue(drawer.contains("""data-ff-nav-group="Sales" open"""))
+        assertTrue(drawer.contains("""<details class="ff-nav-group ff-nav-group-collapsible"""))
+        // Accounting is not collapsible on the desktop tree; the drawer still folds it, and it is shut.
+        assertTrue(drawer.contains("""data-ff-nav-group="Accounting""""))
+        assertFalse(drawer.contains("""data-ff-nav-group="Accounting" open"""))
+        assertTrue(html.contains("""<div class="ff-sidebar-offcanvas" hidden></div>"""))
+        val desk = NavigationItem("desk").label("Desk").url("/admin/desk")
+        desk.child(NavigationItem("notes").label("Notes").url("/admin/notes"))
+        val manualPanel = Panel().path("admin").authenticate(false).topNavigation()
+            .page(ListPage("desk"))
+            .item(desk)
+        manualPanel.cluster("Bin").child(NavigationItem("bags").label("Bags").url("/admin/bags"))
+        val manual = body(manualPanel, "/admin/desk")
+        val manualTop = manual.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        assertTrue(manualTop.contains("""aria-label="Open Desk menu""""), manualTop)
+        assertTrue(manualTop.contains("""href="/admin/notes""""), manualTop)
+        assertTrue(manualTop.contains(">Bin<"), manualTop)
+        assertTrue(manualTop.contains("""href="/admin/bags""""), manualTop)
+        assertTrue(manualTop.contains("""role="menu""""), manualTop)
+        // Nothing registered: the drawer nav is omitted, the off-canvas aside remains.
+        val quiet = body(
+            Panel().path("admin").authenticate(false).topNavigation()
+                .page(ListPage("one").shouldRegisterNavigation(false))
+                .item(NavigationItem("hidden").label("Hidden").url("/admin/hidden").visible(false)),
+            "/admin/one",
+        )
+        assertFalse(quiet.contains("""<nav class="ff-nav ff-nav-drawer""""))
+        assertTrue(quiet.contains("ff-sidebar-offcanvas"))
     }
 
     private fun promotedSales(): Panel = Panel().path("admin").authenticate(false)

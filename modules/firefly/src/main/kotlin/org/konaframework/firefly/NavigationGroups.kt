@@ -170,18 +170,30 @@ internal fun renderGrouped(
     get: Get,
     nested: Boolean,
     inline: Boolean,
+    drawer: Boolean = false,
 ): String {
-    if (items.none { it.groupName() != null }) return renderItems(items, path, spa, get, nested)
+    // Top bar (`inline`) turns each group into a dropdown trigger. The mobile drawer forces
+    // every group into a collapsible accordion, whatever the desktop heading style is.
+    if (items.none { it.groupName() != null }) {
+        // Inline top bar: nested links are dropdowns. Drawer and sidebar: nested lists.
+        return renderItems(items, path, spa, get, nested, menu = inline)
+    }
     val (loose, buckets) = bucketGroups(items, groups, get)
     val out = StringBuilder()
     if (inline) {
         val rows = StringBuilder()
-        for (item in loose) rows.append(renderItem(item, path, spa, get, nested))
+        for (item in loose) rows.append(renderItem(item, path, spa, get, nested, true))
         for (bucket in buckets) {
             val inner = StringBuilder()
-            for (item in bucket.items) inner.append(renderItem(item, path, spa, get, nested))
+            for (item in bucket.items) inner.append(renderItem(item, path, spa, get, nested, true))
+            val holdsActive = bucket.items.any { itemOrDescendantActive(it, path, get) }
+            val active = if (holdsActive) " ff-active" else ""
+            val label = escapeHtml(bucket.group.label)
             rows.append(
-                """<li class="ff-nav-item ff-cluster ff-nav-group"><a>${bucket.group.iconHtml()}<span class="ff-nav-label">${escapeHtml(bucket.group.label)}</span></a><ul class="ff-nav-list">$inner</ul></li>""",
+                """<li class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown$active">""" +
+                    """<button type="button" class="ff-nav-dropdown-trigger" aria-haspopup="menu" aria-expanded="false">""" +
+                    """${bucket.group.iconHtml()}<span class="ff-nav-label">$label</span></button>""" +
+                    """<ul class="ff-nav-list" role="menu">$inner</ul></li>""",
             )
         }
         return """<ul class="ff-nav-list">$rows</ul>"""
@@ -193,8 +205,14 @@ internal fun renderGrouped(
         val name = escapeHtml(bucket.group.label)
         val holdsActive = bucket.items.any { itemOrDescendantActive(it, path, get) }
         val activeClass = if (holdsActive) " ff-nav-group-active" else ""
-        if (bucket.group.isCollapsible()) {
-            val open = if (!bucket.group.isCollapsed() || holdsActive) " open" else ""
+        if (bucket.group.isCollapsible() || drawer) {
+            val open = if (drawer) {
+                if (holdsActive) " open" else ""
+            } else if (!bucket.group.isCollapsed() || holdsActive) {
+                " open"
+            } else {
+                ""
+            }
             out.append(
                 """<details class="ff-nav-group ff-nav-group-collapsible$activeClass" data-ff-nav-group="$name"$open><summary class="ff-nav-group-label">$heading</summary>$list</details>""",
             )
