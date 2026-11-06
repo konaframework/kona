@@ -107,37 +107,38 @@ internal fun writePanel(base: Path, lang: String, id: String, path: String?) {
 }
 
 private fun panelSource(lang: String, id: String, path: String?): String {
-    val pathLines = if (path == null) {
-        emptyList()
-    } else if (lang == "java") {
-        listOf("        path(\"$path\");")
-    } else {
-        listOf("        path(\"$path\")")
-    }
+    val calls = ArrayList<String>()
+    calls.add("id(\"$id\")")
+    if (path != null) calls.add("path(\"$path\")")
+    calls.add("reuseAppGuard()")
+    calls.add("authenticate(true)")
     return if (lang == "java") {
+        val chain = calls.mapIndexed { index, call ->
+            val suffix = if (index == calls.lastIndex) ";" else ""
+            "            .$call$suffix"
+        }
         lines(
             "package app.panels.$id;",
             "",
             "public class Panel extends org.konaframework.firefly.Panel {",
-            "    public Panel() {",
-            "        id(\"$id\");",
-            *pathLines.toTypedArray(),
-            "        reuseAppGuard();",
-            "        authenticate(true);",
+            "    @Override",
+            "    public org.konaframework.firefly.Panel panel(org.konaframework.firefly.Panel panel) {",
+            "        return panel",
+            *chain.toTypedArray(),
             "    }",
             "}",
         )
     } else {
+        val chain = calls.map { "            .$it" }
         lines(
             "package app.panels.$id",
             "",
-            "class Panel : org.konaframework.firefly.Panel() {",
-            "    init {",
-            "        id(\"$id\")",
-            *pathLines.toTypedArray(),
-            "        reuseAppGuard()",
-            "        authenticate(true)",
-            "    }",
+            "import org.konaframework.firefly.Panel as FireflyPanel",
+            "",
+            "class Panel : FireflyPanel() {",
+            "    override fun panel(panel: FireflyPanel): FireflyPanel =",
+            "        panel",
+            *chain.toTypedArray(),
             "}",
         )
     }

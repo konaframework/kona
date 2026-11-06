@@ -812,13 +812,13 @@ class GrindTest {
         assertEquals(0, MakeFireflyPanelCommand().run(listOf("Panel", "--base=${temp.resolve("firefly-panel-named")}", "--lang=java")))
         val javaPanel = Files.readString(temp.resolve("firefly-panel-named/src/main/java/app/panels/admin/Panel.java"))
         assertTrue(javaPanel.contains("extends org.konaframework.firefly.Panel"))
-        assertTrue(javaPanel.contains("reuseAppGuard();"))
+        assertTrue(javaPanel.contains("reuseAppGuard()"))
         assertTrue(javaPanel.contains("authenticate(true);"))
         assertFalse(javaPanel.contains("path("))
         assertTrue(Files.isDirectory(temp.resolve("firefly-panel-named/src/main/java/app/panels/admin")))
         assertFalse(Files.exists(temp.resolve("firefly-panel-named/src/main/java/app/panels.admin")))
         assertEquals(0, MakeFireflyPanelCommand().run(listOf("--base=${temp.resolve("firefly-panel-java-path")}", "--lang=java", "--id=desk", "--path=staff")))
-        assertTrue(Files.readString(temp.resolve("firefly-panel-java-path/src/main/java/app/panels/desk/Panel.java")).contains("path(\"staff\");"))
+        assertTrue(Files.readString(temp.resolve("firefly-panel-java-path/src/main/java/app/panels/desk/Panel.java")).contains("path(\"staff\")"))
         assertThrows(GrindException::class.java) { MakeFireflyPanelCommand().run(listOf("Desk", "--base=$base")) }
         assertThrows(GrindException::class.java) { MakeFireflyPanelCommand().run(listOf("Bad-Name", "--base=$base")) }
         assertThrows(GrindException::class.java) { MakeFireflyPanelCommand().run(listOf("--base=${temp.resolve("blank-id")}", "--id=")) }
