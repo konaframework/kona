@@ -188,8 +188,8 @@ open class Panel {
 
     /**
      * When true (SIDE chrome), only one collapsible navigation group stays open at a time —
-     * opening a group closes its siblings. Non-collapsible groups are unchanged. APP/TOP ignore
-     * this flag. Requires chrome script (`data-ff-nav-accordion` on the sidebar nav).
+     * opening a group closes its siblings. Non-collapsible groups are unchanged. APP, INVERSE, and
+     * TOP ignore this flag. Requires chrome script (`data-ff-nav-accordion` on the sidebar nav).
      */
     @JvmOverloads
     fun navigationAccordion(on: Boolean = true): Panel = apply { navigationAccordionFlag = on }
@@ -428,6 +428,8 @@ open class Panel {
         val guard = activeGuard(request)
         val user = ChromeUser(guard.id(), guard.name(), guard.email())
         val path = navPath(request)
+        // TOP has no sidebar. Drop the aside so the flex row does not keep --ff-sidebar-width (#499).
+        if (type == NavigationType.TOP) chrome.includeSidebar(false)
         chrome.hook(Hook.TOPBAR_START, topHtml(type, path, branding, get))
         chrome.hook(Hook.TOPBAR_END, tenantHtml(request) + userHtml(request, path, user, get))
         chrome.hook(Hook.SIDEBAR_START, sideHtml(type, path, branding, user, get))
@@ -1689,15 +1691,23 @@ open class Panel {
             )
             lead.append(brandMarkHtml(branding, "ff-topbar-brand"))
         }
-        // APP: nested levels of the active L1 root (Shamar topbar secondary). TOP: full tree.
+        // APP: children of the active L1 root. INVERSE: L1 roots (groups are clusters). TOP: full tree.
         when (type) {
             NavigationType.TOP ->
                 lead.append("""<nav class="ff-nav ff-nav-top">${renderGrouped(items, navigationGroupList, path, spaMode, get, true, true)}</nav>""")
             NavigationType.APP -> {
-                val nested = appTop(path, get)
+                val nested = activeLevelChildren(path, get)
                 if (nested.isNotEmpty()) {
                     lead.append(
                         """<nav class="ff-nav ff-nav-top">${renderItems(nested, path, spaMode, get, true)}</nav>""",
+                    )
+                }
+            }
+            NavigationType.INVERSE -> {
+                val roots = appLevelOnes(items, navigationGroupList, get)
+                if (roots.isNotEmpty()) {
+                    lead.append(
+                        """<nav class="ff-nav ff-nav-top">${renderItems(roots, path, spaMode, get, false)}</nav>""",
                     )
                 }
             }
@@ -1715,13 +1725,26 @@ open class Panel {
             """<div class="ff-sidebar-brand$logoClass">${brandMarkHtml(branding)}""" +
                 """<button type="button" class="ff-sidebar-close" data-ff-sidebar-close aria-label="Close navigation">${Icon.X.svg()}</button></div>"""
         // TOP already returned. APP: L1 roots only (groups promote to clusters; children go to the top bar).
-        // SIDE: full nested tree with group headings in the sidebar. Accordion is SIDE-only.
-        val nav = if (type == NavigationType.APP) {
-            val roots = appLevelOnes(items, navigationGroupList, get)
-            """<nav class="ff-nav ff-nav-side">${renderItems(roots, path, spaMode, get, false)}</nav>"""
-        } else {
-            val accordion = if (navigationAccordionFlag) " data-ff-nav-accordion" else ""
-            """<nav class="ff-nav ff-nav-side"$accordion>${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
+        // INVERSE: children of the active L1 root (groups are top-bar clusters). SIDE: full tree.
+        // Accordion is SIDE-only.
+        val nav = when (type) {
+            NavigationType.APP -> {
+                val roots = appLevelOnes(items, navigationGroupList, get)
+                """<nav class="ff-nav ff-nav-side">${renderItems(roots, path, spaMode, get, false)}</nav>"""
+            }
+            NavigationType.INVERSE -> {
+                val nested = activeLevelChildren(path, get)
+                if (nested.isEmpty()) {
+                    ""
+                } else {
+                    """<nav class="ff-nav ff-nav-side">${renderItems(nested, path, spaMode, get, true)}</nav>"""
+                }
+            }
+            else -> {
+                // SIDE. TOP already returned above, so it never reserves this column.
+                val accordion = if (navigationAccordionFlag) " data-ff-nav-accordion" else ""
+                """<nav class="ff-nav ff-nav-side"$accordion>${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
+            }
         }
         return brandBlock + nav + sidebarFootHtml(user, branding)
     }
@@ -1739,11 +1762,12 @@ open class Panel {
     }
 
     /**
-     * Children of the active level-1 item for [NavigationType.APP] top navigation.
+     * Children of the active level-1 item.
+     * [NavigationType.APP] draws them in the top bar; [NavigationType.INVERSE] draws them in the sidebar.
      * Active root is the last L1 whose own URL or any descendant matches [path]; otherwise the first L1.
      * Grouped resources are promoted to cluster roots via [appLevelOnes].
      */
-    private fun appTop(path: String, get: Get): List<NavigationItem> {
+    private fun activeLevelChildren(path: String, get: Get): List<NavigationItem> {
         val shown = appLevelOnes(items, navigationGroupList, get).filter { it.isVisible(get) }
         if (shown.isEmpty()) return emptyList()
         var active: NavigationItem? = null

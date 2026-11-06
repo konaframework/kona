@@ -21,14 +21,15 @@ On the hello samples that means a link for Desk, plus one sidebar entry each for
 | Type | Level 1 | Levels 2 and 3 |
 |------|---------|----------------|
 | `NavigationType.APP` (the default) | Sidebar | Top bar, for the active level-1 item’s children |
+| `NavigationType.INVERSE` | Top bar | Sidebar, for the active level-1 item’s children |
 | `NavigationType.SIDE` | Sidebar | Sidebar |
 | `NavigationType.TOP` | Top bar | Top bar |
 
-`topNavigation()` is `navigation(NavigationType.TOP)`. `navigation` accepts the enum or a closure that receives `Get`.
+`INVERSE` is the inverse of `APP`: the same level-1 roots (ungrouped links, plus one cluster per navigation group), drawn in the top bar, with that root’s children in the sidebar. `topNavigation()` is `navigation(NavigationType.TOP)`. `navigation` accepts the enum or a closure that receives `Get`.
 
 Nesting stops at level 3. A fourth level fails when the panel mounts, and the message names the item. `cluster("Catalog")` adds a parent with no URL of its own. `userMenu(...)` entries render inside the user-menu dropdown in the top bar. `spa(true)` adds `wire:navigate` on links that have a URL.
 
-With `SIDE` and `APP` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar and has no sidebar or drawer.
+With `SIDE`, `APP`, and `INVERSE` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar. It does not render a sidebar, and the layout does not reserve a sidebar column.
 
 ## What the hello samples show
 
@@ -123,7 +124,7 @@ A blank group, label or color throws `FireflyException`.
 | `collapsible()` | The heading folds its links. It renders as a `<details>` element, so it needs no script |
 | `collapsed()` | Starts folded (and collapsible). A group that holds the current page stays open |
 
-By default every collapsible group opens and closes on its own. For **SIDE** chrome only, call `Panel.navigationAccordion(true)` so opening one collapsible group closes the others (exclusive accordion) — including on live click, not only after reload. The attribute `data-ff-nav-accordion` marks the sidebar nav; a small chrome script binds each collapsible `<details>` and re-arms after soft navigations. APP and TOP ignore the flag.
+By default every collapsible group opens and closes on its own. For **SIDE** chrome only, call `Panel.navigationAccordion(true)` so opening one collapsible group closes the others (exclusive accordion) — including on live click, not only after reload. The attribute `data-ff-nav-accordion` marks the sidebar nav; a small chrome script binds each collapsible `<details>` and re-arms after soft navigations. APP, INVERSE, and TOP ignore the flag.
 
 `Panel.navigationGroups(...)` takes the groups in display order and fails when a label repeats. A group that no item names is not drawn. A group some item names but nobody declared is drawn as a plain heading after the declared ones.
 
@@ -143,9 +144,10 @@ Group and badge settings never override [authorization](/docs/firefly/authorizat
 |------|-------------------|
 | `SIDE` | A heading in the sidebar above its links |
 | `APP` | Each group becomes an L1 cluster in the sidebar; the active group’s links render in the top bar (same split as nested `NavigationItem` children) |
-| `TOP` | No sidebar — each group becomes a top-bar cluster that holds its links |
+| `INVERSE` | Each group becomes an L1 cluster in the top bar; the active group’s links render in the sidebar |
+| `TOP` | No sidebar column — each group becomes a top-bar cluster that holds its links |
 
-Ungrouped level-1 links stay in the sidebar for `APP` and `SIDE`. Clicking an APP group root opens the first link in that group.
+Ungrouped level-1 links stay beside the other level-1 roots: the sidebar for `APP` and `SIDE`, the top bar for `INVERSE` and `TOP`. Clicking an `APP` or `INVERSE` group root opens the first link in that group.
 
 ## Build the tree yourself
 

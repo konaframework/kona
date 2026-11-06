@@ -59,7 +59,7 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 | `branding(PanelBranding)` / `logo` / `logoDark` / `logoHeight` / `brandDisplay` | Chrome brand mark: name, light/dark logos, height, `BrandDisplay` (`BOTH` / `LOGO` / `NAME`), copyright, fonts, primary/accent colors. See [Branding](#branding) |
 | `resolveBrandingOverrides(...)` | Runtime overlay (settings DB, company logo). Merged over panel branding; fonts stay on panel defaults |
 | `profilePage(ProfilePage)` | Per-panel account page. See [Pages](/docs/firefly/pages/#profile) |
-| `navigation` / `topNavigation()` | `NavigationType`. Default `APP`. See [Navigation](/docs/firefly/navigation/) |
+| `navigation` / `topNavigation()` | `NavigationType` (`APP`, `INVERSE`, `SIDE`, `TOP`). Default `APP`. See [Navigation](/docs/firefly/navigation/) |
 | `theme(FireflyTheme)` | Tokens and partials. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | Replaces the shell arrangement |
 | `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources (`xs`…`7xl`, `full`, `screen`, `prose`). Default is `7xl` (80rem). Pages and resources can override. Tables fill that column |

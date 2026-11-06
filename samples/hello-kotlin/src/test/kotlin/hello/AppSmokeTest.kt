@@ -2,8 +2,13 @@ package hello
 
 import bootstrap.App
 import org.konaframework.core.Kona
+import org.konaframework.firefly.ListPage
+import org.konaframework.firefly.NavigationGroup
+import org.konaframework.firefly.NavigationType
+import org.konaframework.firefly.Panel
 import org.konaframework.http.HttpKernel
 import org.konaframework.http.Request
+import org.konaframework.http.Router
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -83,6 +88,34 @@ class AppSmokeTest {
         assertFalse(top.contains(">Projects<"), top)
         val workTop = projects.body.substringAfter("<nav class=\"ff-nav ff-nav-top\">").substringBefore("</nav>")
         assertTrue(workTop.indexOf(">Projects<") < workTop.indexOf(">Tasks<") && workTop.indexOf(">Tasks<") < workTop.indexOf(">Notes<"), workTop)
+    }
+
+    @Test
+    fun topOmitsSidebarColumnAndInverseFlipsApp() {
+        val topRouter = Router()
+        Panel().path("top").topNavigation().authenticate(false).page(ListPage("one")).mount(topRouter)
+        val top = topRouter.find("GET", "/top/one")!!.route.action.handle(Request.get("/top/one")).body
+        assertFalse(top.contains("""<aside class="ff-sidebar""""), top)
+        assertTrue(top.contains("""class="ff-nav ff-nav-top""""), top)
+        assertFalse(top.contains("""class="ff-nav ff-nav-side""""), top)
+        assertTrue(top.contains(".ff-panel > .ff-sidebar:empty"), top)
+
+        val inverse = Router()
+        Panel().path("inv").authenticate(false).navigation(NavigationType.INVERSE)
+            .navigationGroups(NavigationGroup.make("Sales"))
+            .page(ListPage("orders").navigationGroup("Sales").navigationLabel("Orders"))
+            .page(ListPage("quotes").navigationGroup("Sales").navigationLabel("Quotes"))
+            .page(ListPage("loose").navigationLabel("Loose"))
+            .mount(inverse)
+        val orders = inverse.find("GET", "/inv/orders")!!.route.action.handle(Request.get("/inv/orders")).body
+        val topNav = orders.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        val sideNav = orders.substringAfter("""<nav class="ff-nav ff-nav-side">""").substringBefore("</nav>")
+        assertTrue(orders.contains("""<aside class="ff-sidebar""""), orders)
+        assertTrue(topNav.contains(">Sales<"), topNav)
+        assertFalse(topNav.contains(">Orders<"), topNav)
+        assertTrue(sideNav.contains(">Orders<"), sideNav)
+        assertTrue(sideNav.contains(">Quotes<"), sideNav)
+        assertFalse(sideNav.contains(">Loose<"), sideNav)
     }
 
     @Test

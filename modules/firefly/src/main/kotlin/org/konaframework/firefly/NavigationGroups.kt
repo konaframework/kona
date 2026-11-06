@@ -131,9 +131,10 @@ private fun bucketGroups(
 }
 
 /**
- * Level-1 roots for [NavigationType.APP]: ungrouped items stay as roots; each navigation group
- * becomes a cluster whose members are children (sidebar shows roots; top bar shows the active
- * root’s children). SIDE keeps [renderGrouped] headings instead.
+ * Level-1 roots for [NavigationType.APP] and [NavigationType.INVERSE]: ungrouped items stay as
+ * roots; each navigation group becomes a cluster whose members are children. APP shows the roots
+ * in the sidebar and the active root’s children in the top bar. INVERSE swaps those two slots.
+ * SIDE keeps [renderGrouped] headings instead.
  */
 internal fun appLevelOnes(
     items: List<NavigationItem>,

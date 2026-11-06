@@ -3,9 +3,14 @@ package hello;
 import bootstrap.App;
 import org.konaframework.core.Application;
 import org.konaframework.core.Kona;
+import org.konaframework.firefly.ListPage;
+import org.konaframework.firefly.NavigationGroup;
+import org.konaframework.firefly.NavigationType;
+import org.konaframework.firefly.Panel;
 import org.konaframework.http.HttpKernel;
 import org.konaframework.http.Request;
 import org.konaframework.http.Response;
+import org.konaframework.http.Router;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -89,6 +94,36 @@ class AppSmokeTest {
         String workTop = projects.getBody().substring(projects.getBody().indexOf("<nav class=\"ff-nav ff-nav-top\">"));
         workTop = workTop.substring(0, workTop.indexOf("</nav>"));
         assertTrue(workTop.indexOf(">Projects<") < workTop.indexOf(">Tasks<") && workTop.indexOf(">Tasks<") < workTop.indexOf(">Notes<"), workTop);
+    }
+
+    @Test
+    void topOmitsSidebarColumnAndInverseFlipsApp() {
+        Router topRouter = new Router();
+        new Panel().path("top").topNavigation().authenticate(false).page(new ListPage("one")).mount(topRouter);
+        String top = topRouter.find("GET", "/top/one").getRoute().getAction().handle(Request.get("/top/one")).getBody();
+        assertFalse(top.contains("<aside class=\"ff-sidebar\""), top);
+        assertTrue(top.contains("class=\"ff-nav ff-nav-top\""), top);
+        assertFalse(top.contains("class=\"ff-nav ff-nav-side\""), top);
+        assertTrue(top.contains(".ff-panel > .ff-sidebar:empty"), top);
+
+        Router inverse = new Router();
+        new Panel().path("inv").authenticate(false).navigation(NavigationType.INVERSE)
+            .navigationGroups(NavigationGroup.make("Sales"))
+            .page(new ListPage("orders").navigationGroup("Sales").navigationLabel("Orders"))
+            .page(new ListPage("quotes").navigationGroup("Sales").navigationLabel("Quotes"))
+            .page(new ListPage("loose").navigationLabel("Loose"))
+            .mount(inverse);
+        String orders = inverse.find("GET", "/inv/orders").getRoute().getAction().handle(Request.get("/inv/orders")).getBody();
+        String topNav = orders.substring(orders.indexOf("<nav class=\"ff-nav ff-nav-top\">"));
+        topNav = topNav.substring(0, topNav.indexOf("</nav>"));
+        String sideNav = orders.substring(orders.indexOf("<nav class=\"ff-nav ff-nav-side\">"));
+        sideNav = sideNav.substring(0, sideNav.indexOf("</nav>"));
+        assertTrue(orders.contains("<aside class=\"ff-sidebar\""), orders);
+        assertTrue(topNav.contains(">Sales<"), topNav);
+        assertFalse(topNav.contains(">Orders<"), topNav);
+        assertTrue(sideNav.contains(">Orders<"), sideNav);
+        assertTrue(sideNav.contains(">Quotes<"), sideNav);
+        assertFalse(sideNav.contains(">Loose<"), sideNav);
     }
 
     @Test

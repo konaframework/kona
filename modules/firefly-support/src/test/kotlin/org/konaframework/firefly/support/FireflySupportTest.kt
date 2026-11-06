@@ -349,6 +349,9 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-column-toggle-panel"))
         assertTrue(css.contains("flex-direction: row"))
         assertTrue(css.contains(".ff-panel .ff-sidebar-brand"))
+        // Empty sidebar (TOP, or a layout that still emits the aside) must not keep the column (#499).
+        assertTrue(css.contains(".ff-panel > .ff-sidebar:empty"))
+        assertTrue(css.contains("flex: 0 0 0"))
         assertTrue(css.contains(".ff-panel .ff-nav-side"))
         // SIDE nav scroller: slim, hover/focus-within-only thumb (#497).
         assertTrue(css.contains("scrollbar-width: thin"))
@@ -527,6 +530,10 @@ class FireflySupportTest {
         assertTrue(scrollInnerEnd > 0)
         assertFalse(afterScrollOpen.substring(0, scrollInnerEnd).contains("""class="ff-footer""""))
         assertTrue(html.contains("ff-sidebar"))
+        val noSidebar = Panel().includeSidebar(false).render()
+        assertFalse(noSidebar.contains("""<aside class="ff-sidebar""""))
+        assertTrue(noSidebar.contains("""class="ff-column""""))
+        assertTrue(Panel().includeSidebar(true).render().contains("""<aside class="ff-sidebar""""))
         assertTrue(html.contains("background: var(--ff-surface)"))
         // Self-hosted Inter/DM Sans — no Google Fonts CDN; fonts come from /_firefly/fonts.
         assertFalse(html.contains("fonts.googleapis.com"))

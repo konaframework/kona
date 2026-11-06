@@ -164,6 +164,18 @@ body.ff-body-root {
   background: var(--ff-shell);
 }
 
+/* TOP nav leaves this aside empty when a custom layout still emits it (#499).
+ * Do not reserve --ff-sidebar-width for an empty column. */
+.ff-panel > .ff-sidebar:empty {
+  display: none;
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+}
+
 .ff-panel .ff-sidebar-brand {
   position: relative;
   display: flex;
