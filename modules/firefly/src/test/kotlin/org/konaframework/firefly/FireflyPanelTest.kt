@@ -194,9 +194,11 @@ class FireflyPanelTest {
         val topHtml = send(top, "GET", "/top/one").body
         assertTrue(topHtml.contains("""class="ff-nav ff-nav-top""""))
         assertFalse(topHtml.contains("""class="ff-nav ff-nav-side""""))
-        // TOP does not mount the sidebar column (#499).
-        assertFalse(topHtml.contains("""<aside class="ff-sidebar""""))
-        assertTrue(topHtml.contains(".ff-panel > .ff-sidebar:empty"))
+        // Desktop TOP does not reserve a sidebar column. The aside is the mobile drawer only.
+        assertTrue(topHtml.contains("""<aside class="ff-sidebar""""))
+        assertTrue(topHtml.contains("ff-sidebar-offcanvas"))
+        assertTrue(topHtml.contains("ff-nav-drawer"))
+        assertTrue(topHtml.contains(".ff-panel > .ff-sidebar:has(> .ff-sidebar-offcanvas)"))
 
         val deep = NavigationItem("Desk")
         val tree = NavigationItem("Sales").child(NavigationItem("Orders").child(NavigationItem("Open").child(deep)))
@@ -1010,14 +1012,15 @@ class FireflyPanelTest {
         assertTrue(body.contains("""href="/s/docs""""))
         assertTrue(body.contains(">Here<"))
 
-        // TOP navigation keeps the brand in the bar and never mounts a sidebar/drawer.
+        // TOP keeps the brand in the bar. The hamburger and drawer exist for narrow screens;
+        // desktop CSS gives that aside no column.
         val topRouter = Router()
         Panel().path("t").topNavigation().authenticate(false).brand("Toply")
             .page(ListPage("one")).mount(topRouter)
         val top = send(topRouter, "GET", "/t/one").body
-        assertFalse(top.contains("""<button type="button" class="ff-hamburger""""))
-        assertFalse(top.contains("""<div class="ff-sidebar-foot">"""))
-        assertFalse(top.contains("""<aside class="ff-sidebar""""))
+        assertTrue(top.contains("""<button type="button" class="ff-hamburger""""))
+        assertTrue(top.contains("""<div class="ff-sidebar-foot">"""))
+        assertTrue(top.contains("ff-sidebar-offcanvas"))
         assertTrue(top.contains("""class="ff-brand">Toply<"""))
         assertTrue(top.contains("ff-theme-toggle"))
     }

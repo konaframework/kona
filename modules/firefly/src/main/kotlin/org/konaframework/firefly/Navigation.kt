@@ -227,15 +227,25 @@ internal fun renderItems(
     spa: Boolean,
     get: Get,
     nested: Boolean,
+    menu: Boolean = false,
+    menuRole: Boolean = false,
 ): String {
     val ordered = orderItems(items, get)
     if (ordered.isEmpty()) return ""
     val out = StringBuilder()
-    for (item in ordered) out.append(renderItem(item, path, spa, get, nested))
-    return """<ul class="ff-nav-list">$out</ul>"""
+    for (item in ordered) out.append(renderItem(item, path, spa, get, nested, menu))
+    val role = if (menuRole) """ role="menu"""" else ""
+    return """<ul class="ff-nav-list"$role>$out</ul>"""
 }
 
-internal fun renderItem(item: NavigationItem, path: String, spa: Boolean, get: Get, nested: Boolean): String {
+internal fun renderItem(
+    item: NavigationItem,
+    path: String,
+    spa: Boolean,
+    get: Get,
+    nested: Boolean,
+    menu: Boolean,
+): String {
     val url = item.urlText(get)
     // Clusters (APP group roots, manual parents) stay highlighted when a descendant matches.
     val active = if (itemOrDescendantActive(item, path, get)) " ff-active" else ""
@@ -254,11 +264,27 @@ internal fun renderItem(item: NavigationItem, path: String, spa: Boolean, get: G
     } else {
         """<span class="ff-nav-badge" data-ff-color="${escapeHtml(badge.color)}">${escapeHtml(badge.text)}</span>"""
     }
+    val label = escapeHtml(item.labelText(get))
+    val inner = """<span class="ff-nav-icon-wrap">$iconHtml</span><span class="ff-nav-label">$label</span>$badgeHtml"""
+    // Top-bar menus: children open in a dropdown. Sidebar nesting stays an inline list.
+    val childHtml = if (nested || menu) renderItems(item.children, path, spa, get, true, menu, menu) else ""
+    val hasMenu = menu && childHtml.isNotEmpty()
+    val dropdown = if (hasMenu) " ff-nav-dropdown" else ""
     val out = StringBuilder()
-    out.append(
-        """<li class="ff-nav-item$cluster$active"><a$href$navigate${htmlAttributes(item.attributes(get))}><span class="ff-nav-icon-wrap">$iconHtml</span><span class="ff-nav-label">${escapeHtml(item.labelText(get))}</span>$badgeHtml</a>""",
-    )
-    if (nested) out.append(renderItems(item.children, path, spa, get, true))
+    out.append("""<li class="ff-nav-item$cluster$active$dropdown">""")
+    if (hasMenu && url.isEmpty()) {
+        out.append(
+            """<button type="button" class="ff-nav-dropdown-trigger" aria-haspopup="menu" aria-expanded="false">$inner</button>""",
+        )
+    } else {
+        out.append("""<a$href$navigate${htmlAttributes(item.attributes(get))}>$inner</a>""")
+        if (hasMenu) {
+            out.append(
+                """<button type="button" class="ff-nav-dropdown-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Open $label menu"></button>""",
+            )
+        }
+    }
+    if (childHtml.isNotEmpty()) out.append(childHtml)
     out.append("</li>")
     return out.toString()
 }

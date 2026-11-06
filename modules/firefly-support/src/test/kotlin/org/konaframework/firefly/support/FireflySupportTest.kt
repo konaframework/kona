@@ -349,8 +349,13 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-column-toggle-panel"))
         assertTrue(css.contains("flex-direction: row"))
         assertTrue(css.contains(".ff-panel .ff-sidebar-brand"))
-        // Empty sidebar (TOP, or a layout that still emits the aside) must not keep the column (#499).
+        // Empty sidebar must not keep the column (#499). TOP's drawer aside is zero-width on desktop (#505).
         assertTrue(css.contains(".ff-panel > .ff-sidebar:empty"))
+        assertTrue(css.contains(".ff-panel > .ff-sidebar:has(> .ff-sidebar-offcanvas)"))
+        assertTrue(css.contains(".ff-panel .ff-nav-top .ff-nav-dropdown"))
+        assertTrue(css.contains(".ff-panel .ff-nav-top .ff-nav-dropdown.ff-open > .ff-nav-list"))
+        assertTrue(css.contains(".ff-panel .ff-nav-drawer"))
+        assertTrue(css.contains(".ff-panel .ff-nav-more"))
         assertTrue(css.contains("flex: 0 0 0"))
         assertTrue(css.contains(".ff-panel .ff-nav-side"))
         // SIDE nav scroller: slim, hover/focus-within-only thumb (#497).
@@ -643,6 +648,21 @@ class FireflySupportTest {
         assertTrue(html.contains("collapseSiblings"))
         assertTrue(html.contains("onSummaryClick"))
         assertTrue(html.contains("data-ff-nav-accordion-armed"))
+        // Top-bar group dropdowns (#505). The script does not drive the sidebar accordion.
+        assertTrue(html.contains("ff-nav-dropdown"))
+        assertTrue(html.contains("ff-nav-dropdown-trigger"))
+        assertTrue(html.contains("aria-expanded"))
+        assertTrue(html.contains("aria-haspopup=\"menu\""))
+        assertTrue(html.contains("data-ff-nav-more"))
+        assertTrue(html.contains("ArrowDown"))
+        assertTrue(html.contains("ArrowUp"))
+        assertTrue(html.contains("ArrowRight"))
+        assertTrue(html.contains("Escape"))
+        assertTrue(html.contains("addEventListener(\"resize\""))
+        assertTrue(html.contains("document.addEventListener(\"navigated\""))
+        val dropdown = html.substringAfter("Top-bar group menus (#505).").substringBefore("</script>")
+        assertTrue(dropdown.contains(".ff-nav.ff-nav-top"))
+        assertFalse(dropdown.contains("data-ff-nav-accordion"), dropdown)
         assertEquals("", RenderHooks().render(Hook.BODY_START))
 
         val auth = Panel()

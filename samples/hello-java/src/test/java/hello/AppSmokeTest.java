@@ -101,10 +101,11 @@ class AppSmokeTest {
         Router topRouter = new Router();
         new Panel().path("top").topNavigation().authenticate(false).page(new ListPage("one")).mount(topRouter);
         String top = topRouter.find("GET", "/top/one").getRoute().getAction().handle(Request.get("/top/one")).getBody();
-        assertFalse(top.contains("<aside class=\"ff-sidebar\""), top);
         assertTrue(top.contains("class=\"ff-nav ff-nav-top\""), top);
         assertFalse(top.contains("class=\"ff-nav ff-nav-side\""), top);
-        assertTrue(top.contains(".ff-panel > .ff-sidebar:empty"), top);
+        assertTrue(top.contains("ff-sidebar-offcanvas"), top);
+        assertTrue(top.contains("ff-nav-drawer"), top);
+        assertTrue(top.contains(".ff-panel > .ff-sidebar:has(> .ff-sidebar-offcanvas)"), top);
 
         Router inverse = new Router();
         new Panel().path("inv").authenticate(false).navigation(NavigationType.INVERSE)

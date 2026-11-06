@@ -512,12 +512,12 @@ class FireflyResourceTest {
             .resource(emptyPages)
         panel.mount(router)
 
-        // One sidebar entry per resource, linking to the list/manage/index page.
+        // One entry per resource in the desktop sidebar, and the same link again in the mobile drawer.
         val list = send(router, "/admin/orders/list")
         assertTrue(list.contains("""href="/admin/orders/list""""))
         assertTrue(list.contains("Orders"))
         assertTrue(list.contains("ff-nav-icon"))
-        assertEquals(1, countOf(list, """href="/admin/orders/list""""))
+        assertEquals(2, countOf(list, """href="/admin/orders/list""""))
         // Create / edit / view are NEVER standalone sidebar links.
         assertFalse(list.contains("""href="/admin/orders/create""""))
         assertFalse(list.contains("""href="/admin/orders/edit""""))

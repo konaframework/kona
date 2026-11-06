@@ -29,7 +29,11 @@ On the hello samples that means a link for Desk, plus one sidebar entry each for
 
 Nesting stops at level 3. A fourth level fails when the panel mounts, and the message names the item. `cluster("Catalog")` adds a parent with no URL of its own. `userMenu(...)` entries render inside the user-menu dropdown in the top bar. `spa(true)` adds `wire:navigate` on links that have a URL.
 
-With `SIDE`, `APP`, and `INVERSE` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar. It does not render a sidebar, and the layout does not reserve a sidebar column.
+With `SIDE`, `APP`, and `INVERSE` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand in the top bar and does not reserve a sidebar column on a wide screen.
+
+On a wide screen the top bar is one row. `TOP` shows each group (and any ungrouped link) as a menu: the group name is the trigger, and its links open in a dropdown. A link that itself has children opens another menu beside it, so level 2 and level 3 stay nested instead of wrapping onto a second row. `APP` keeps level-1 clusters in the sidebar and the active group's links on the bar; anything nested under those links is a dropdown too. `INVERSE` keeps level-1 clusters on the bar and that root's links in the sidebar. If the row of triggers still does not fit, the trailing ones collect under **More** as whole menus.
+
+On a narrow screen the top item row is hidden for every layout, including `TOP` and `INVERSE`. The menu button opens the sidebar drawer, and that drawer lists the full tree as an accordion: each group expands to its children. `TOP` still does not reserve a sidebar column when the viewport is wide.
 
 ## What the hello samples show
 
