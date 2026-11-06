@@ -1,13 +1,14 @@
 package app.panels.admin
 
 import org.konaframework.firefly.NavigationType
+import org.konaframework.firefly.Panel as FireflyPanel
 
-class Panel : org.konaframework.firefly.Panel() {
-    init {
-        id("admin")
-        brand("Desk")
-        navigation(NavigationType.SIDE)
-        reuseAppGuard()
-        authenticate(true)
-    }
+class Panel : FireflyPanel() {
+    override fun panel(panel: FireflyPanel): FireflyPanel =
+        panel
+            .id("admin")
+            .brand("Desk")
+            .navigation(NavigationType.SIDE)
+            .reuseAppGuard()
+            .authenticate(true)
 }

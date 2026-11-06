@@ -81,4 +81,27 @@ public class PanelJavaTest {
         NavigationItem item = new NavigationItem("calc").group("Tools").sort(1).badge(new NavigationBadge("9"));
         assertEquals("Tools", item.groupName());
     }
+
+    @Test
+    void javaConfiguresThroughPanelHook() {
+        Router router = new Router();
+        DeskPanel panel = new DeskPanel();
+        panel.mount(router);
+        assertEquals("firefly-desk", panel.guardName());
+        Response orders = router.find("GET", "/staff/orders").getRoute().getAction().handle(new Request("GET", "/staff/orders"));
+        assertTrue(orders.getBody().contains("Desk"));
+        assertTrue(orders.getBody().contains("ff-list"));
+        panel.render(new Request("GET", "/staff/orders"));
+        assertEquals(1, DeskPanel.calls);
+    }
+
+    public static class DeskPanel extends Panel {
+        static int calls;
+
+        @Override
+        public Panel panel(Panel panel) {
+            calls += 1;
+            return panel.id("desk").path("staff").brand("Desk").authenticate(false).page(new ListPage("orders"));
+        }
+    }
 }
