@@ -432,6 +432,7 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   border-bottom: 1px solid var(--ff-card-border);
   box-shadow: 0 1px 0 color-mix(in srgb, #0f172a 4%, transparent);
   min-width: 0;
+  position: relative;
   z-index: 20;
 }
 
@@ -479,24 +480,135 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   min-width: 0;
 }
 
+/* One row. The list clips; overflow items move into More (#493).
+ * Overflow stays visible so the menu is not clipped by the bar. */
 .ff-panel .ff-nav-top {
   display: flex;
   align-items: center;
+  position: relative;
   min-width: 0;
   flex: 1 1 auto;
-  overflow-x: auto;
+  overflow: visible;
 }
 
-.ff-panel .ff-nav-top .ff-nav-list {
+.ff-panel .ff-nav-top > .ff-nav-list {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Clusters and parents share the row with their children (TOP groups, APP level 3).
+ * Scoped under the bar list so the More menu can stack the same nodes vertically. */
+.ff-panel .ff-nav-top > .ff-nav-list .ff-nav-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: visible;
+}
+
+.ff-panel .ff-nav-top > .ff-nav-list .ff-nav-item {
+  flex: 0 0 auto;
+}
+
+.ff-panel .ff-nav-top > .ff-nav-list .ff-nav-item:has(> .ff-nav-list) {
+  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.25rem;
 }
 
 .ff-panel .ff-nav-top .ff-nav-item > a {
   white-space: nowrap;
+}
+
+.ff-panel .ff-nav-more {
+  position: relative;
+  flex: 0 0 auto;
+  margin-left: 0.15rem;
+}
+
+.ff-panel .ff-nav-more[hidden] {
+  display: none;
+}
+
+.ff-panel .ff-nav-more-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.15rem;
+  padding: 0.4rem 0.7rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--ff-body-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ff-panel .ff-nav-more-trigger::after {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-0.1rem);
+}
+
+.ff-panel .ff-nav-more-trigger:hover,
+.ff-panel .ff-nav-more-trigger.ff-active {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-nav-more-trigger.ff-active {
+  box-shadow: inset 0 -2px 0 0 var(--ff-primary);
+}
+
+.ff-panel .ff-nav-more .ff-menu-panel {
+  left: auto;
+  right: 0;
+  min-width: 14rem;
+  max-width: 20rem;
+  max-height: min(24rem, 70vh);
+  overflow: auto;
+  padding: 0.35rem;
+}
+
+.ff-panel .ff-nav-more .ff-nav-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.1rem;
+  min-width: 0;
+  overflow: visible;
+  flex: none;
+}
+
+.ff-panel .ff-nav-more .ff-nav-item:has(> .ff-nav-list) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.1rem;
+}
+
+.ff-panel .ff-nav-more-label {
+  padding: 0.45rem 0.65rem 0.15rem;
+  color: var(--ff-body-subtle);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 /* ——— Topbar tools (theme toggle, notifications, user menu) ——— */

@@ -31,6 +31,8 @@ Nesting stops at level 3. A fourth level fails when the panel mounts, and the me
 
 With `SIDE`, `APP`, and `INVERSE` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar. It does not render a sidebar, and the layout does not reserve a sidebar column.
 
+When the top bar cannot fit every link on one row, Firefly keeps the leading links and puts the rest in a **More** menu. The menu keeps the tree: a cluster or parent that only partly fits leaves its label in the bar and groups the remaining children under that label; a link or cluster that does not fit at all moves with its descendants (level 2 and level 3). The same measure applies to `APP` (the active level-1 item’s children), `INVERSE` (level-1 clusters in the top bar), and `TOP` (the full tree, groups included). `SIDE` is unchanged, including the exclusive accordion. **More** is a button — Enter, Space, arrow keys, and Escape — and the bar is measured again on resize and after navigation.
+
 ## What the hello samples show
 
 The samples never call `item`. Discovery therefore builds:
