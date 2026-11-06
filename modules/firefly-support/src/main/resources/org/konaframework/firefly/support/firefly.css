@@ -501,30 +501,45 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   overflow: hidden;
 }
 
+/* One control box for standalone links and group triggers (#507).
+   Sidebar cluster links keep their own padding; this is the top bar only. */
+.ff-panel .ff-nav-top > .ff-nav-list > .ff-nav-item {
+  display: flex;
+  align-items: center;
+}
+
 .ff-panel .ff-nav-top .ff-nav-item > a,
+.ff-panel .ff-nav-top .ff-nav-item.ff-cluster > a,
 .ff-panel .ff-nav-top .ff-nav-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 2.15rem;
+  min-height: 2.15rem;
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  border: 0;
+  border-radius: 0.55rem;
+  line-height: 1.2;
   white-space: nowrap;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .ff-panel .ff-nav-top .ff-nav-dropdown {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
 }
 
 .ff-panel .ff-nav-top .ff-nav-dropdown-trigger {
-  display: inline-flex;
-  align-items: center;
   gap: 0.35rem;
-  border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.2;
-  padding: 0.4rem 0.7rem;
-  border-radius: 0.55rem;
   cursor: pointer;
 }
 
