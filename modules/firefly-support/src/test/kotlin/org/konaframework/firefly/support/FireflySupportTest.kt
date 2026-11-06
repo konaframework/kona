@@ -363,6 +363,12 @@ class FireflySupportTest {
         assertTrue(topControls.contains("padding: 0.4rem 0.7rem"), topControls)
         assertTrue(topControls.contains("line-height: 1.2"), topControls)
         assertTrue(topControls.contains("align-items: center"), topControls)
+        // Group <li>s carry .ff-nav-group, whose 0.75rem top margin is for SIDE/drawer
+        // headings. Clear it on the top-bar row or the triggers sit low (#509).
+        val topItems = css.substringAfter(".ff-panel .ff-nav-top > .ff-nav-list > .ff-nav-item {")
+            .substringBefore("}")
+        assertTrue(topItems.contains("margin-top: 0"), topItems)
+        assertTrue(css.contains(".ff-panel .ff-nav-group {\n  margin-top: 0.75rem;\n}"))
         assertTrue(css.contains(".ff-panel .ff-nav-item.ff-cluster > a"))
         assertTrue(css.contains("padding-top: 0.65rem"))
         assertTrue(css.contains("padding-bottom: 0.25rem"))

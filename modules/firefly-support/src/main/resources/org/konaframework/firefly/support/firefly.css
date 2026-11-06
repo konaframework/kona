@@ -502,10 +502,14 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 }
 
 /* One control box for standalone links and group triggers (#507).
-   Sidebar cluster links keep their own padding; this is the top bar only. */
+   Sidebar cluster links keep their own padding; this is the top bar only.
+   .ff-nav-group's 0.75rem top margin spaces SIDE and drawer headings.
+   Top-bar group triggers are also .ff-nav-group, so that margin drops
+   them below standalone links unless it is cleared here (#509). */
 .ff-panel .ff-nav-top > .ff-nav-list > .ff-nav-item {
   display: flex;
   align-items: center;
+  margin-top: 0;
 }
 
 .ff-panel .ff-nav-top .ff-nav-item > a,
