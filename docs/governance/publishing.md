@@ -8,7 +8,7 @@ Generated apps resolve `org.konaframework:…` from Maven Central. The curl inst
 
 ## Last published release — `0.5.0`
 
-**Status:** cut via tag `v0.5.0` / `release.yml` after this PR merges. Complete Portal **Publish** when the deployment is `VALIDATED`, then confirm [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework+AND+v:0.5.0). Prior cuts: `0.4.0` (Firefly panel), `0.3.0` (Wire rename), `0.2.1`, `0.2.0`, `0.1.1`, `0.1.0`. **Do not** re-tag or republish a prior version. Sister repos remain archived.
+**Status:** **uploaded** via tag `v0.5.0` / `release.yml`. Complete Portal **Publish** when the deployment is `VALIDATED`, then confirm [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework+AND+v:0.5.0). Prior cuts: `0.4.0` (Firefly panel), `0.3.0` (Wire rename), `0.2.1`, `0.2.0`, `0.1.1`, `0.1.0`. **Do not** re-tag or republish a prior version. Sister repos remain archived.
 
 ## `main` vs Central
 
