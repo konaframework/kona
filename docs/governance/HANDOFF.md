@@ -24,16 +24,16 @@ Paste this file (or its path) into a new chat so another agent can continue with
 |---------|--------|------|------------|
 | Wire (M26, train **0.3.0**; Brew aliases) | `modules/wire` → `:kona-wire` | `apps/docs` (Frontend → Wire) | https://docs.konaframework.org/docs/wire/ |
 | Inertia | `modules/inertia` → `:kona-inertia` | `apps/docs` (Frontend → Inertia) | https://docs.konaframework.org/docs/inertia/ |
-| Firefly support (M28, train **0.4.x**) | `modules/firefly-support` → `:kona-firefly-support` | `apps/docs` (Firefly) | https://docs.konaframework.org/docs/firefly/ |
-| Firefly schemas (M29, train **0.4.x**) | `modules/firefly-schemas` → `:kona-firefly-schemas` | `apps/docs` (Firefly → Schemas) | https://docs.konaframework.org/docs/firefly/schemas/ |
-| Firefly actions (M30, train **0.4.x**) | `modules/firefly-actions` → `:kona-firefly-actions` | `apps/docs` (Firefly → Actions) | https://docs.konaframework.org/docs/firefly/actions/ |
-| Firefly infolists (M32, train **0.4.x**) | `modules/firefly-infolists` → `:kona-firefly-infolists` | `apps/docs` (Firefly → Infolists) | https://docs.konaframework.org/docs/firefly/infolists/ |
-| Firefly tables (M33, train **0.4.x**) | `modules/firefly-tables` → `:kona-firefly-tables` | `apps/docs` (Firefly → Tables) | https://docs.konaframework.org/docs/firefly/tables/ |
-| Firefly forms (M31, train **0.4.x**) | `modules/firefly-forms` → `:kona-firefly-forms` | `apps/docs` (Firefly → Forms) | https://docs.konaframework.org/docs/firefly/forms/ |
-| Firefly notifications (M34, train **0.4.x**) | `modules/firefly-notifications` → `:kona-firefly-notifications` | `apps/docs` (Firefly → Notifications) | https://docs.konaframework.org/docs/firefly/notifications/ |
-| Firefly widgets (M34, train **0.4.x**) | `modules/firefly-widgets` → `:kona-firefly-widgets` | `apps/docs` (Firefly → Widgets) | https://docs.konaframework.org/docs/firefly/widgets/ |
-| Firefly panel (M35, train **0.4.x**) | `modules/firefly` → `:kona-firefly` | `apps/docs` (Firefly → Panel) | https://docs.konaframework.org/docs/firefly/panel/ |
-| Firefly tenancy and kit (M37, train **0.4.x**) | `modules/firefly` → `:kona-firefly` | `apps/docs` (Firefly → Tenancy and plugins) | https://docs.konaframework.org/docs/firefly/kit/ |
+| Firefly support (M28, train **0.5.x**) | `modules/firefly-support` → `:kona-firefly-support` | `apps/docs` (Firefly) | https://docs.konaframework.org/docs/firefly/ |
+| Firefly schemas (M29, train **0.5.x**) | `modules/firefly-schemas` → `:kona-firefly-schemas` | `apps/docs` (Firefly → Schemas) | https://docs.konaframework.org/docs/firefly/schemas/ |
+| Firefly actions (M30, train **0.5.x**) | `modules/firefly-actions` → `:kona-firefly-actions` | `apps/docs` (Firefly → Actions) | https://docs.konaframework.org/docs/firefly/actions/ |
+| Firefly infolists (M32, train **0.5.x**) | `modules/firefly-infolists` → `:kona-firefly-infolists` | `apps/docs` (Firefly → Infolists) | https://docs.konaframework.org/docs/firefly/infolists/ |
+| Firefly tables (M33, train **0.5.x**) | `modules/firefly-tables` → `:kona-firefly-tables` | `apps/docs` (Firefly → Tables) | https://docs.konaframework.org/docs/firefly/tables/ |
+| Firefly forms (M31, train **0.5.x**) | `modules/firefly-forms` → `:kona-firefly-forms` | `apps/docs` (Firefly → Forms) | https://docs.konaframework.org/docs/firefly/forms/ |
+| Firefly notifications (M34, train **0.5.x**) | `modules/firefly-notifications` → `:kona-firefly-notifications` | `apps/docs` (Firefly → Notifications) | https://docs.konaframework.org/docs/firefly/notifications/ |
+| Firefly widgets (M34, train **0.5.x**) | `modules/firefly-widgets` → `:kona-firefly-widgets` | `apps/docs` (Firefly → Widgets) | https://docs.konaframework.org/docs/firefly/widgets/ |
+| Firefly panel (M35, train **0.5.x**) | `modules/firefly` → `:kona-firefly` | `apps/docs` (Firefly → Panel) | https://docs.konaframework.org/docs/firefly/panel/ |
+| Firefly tenancy and kit (M37, train **0.5.x**) | `modules/firefly` → `:kona-firefly` | `apps/docs` (Firefly → Tenancy and plugins) | https://docs.konaframework.org/docs/firefly/kit/ |
 | Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
 Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
@@ -133,7 +133,7 @@ Do **not** commit desk into kona. Restart serve yourself after framework rebuild
 | Item | Value |
 |------|--------|
 | Default branch | `main` — green; never push directly |
-| Repo version | `kona.version` **0.4.0** (Firefly admin panel train). Tag `v0.4.0` when cutting the Central release. |
+| Repo version | `kona.version` **0.5.0** (post-Firefly polish: nav, panel hook, Cadence/HTTP deepen). Tag `v0.5.0` when cutting the Central release. |
 | On `main` | Firefly M28–M38 + polish (panel, resources, relation managers, tables/filters, docs, icons); Wire M26 remains on prior `0.3.0` |
 | Active / queued | Confirm `MILESTONES.md` before starting a new milestone. Non-colliding work may parallel |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
@@ -192,7 +192,7 @@ Schemas, forms, infolists, actions, and tables can render on their own for tests
 
 **Remonorepo done (#138):** Wire + Inertia are in-tree (`modules/wire`, `modules/inertia`, samples, `js/wire`). Docs unified into `apps/docs` (Frontend → Wire / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/wire/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-wire-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
 
-**Repo version:** `gradle.properties` `kona.version` is **0.4.0** (Firefly panel train). Confirm Maven Central after Portal **Publish** before describing the version as downloadable. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
+**Repo version:** `gradle.properties` `kona.version` is **0.5.0**. Confirm Maven Central after Portal **Publish** before describing the version as downloadable. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
 
 **Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Wire parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Wire templates.
 
