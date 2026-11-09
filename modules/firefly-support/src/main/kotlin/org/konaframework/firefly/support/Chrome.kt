@@ -204,7 +204,8 @@ class DefaultLayout(
                 "var width=Math.max(panel.offsetWidth||160,160);var height=panel.offsetHeight||0;" +
                 "var top=rect.bottom+gap;if(top+height>window.innerHeight-pad){var above=rect.top-height-gap;if(above>=pad)top=above;}" +
                 "var left=rect.right-width;left=Math.min(Math.max(pad,left),Math.max(pad,window.innerWidth-width-pad));" +
-                "panel.style.top=Math.round(top)+'px';panel.style.left=Math.round(left)+'px';" +
+                "var origin=fixedContainingOrigin(panel);" +
+                "panel.style.top=Math.round(top-origin.y)+'px';panel.style.left=Math.round(left-origin.x)+'px';" +
                 "panel.style.width=Math.round(width)+'px';}" +
                 "function resetDialogForms(panel){if(!panel)return;" +
                 "panel.querySelectorAll('form').forEach(function(f){try{f.reset();}catch(e){}});" +
@@ -268,6 +269,23 @@ class DefaultLayout(
                 "function clearFloatingPanel(panel){if(!panel)return;" +
                 "panel.style.position='';panel.style.top='';panel.style.left='';panel.style.right='';" +
                 "panel.style.bottom='';panel.style.width='';panel.style.minWidth='';panel.style.maxWidth='';panel.style.zIndex='';}" +
+                // An open modal window keeps transform + will-change:transform so the entrance
+                // animation can finish. That element becomes the containing block for position:fixed
+                // descendants, so viewport left/top must be rewritten relative to its padding edge (#513).
+                "function willChanges(will,name){var parts=(will||'').split(',');" +
+                "for(var i=0;i<parts.length;i++){if(parts[i].replace(/^\\s+|\\s+$/g,'')===name)return true;}return false;}" +
+                "function fixedContainingOrigin(el){var node=el&&el.parentElement;" +
+                "while(node&&node!==document.documentElement){" +
+                "var style=window.getComputedStyle(node);" +
+                "var transform=style.transform&&style.transform!=='none';" +
+                "var filter=style.filter&&style.filter!=='none';" +
+                "var perspective=style.perspective&&style.perspective!=='none';" +
+                "var contain=style.contain||'';var will=style.willChange||'';" +
+                "var paints=contain.indexOf('paint')!==-1||contain==='strict'||contain==='content';" +
+                "if(transform||filter||perspective||paints||willChanges(will,'transform')||willChanges(will,'filter')||willChanges(will,'perspective')){" +
+                "var box=node.getBoundingClientRect();" +
+                "return {x:box.left+(parseFloat(style.borderLeftWidth)||0),y:box.top+(parseFloat(style.borderTopWidth)||0)};}" +
+                "node=node.parentElement;}return {x:0,y:0};}" +
                 "function positionPicker(p){if(!p)return;var panel=p.querySelector('[data-ff-picker-panel]');" +
                 "var field=p.querySelector('[data-ff-picker-open]')||p.querySelector('.ff-picker-field');" +
                 "if(!panel||!field||panel.hasAttribute('hidden'))return;" +
@@ -278,11 +296,12 @@ class DefaultLayout(
                 "var natural=Math.max(panel.offsetWidth||0,Math.min(rect.width,296),264);" +
                 "var maxW=Math.max(pad,window.innerWidth-2*pad);if(natural>maxW)natural=maxW;" +
                 "panel.style.width=Math.round(natural)+'px';" +
-                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-natural-pad)))+'px';" +
+                "var origin=fixedContainingOrigin(panel);" +
+                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-natural-pad))-origin.x)+'px';" +
                 "var height=panel.offsetHeight||0;var below=rect.bottom+gap;var above=rect.top-height-gap;" +
                 "var top;if(preferTop&&above>=pad)top=above;else if(below+height<=window.innerHeight-pad)top=below;" +
                 "else if(above>=pad)top=above;else top=Math.max(pad,Math.min(below,window.innerHeight-height-pad));" +
-                "panel.style.top=Math.round(top)+'px';}" +
+                "panel.style.top=Math.round(top-origin.y)+'px';}" +
                 "function closePickers(except){root.querySelectorAll('[data-ff-picker].ff-picker-open').forEach(function(p){" +
                 "if(except&&p===except)return;p.classList.remove('ff-picker-open');p.removeAttribute('data-ff-range-pending');p.removeAttribute('data-ff-range-hover');" +
                 "var panel=p.querySelector('[data-ff-picker-panel]');if(panel){panel.setAttribute('hidden','');clearFloatingPanel(panel);}});}" +
@@ -299,11 +318,12 @@ class DefaultLayout(
                 "var rect=field.getBoundingClientRect();var pad=8;var gap=4;var preferTop=c.getAttribute('data-ff-position')==='top';" +
                 "panel.style.position='fixed';panel.style.right='auto';panel.style.bottom='auto';panel.style.zIndex='1400';" +
                 "var width=Math.max(rect.width,10);panel.style.width=Math.round(width)+'px';panel.style.minWidth=Math.round(width)+'px';" +
-                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-width-pad)))+'px';" +
+                "var origin=fixedContainingOrigin(panel);" +
+                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-width-pad))-origin.x)+'px';" +
                 "var height=panel.offsetHeight||0;var below=rect.bottom+gap;var above=rect.top-height-gap;" +
                 "var top;if(preferTop&&above>=pad)top=above;else if(below+height<=window.innerHeight-pad)top=below;" +
                 "else if(above>=pad)top=above;else top=Math.max(pad,below);" +
-                "panel.style.top=Math.round(top)+'px';}" +
+                "panel.style.top=Math.round(top-origin.y)+'px';}" +
                 "function closeComboboxes(except){root.querySelectorAll('[data-ff-combobox].ff-combobox-open').forEach(function(c){" +
                 "if(except&&c===except)return;c.classList.remove('ff-combobox-open');" +
                 "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel){panel.setAttribute('hidden','');clearComboboxPanel(panel);}" +
