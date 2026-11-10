@@ -60,10 +60,12 @@ open class FireflyTheme {
      * When true, the panel and the sign-in page load the Tailwind runtime in
      * `<head>` before the chrome. Hook classes such as `bg-primary-800` and
      * `@apply` in [stylesheet] both apply. The runtime compiles on a promise,
-     * so the document stays on the theme background until that compile has
-     * seen the chrome. `primary-500` is `--ff-primary`, `accent-500` is
-     * `--ff-accent`, and the same is true for success, warning, danger, info,
-     * and gray. False leaves the stock panel CSS alone and adds no wait.
+     * so the document stays `visibility: hidden` until that compile is in the
+     * CSSOM, then it is shown once. The reveal does not change a class or a
+     * background, so the first painted frame is the themed chrome.
+     * `primary-500` is `--ff-primary`, `accent-500` is `--ff-accent`, and the
+     * same is true for success, warning, danger, info, and gray. False leaves
+     * the stock panel CSS alone and adds no hide.
      */
     open fun useTailwind(): Boolean = false
 
@@ -239,8 +241,11 @@ internal fun escapeThemeAttr(value: String): String = buildString {
  * The Tailwind browser build compiles on a promise after the parser continues,
  * and it only reads `style type="text/tailwindcss"`. A plain link would paint
  * the stock chrome, then pop `@apply` in. The head therefore fetches that file
- * before the runtime script, and [themePaintScript] keeps the body hidden on
- * the theme background until the compile has seen the chrome.
+ * before the runtime script. [themeHold] keeps the root `visibility: hidden`
+ * so stock chrome cannot paint, and [themePaintScript] shows it once the
+ * compile that includes the theme is in the CSSOM. Showing sets an inline
+ * style. It does not remove the pending class: that class change makes the
+ * runtime replace the compiled sheet, which flashes stock colors.
  */
 internal fun withThemeStylesheet(html: String, theme: FireflyTheme): String {
     val extra = themeHeadExtra(theme, html.contains("<body class=\"ff-auth\""))
@@ -280,16 +285,21 @@ internal fun themeHeadExtra(theme: FireflyTheme, authDocument: Boolean): String 
 }
 
 /**
- * Hides the chrome without a blank white wait. The early dark-mode script has
- * already set `ff-dark`. Auth keeps the light canvas in dark mode because the
- * guest body paints that color inline; the panel shell covers the viewport,
- * so its hold uses the dark surface.
+ * Hides the root until [themePaintScript] shows it. The pending class is not
+ * removed later. A panel in dark mode also paints [ThemeTokens.darkSurface] on
+ * the canvas so a blocked parser cannot flash the light body color; the shell
+ * uses that same surface, and the rule stays after the reveal. Auth keeps the
+ * light canvas, so it does not set that background.
  */
 private fun themeHold(theme: FireflyTheme, authDocument: Boolean): String {
-    val light = holdColor(theme.tokens().bodyBackground)
-    val dark = holdColor(if (authDocument) light else theme.tokens().darkSurface)
+    val rules = StringBuilder("html.ff-theme-pending{visibility:hidden}")
+    if (!authDocument) {
+        rules.append("html.ff-dark.ff-theme-pending{background:")
+        rules.append(holdColor(theme.tokens().darkSurface))
+        rules.append('}')
+    }
     return """<script>(function(){document.documentElement.classList.add("ff-theme-pending");})();</script>
-<style id="ff-theme-hold">html.ff-theme-pending{background:$light}html.ff-dark.ff-theme-pending{background:$dark}html.ff-theme-pending body{visibility:hidden}</style>"""
+<style id="ff-theme-hold">$rules</style>"""
 }
 
 /** Drops characters that would close the hold style. Theme colors are otherwise copied through. */
@@ -438,15 +448,16 @@ ${brandColorScaleCss()}
 <style type="text/tailwindcss">@import "tailwindcss/theme";
 @import "tailwindcss/utilities";
 ${brandColorThemeCss()}
-@utility ff-theme-paint { opacity: 1; }</style>"""
+html { --ff-theme-compiled: 1; }</style>"""
 
 /**
  * Blocking runtime in the head, after the theme sheet when [href] is set.
  * The runtime's first build reads every `style type="text/tailwindcss"` already
  * in the document, and that read happens in a microtask after the script tag.
  * A synchronous fetch in the previous script puts `@apply` in that read.
- * `ff-theme-paint` is emitted only once the class is on an element, which is
- * how the reveal script knows the compile has seen the chrome.
+ * `--ff-theme-compiled` is copied into the generated sheet, which is how the
+ * reveal script knows that build has landed. It does not depend on a class,
+ * so waiting for it does not schedule another build.
  */
 internal fun tailwindHead(href: String): String {
     val source = tailwindSource()
@@ -458,9 +469,13 @@ internal fun tailwindHead(href: String): String {
 }
 
 /**
- * Runs after the chrome is parsed. Reveals the document once the runtime's
- * generated style contains `ff-theme-paint`, which means that build scanned
- * the chrome. A failed sheet or a missing runtime still reveals.
+ * Runs after the chrome is parsed. The head build has already compiled by then,
+ * because the runtime script's microtasks finish before the body is parsed.
+ * Shows the document when the generated sheet contains `--ff-theme-compiled`.
+ * A stylesheet URL that arrived through the async fallback is not treated as
+ * compiled until the generated sheet is rewritten after that node exists.
+ * Showing sets inline visibility and does not touch `class`, so the runtime
+ * does not rebuild. A failed sheet or a missing runtime still shows.
  */
 private fun themePaintScript(): String =
-    """<script data-ff-theme-reveal>(function(){var root=document.documentElement;if(!root.classList.contains("ff-theme-pending"))return;var revealed=false;function reveal(){if(revealed)return;revealed=true;root.classList.remove("ff-theme-pending");}function generated(){var nodes=document.head?document.head.querySelectorAll("style"):[];var last=null;for(var i=0;i<nodes.length;i++){var s=nodes[i];if(s.getAttribute("type")==="text/tailwindcss")continue;if(s.id==="ff-theme-hold")continue;last=s;}return last;}function sheetReady(){if(root.hasAttribute("data-ff-theme-failed"))return true;if(!root.hasAttribute("data-ff-theme-href"))return true;return !!document.head.querySelector("style[data-ff-theme-sheet]");}var kicked=false;var obs=new MutationObserver(function(){check();});function check(){if(revealed)return;if(!sheetReady())return;var out=generated();if(!out)return;if(!kicked){kicked=true;if(document.body)document.body.classList.add("ff-theme-paint");}if((out.textContent||"").indexOf("ff-theme-paint")!==-1){obs.disconnect();reveal();}}obs.observe(document.head,{childList:true,subtree:true,characterData:true});obs.observe(root,{attributes:true,attributeFilter:["data-ff-theme-failed"]});check();setTimeout(function(){obs.disconnect();reveal();},4000);})();</script>"""
+    """<script data-ff-theme-reveal>(function(){var root=document.documentElement;if(!root.classList.contains("ff-theme-pending"))return;var shown=false;function generated(){var nodes=document.head?document.head.querySelectorAll("style"):[];var last=null;for(var i=0;i<nodes.length;i++){var s=nodes[i];if(s.getAttribute("type")==="text/tailwindcss")continue;if(s.id==="ff-theme-hold")continue;last=s;}return last;}function hasSheet(){return !!document.head.querySelector("style[data-ff-theme-sheet]");}var sheetCompiled=root.hasAttribute("data-ff-theme-sync")||!root.hasAttribute("data-ff-theme-href");function compiled(){if(root.hasAttribute("data-ff-theme-failed"))return true;if(root.hasAttribute("data-ff-theme-href")&&!hasSheet())return false;if(!sheetCompiled)return false;var out=generated();if(!out)return false;return (out.textContent||"").indexOf("--ff-theme-compiled")!==-1;}function show(force){if(shown)return;if(!force&&!compiled())return;shown=true;root.style.visibility="visible";}if(compiled()){show();return;}var obs=new MutationObserver(function(records){var text=false;for(var i=0;i<records.length;i++){var rec=records[i];if(rec.type!=="characterData")continue;var node=rec.target;var el=node&&node.nodeType===3?node.parentNode:node;if(!el||el.id==="ff-theme-hold")continue;if(el.getAttribute&&el.getAttribute("type")==="text/tailwindcss")continue;if(el.tagName==="STYLE")text=true;}if(root.hasAttribute("data-ff-theme-failed"))sheetCompiled=true;if(hasSheet()&&text)sheetCompiled=true;if(compiled()){obs.disconnect();show();}});obs.observe(document.head,{childList:true,subtree:true,characterData:true});obs.observe(root,{attributes:true,attributeFilter:["data-ff-theme-failed"]});setTimeout(function(){obs.disconnect();show(true);},4000);})();</script>"""
