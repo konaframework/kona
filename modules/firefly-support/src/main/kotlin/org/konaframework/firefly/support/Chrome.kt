@@ -204,7 +204,8 @@ class DefaultLayout(
                 "var width=Math.max(panel.offsetWidth||160,160);var height=panel.offsetHeight||0;" +
                 "var top=rect.bottom+gap;if(top+height>window.innerHeight-pad){var above=rect.top-height-gap;if(above>=pad)top=above;}" +
                 "var left=rect.right-width;left=Math.min(Math.max(pad,left),Math.max(pad,window.innerWidth-width-pad));" +
-                "panel.style.top=Math.round(top)+'px';panel.style.left=Math.round(left)+'px';" +
+                "var origin=fixedContainingOrigin(panel);" +
+                "panel.style.top=Math.round(top-origin.y)+'px';panel.style.left=Math.round(left-origin.x)+'px';" +
                 "panel.style.width=Math.round(width)+'px';}" +
                 "function resetDialogForms(panel){if(!panel)return;" +
                 "panel.querySelectorAll('form').forEach(function(f){try{f.reset();}catch(e){}});" +
@@ -234,6 +235,9 @@ class DefaultLayout(
                 "panel.classList.remove('ff-open','ff-closing');" +
                 "panel.setAttribute('hidden','');panel.style.display='none';panel.setAttribute('aria-hidden','true');}" +
                 "function closeDialog(panel,immediate){if(!panel)return;" +
+                // Drop an open date/select menu first so the dialog transform (and its exit
+                // animation) is restored before the window starts closing (#515).
+                "closePickers();closeComboboxes();" +
                 "var skip=!!immediate||prefersReducedMotion()||!panel.classList.contains('ff-open')||panel.classList.contains('ff-closing');" +
                 "if(skip){finishCloseDialog(panel);return;}" +
                 "panel.classList.add('ff-closing');panel.classList.remove('ff-open');" +
@@ -267,10 +271,49 @@ class DefaultLayout(
                 "else{win.style.position='';win.style.margin='';win.style.left='';win.style.top='';win.style.width='';win.style.height='';win.style.maxWidth='';win.style.maxHeight='';}}" +
                 "function clearFloatingPanel(panel){if(!panel)return;" +
                 "panel.style.position='';panel.style.top='';panel.style.left='';panel.style.right='';" +
-                "panel.style.bottom='';panel.style.width='';panel.style.minWidth='';panel.style.maxWidth='';panel.style.zIndex='';}" +
+                "panel.style.bottom='';panel.style.width='';panel.style.minWidth='';panel.style.maxWidth='';panel.style.zIndex='';" +
+                "restoreDialogClip(panel);}" +
+                // An open modal window keeps transform + will-change:transform, which makes it the
+                // containing block for position:fixed descendants. overflow:hidden on that window
+                // then clips the menu. While a date picker or select menu is open, drop that
+                // containing block so the menu floats on top of the dialog (#515). Viewport
+                // coordinates are still shifted when some other ancestor keeps a transform (#513).
+                "function releaseDialogClip(el){var node=el&&el.parentElement;" +
+                "while(node&&node!==document.documentElement){" +
+                "if(node.classList&&node.classList.contains('ff-dialog-window')){" +
+                "if(node.getAttribute('data-ff-clip-released')!=='true'){" +
+                "node.setAttribute('data-ff-clip-released','true');" +
+                "node.setAttribute('data-ff-clip-transform',node.style.transform||'');" +
+                "node.setAttribute('data-ff-clip-will',node.style.willChange||'');" +
+                "node.setAttribute('data-ff-clip-transition',node.style.transition||'');}" +
+                "node.style.transition='none';node.style.transform='none';node.style.willChange='auto';}" +
+                "node=node.parentElement;}}" +
+                "function restoreDialogClip(el){var node=el&&el.parentElement;" +
+                "while(node&&node!==document.documentElement){" +
+                "if(node.classList&&node.classList.contains('ff-dialog-window')&&node.getAttribute('data-ff-clip-released')==='true'){" +
+                "node.style.transform=node.getAttribute('data-ff-clip-transform')||'';" +
+                "node.style.willChange=node.getAttribute('data-ff-clip-will')||'';" +
+                "node.style.transition=node.getAttribute('data-ff-clip-transition')||'';" +
+                "node.removeAttribute('data-ff-clip-released');node.removeAttribute('data-ff-clip-transform');node.removeAttribute('data-ff-clip-will');node.removeAttribute('data-ff-clip-transition');}" +
+                "node=node.parentElement;}}" +
+                "function willChanges(will,name){var parts=(will||'').split(',');" +
+                "for(var i=0;i<parts.length;i++){if(parts[i].replace(/^\\s+|\\s+$/g,'')===name)return true;}return false;}" +
+                "function fixedContainingOrigin(el){var node=el&&el.parentElement;" +
+                "while(node&&node!==document.documentElement){" +
+                "var style=window.getComputedStyle(node);" +
+                "var transform=style.transform&&style.transform!=='none';" +
+                "var filter=style.filter&&style.filter!=='none';" +
+                "var perspective=style.perspective&&style.perspective!=='none';" +
+                "var contain=style.contain||'';var will=style.willChange||'';" +
+                "var paints=contain.indexOf('paint')!==-1||contain==='strict'||contain==='content';" +
+                "if(transform||filter||perspective||paints||willChanges(will,'transform')||willChanges(will,'filter')||willChanges(will,'perspective')){" +
+                "var box=node.getBoundingClientRect();" +
+                "return {x:box.left+(parseFloat(style.borderLeftWidth)||0),y:box.top+(parseFloat(style.borderTopWidth)||0)};}" +
+                "node=node.parentElement;}return {x:0,y:0};}" +
                 "function positionPicker(p){if(!p)return;var panel=p.querySelector('[data-ff-picker-panel]');" +
                 "var field=p.querySelector('[data-ff-picker-open]')||p.querySelector('.ff-picker-field');" +
                 "if(!panel||!field||panel.hasAttribute('hidden'))return;" +
+                "releaseDialogClip(panel);" +
                 "var rect=field.getBoundingClientRect();var pad=8;var gap=4;var preferTop=p.getAttribute('data-ff-position')==='top';" +
                 "panel.style.position='fixed';panel.style.right='auto';panel.style.bottom='auto';panel.style.zIndex='1400';" +
                 // Measure intrinsic width (range panels are wider), then clamp into the viewport (#405).
@@ -278,11 +321,12 @@ class DefaultLayout(
                 "var natural=Math.max(panel.offsetWidth||0,Math.min(rect.width,296),264);" +
                 "var maxW=Math.max(pad,window.innerWidth-2*pad);if(natural>maxW)natural=maxW;" +
                 "panel.style.width=Math.round(natural)+'px';" +
-                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-natural-pad)))+'px';" +
+                "var origin=fixedContainingOrigin(panel);" +
+                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-natural-pad))-origin.x)+'px';" +
                 "var height=panel.offsetHeight||0;var below=rect.bottom+gap;var above=rect.top-height-gap;" +
                 "var top;if(preferTop&&above>=pad)top=above;else if(below+height<=window.innerHeight-pad)top=below;" +
                 "else if(above>=pad)top=above;else top=Math.max(pad,Math.min(below,window.innerHeight-height-pad));" +
-                "panel.style.top=Math.round(top)+'px';}" +
+                "panel.style.top=Math.round(top-origin.y)+'px';}" +
                 "function closePickers(except){root.querySelectorAll('[data-ff-picker].ff-picker-open').forEach(function(p){" +
                 "if(except&&p===except)return;p.classList.remove('ff-picker-open');p.removeAttribute('data-ff-range-pending');p.removeAttribute('data-ff-range-hover');" +
                 "var panel=p.querySelector('[data-ff-picker-panel]');if(panel){panel.setAttribute('hidden','');clearFloatingPanel(panel);}});}" +
@@ -296,14 +340,16 @@ class DefaultLayout(
                 "function positionCombobox(c){if(!c)return;var panel=c.querySelector('[data-ff-combobox-panel]');" +
                 "var field=c.querySelector('[data-ff-combobox-open]')||c.querySelector('.ff-combobox-field');" +
                 "if(!panel||!field||panel.hasAttribute('hidden'))return;" +
+                "releaseDialogClip(panel);" +
                 "var rect=field.getBoundingClientRect();var pad=8;var gap=4;var preferTop=c.getAttribute('data-ff-position')==='top';" +
                 "panel.style.position='fixed';panel.style.right='auto';panel.style.bottom='auto';panel.style.zIndex='1400';" +
                 "var width=Math.max(rect.width,10);panel.style.width=Math.round(width)+'px';panel.style.minWidth=Math.round(width)+'px';" +
-                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-width-pad)))+'px';" +
+                "var origin=fixedContainingOrigin(panel);" +
+                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-width-pad))-origin.x)+'px';" +
                 "var height=panel.offsetHeight||0;var below=rect.bottom+gap;var above=rect.top-height-gap;" +
                 "var top;if(preferTop&&above>=pad)top=above;else if(below+height<=window.innerHeight-pad)top=below;" +
                 "else if(above>=pad)top=above;else top=Math.max(pad,below);" +
-                "panel.style.top=Math.round(top)+'px';}" +
+                "panel.style.top=Math.round(top-origin.y)+'px';}" +
                 "function closeComboboxes(except){root.querySelectorAll('[data-ff-combobox].ff-combobox-open').forEach(function(c){" +
                 "if(except&&c===except)return;c.classList.remove('ff-combobox-open');" +
                 "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel){panel.setAttribute('hidden','');clearComboboxPanel(panel);}" +
@@ -564,9 +610,9 @@ class DefaultLayout(
                 "document.addEventListener('pointermove',function(ev){" +
                 "if(resizeState){var nw=Math.max(280,resizeState.w+(ev.clientX-resizeState.x));" +
                 "var nh=Math.max(200,resizeState.h+(ev.clientY-resizeState.y));" +
-                "resizeState.win.style.width=nw+'px';resizeState.win.style.height=nh+'px';return;}" +
+                "resizeState.win.style.width=nw+'px';resizeState.win.style.height=nh+'px';repositionFloating();return;}" +
                 "if(!dragState)return;" +
-                "dragState.win.style.left=(ev.clientX-dragState.ox)+'px';dragState.win.style.top=(ev.clientY-dragState.oy)+'px';});" +
+                "dragState.win.style.left=(ev.clientX-dragState.ox)+'px';dragState.win.style.top=(ev.clientY-dragState.oy)+'px';repositionFloating();});" +
                 "document.addEventListener('pointerup',function(){dragState=null;resizeState=null;});" +
                 "document.addEventListener('click',function(ev){" +
                 "var t=ev.target;if(!t||!t.closest)return;" +

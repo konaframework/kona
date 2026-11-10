@@ -2345,7 +2345,9 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 .ff-panel .ff-combobox-panel {
   /* Default absolute; Chrome.js switches to position:fixed when open so the
-     panel escapes modal overflow (same pattern as action-group / row menus) (#399). */
+     panel escapes modal overflow (same pattern as action-group / row menus) (#399).
+     An open dialog's transform would still clip that fixed menu, so the script
+     clears it while the menu is open and the menu floats above the window (#515). */
   position: absolute;
   z-index: 40;
   left: 0;
@@ -2503,7 +2505,9 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 .ff-panel .ff-picker-panel {
   /* Default absolute; Chrome.js switches to position:fixed when open so the
-     panel escapes modal overflow and clamps into the viewport (#405). */
+     panel escapes modal overflow and clamps into the viewport (#405).
+     An open dialog's transform would still clip that fixed menu, so the script
+     clears it while the calendar is open and the calendar floats above the window (#515). */
   position: absolute;
   z-index: 60;
   top: calc(100% + 0.35rem);

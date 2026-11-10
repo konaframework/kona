@@ -41,6 +41,30 @@ class RecordActionsTableTest {
     }
 
     @Test
+    fun configuredRowButtonsKeepsTheButtonsSetOnTheTable() {
+        val open = TableButton.make("open").label("Open").url("/open").ungrouped()
+        val table = table().rowButtons(open)
+        assertSame(open, table.configuredRowButtons().single())
+        val edit = TableButton.make("edit").label("Edit").url("/edit")
+        table.rowButtons(edit)
+        assertSame(edit, table.configuredRowButtons().single())
+    }
+
+    @Test
+    fun ungroupedRowButtonStaysOutsideTheMenu() {
+        val html = table().rowButtons(
+            TableButton.make("open").label("Open").url("/open").ungrouped(),
+            TableButton.make("edit").label("Edit").url("/edit"),
+            TableButton.make("delete").label("Delete").url("/delete"),
+        ).render()
+        val row = html.substringAfter("""data-ff-record="1"""").substringBefore("</tr>")
+        assertTrue(row.contains("""class="ff-table-button" href="/open""""))
+        val menu = row.substringAfter("data-ff-menu-panel").substringBefore("</div>")
+        assertTrue(menu.contains("""href="/edit""""))
+        assertFalse(menu.contains("""href="/open""""))
+    }
+
+    @Test
     fun recordActionsPostToTheBoundUrlWithCsrfAndTheRowKey() {
         val post = Action.make("post").label("Post").action { _ -> }
         val view = Action.make("sign").label("Sign").requiresConfirmation().action { _ -> }
