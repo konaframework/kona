@@ -356,6 +356,12 @@ The same classes work in the stylesheet `stylesheet()` names:
 
 `primaryColor` and `accentColor` on the panel set `--ff-primary` and `--ff-accent`. The scale reads those variables, so `500` stays the brand color. Each step is also a custom property on `.ff-panel` and `.ff-auth` (`--ff-primary-500`, `--ff-accent-700`, and the rest). A later rule can replace one step. A theme that leaves `useTailwind()` false does not add the scale.
 
+Dark mode follows the panel color. A panel primary stays that hue in the dark block: Firefly mixes it toward white or black (`color-mix`) and writes the shade on `--ff-primary` only there. `#FF2A00` becomes `#ff6647`, still a red-orange, not Kona's dark primary `#C9A57B`. The light `--ff-primary` stays the color the panel set. The accent follows the same rule.
+
+Set `darkPrimary(color)` or `darkAccent(color)` on the panel when the dark color should differ from that mix. A theme does the same by overriding `darkPrimary()` or `darkAccent()`. An explicit dark color wins over the mix. Leave the override unset to derive from the panel color.
+
+Kona's defaults apply when the panel sets nothing. `tokens().darkPrimary` (`#C9A57B` on `KonaTheme`) is that fallback for primary. It does not replace a primary the panel set. `darkSurface` and `darkHeading` are the fallback for the shell. Override `darkSurface()` or `darkHeading()` on the theme to pick a different dark surface or heading. The panel does not set those colors.
+
 ## Use a Google font
 
 `googleFonts()` names one or more families. It returns an empty list until you override it.
