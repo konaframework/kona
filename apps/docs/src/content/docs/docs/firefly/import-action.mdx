@@ -1,0 +1,301 @@
+---
+title: Import action
+description: "Put an Import action on a resource header. The panel uploads a CSV or Excel file, matches only the columns you declare, and calls your code to create or update records."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+An Import action is the header button for one list. It opens a page that uploads a file, asks the user to match columns, and then either tests the file or writes it. The framework renders that page. Your importer decides what each row means and what gets stored.
+
+This is the same shape as Filament's `ImportAction::make()->importer(...)`. It is not the [CSV job](/docs/firefly/import-export/) from `FireflyTransfer`. That job parses a file into maps and does not match columns.
+
+The types live in `org.konaframework.firefly.imports` (`kona-firefly`). Apache POI rides on that module, so an app does not declare `poi-ooxml` unless its own tests build workbooks.
+
+## Put the action on the header
+
+`ImportAction.make()` is an action named `import`, labeled **Import**. `importer(...)` points it at one importer. The button is a link to `{panel}/import?importer={key}`.
+
+Register the same importer on the panel with `imports(...)`. The panel mounts the page when it mounts. The page is not a navigation item. A bare visit to `{panel}/import` lists the importers you registered and does nothing else.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class ManageProduct : ManagePage("manage") {
+    override fun headerActions(vararg actions: Action): Page {
+        super.headerActions(*actions, ImportAction.make().importer(ProductImporter))
+        return this
+    }
+}
+
+override fun panel(panel: Panel): Panel =
+    panel.id("admin").path("admin").imports(ProductImporter)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class ManageProduct extends ManagePage {
+    public ManageProduct() { super("manage"); }
+
+    @Override
+    public Page headerActions(Action... actions) {
+        Action[] all = new Action[actions.length + 1];
+        System.arraycopy(actions, 0, all, 0, actions.length);
+        all[actions.length] = ImportAction.make().importer(new ProductImporter());
+        super.headerActions(all);
+        return this;
+    }
+}
+
+panel.imports(new ProductImporter());
+```
+
+</TabItem>
+</Tabs>
+
+On a manage page the Create button is already in the header. The override receives that button and adds Import beside it. You see **Import** next to **Create**.
+
+`make("import_products")` changes the action name when the header already has an action named `import`. The name is a letter or `_`, then letters, digits, and `_`. `bad-name` throws `FireflyException`.
+
+`importMaxBytes(2_000_000)` is the default upload limit. A larger file is refused with `That file is larger than 2 MB.` Pass another positive byte count to change the limit. `0` throws `FireflyException`.
+
+A second `imports(...)` call replaces the list. Registering the same key twice in one call throws `Import [key] is already registered`.
+
+The page uses the panel's existing sign-in check and CSRF field. Posts without the session token get `419`. Guests are sent to the panel sign-in page when the panel authenticates.
+
+## Declare the columns
+
+Each column has a name, a label, and whether the user must map it. The name is the key your `resolve` method reads. It is a letter or `_`, then letters, digits, and `_`.
+
+`requiredMapping()` means the select starts on **Select a column** and the import is rejected while it stays there. Leave it off and the select starts on **Don't import**. The user can leave an optional column there.
+
+`aliases(...)` are extra header texts the matcher may pre-select. The column name and the label are aliases too. The first column to claim an alias keeps it.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override val columns = listOf(
+    ImportColumn.make("sku").label("SKU").requiredMapping().aliases("sku", "code"),
+    ImportColumn.make("name").label("Name").requiredMapping(),
+    ImportColumn.make("note").label("Note").aliases("comment"),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public List<ImportColumn> getColumns() {
+    return List.of(
+        ImportColumn.make("sku").label("SKU").requiredMapping().aliases("sku", "code"),
+        ImportColumn.make("name").label("Name").requiredMapping(),
+        ImportColumn.make("note").label("Note").aliases("comment")
+    );
+}
+```
+
+</TabItem>
+</Tabs>
+
+You see one row in the matcher per column, in this order, and no others. A spreadsheet column you did not declare still shows up in the file preview. It is not a field the user can map, and it is not passed to `resolve`.
+
+A blank label throws `Import column [sku] label is blank`. An importer with no columns, a blank title, a blank list label, a blank list path, blank upload text, or blank match text throws `FireflyException` when you register it or attach the action.
+
+`uploadText` is the paragraph on the file form. `matchText` is the paragraph above the selects. `listLabel` and `listPath` are the breadcrumb back to the list. `title` is the page heading, and it is also the link on the bare import page.
+
+## What the matcher does
+
+The user uploads `.csv`, `.txt`, `.xls`, or `.xlsx`. The first row is the header. Later rows are data. Empty rows are dropped. A header cell that is blank becomes `Column 1`, `Column 2`, and so on. A repeated header becomes `Name (2)`.
+
+CSV picks a delimiter from the header line: tab when tabs win, otherwise semicolon when semicolons beat commas, otherwise comma. Quotes can hold commas and line breaks. A doubled quote inside quotes is one quote. A leading BOM is ignored.
+
+Excel is read as a workbook. The bytes are sniffed for the OLE header or a ZIP header, then opened with Apache POI. The first sheet that has rows is used. Formulas are calculated. Each cell is the text Excel would display, so a date stays `2026-11-01` and a number does not gain a trailing `.0` when Excel shows it as an integer. A password-protected file is refused with `This spreadsheet is password protected.` A file named `.xls` or `.xlsx` that is not a workbook is refused with `This spreadsheet could not be read.`
+
+After upload, each of your columns is a select. Options are the file headers. When the first data cell in that column is non-blank, the option label is `Header — sample`, cut at 40 characters. If the header matches a column name, label, or alias, that option starts selected. The user can change it. A required select uses **Select a column** and the browser will not submit it empty. An optional select uses **Don't import**.
+
+The choice is stored in the session as text, together with the file name and the sheet. The sheet is headers plus rows. Each row has a line number and a list of cell strings. Those are the only values put in the session: strings, maps, lists, and numbers. The importer object itself is not stored.
+
+Line numbers come from the file. A CSV record keeps the line it started on. An Excel row keeps the sheet row number, so a value on row 5 is line 5 even when the rows above it were blank.
+
+Switching `?importer=` to another registered importer drops the uploaded file and the saved mapping. The bare page, with no `importer` query and nothing remembered, only lists the registered actions.
+
+**Download a sample file** returns that importer's `template()` as `text/csv`. The default template is one header row of the column names. Override `template()` to add example rows. The sample is that importer's columns, not every column in the database.
+
+## Test and Import
+
+**Test** checks every row and writes nothing. **Import** writes only when every row is valid.
+
+Both buttons post the mapping. The framework then:
+
+1. Rejects the file itself when a required column is still on **Select a column**, when the header row is missing, or when there are no data rows. `resolve` is not called. You see `Match a column to Name.` or `The file has no data rows.`
+2. Otherwise calls `resolve` with the mapped rows.
+3. On **Test**, shows `summary()` and the row problems, and stops.
+4. On **Import**, calls `apply` only when `issues` is empty. If any row has a problem, `apply` is not called and the page shows the problems. The uploaded file stays so the user can fix the mapping.
+5. After a successful import, clears the file, shows the summary on the page, and sends a success toast titled `{listLabel} imported`.
+
+A problem list is all or nothing. One bad row means nothing is written, including the rows that were fine.
+
+`resolve` receives `List<ImportRow>`. `line` is the file line. `values` maps your column name to the trimmed cell. A column left on **Don't import** is absent from the map. A mapped cell that was blank is present and empty. Use that difference. An optional phone that was not imported is not the same as a phone cell that was empty on purpose, unless you decide they are.
+
+Return an `ImportResolution`:
+
+| Member | What it is |
+| --- | --- |
+| `creates` | How many records Import would insert |
+| `updates` | How many existing records Import would change |
+| `issues` | `ImportProblem(line, message)` for every problem. Empty when the file can be written |
+| `ready` | `true` when `issues` is empty |
+| `summary()` | The sentence the page shows. This is where the create and update counts are worded |
+
+The framework does not invent that sentence. `1 new route` and `2 updated connections` are your words, because the framework does not know the noun.
+
+`apply` receives the same object `resolve` returned. Cast it to your plan type and write it. The framework does not open a database transaction. Open one in `apply` if the write must be one unit of work. If `apply` throws `IllegalArgumentException`, the page shows that message and nothing further is written by the framework.
+
+Do not write inside `resolve`. Test calls `resolve` and must leave the database alone.
+
+## What you implement
+
+The framework does not guess a match key. It does not look for `id`, `email`, `sku`, or a unique column. It does not know which value means "update this record" and which value means "create". You do that in `resolve`.
+
+A typical rule:
+
+- Pick the column that identifies a record. That is the match key.
+- Load the records you already have.
+- If the key is already stored, this row is an update. If not, it is a create.
+- If the file uses the same key twice with different values, add a problem and do not describe a write.
+- If a related record must already exist, look it up and add a problem when it does not. Do not create it from this importer unless that is the list this importer owns.
+- If `issues` is not empty, return no writes. The framework will also refuse to call `apply`, and returning an empty write list keeps the plan honest.
+
+Repeat imports update by that key because `resolve` finds the existing record. The framework does not remember a previous import.
+
+## A full example
+
+Products match on SKU. Name is required. Note is optional. A blank SKU is a problem on that row. The same SKU twice in the file is a problem. A SKU that already exists updates the name, and updates the note only when the note column was mapped.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+object ProductImporter : Importer() {
+    override val key = "products"
+    override val title = "Import products"
+    override val listLabel = "Products"
+    override val listPath = "/admin/products/manage"
+    override val uploadText = "Upload a CSV or Excel file of products. SKU and name are required. Re-importing a SKU updates that product."
+    override val matchText = "SKU and name have to be matched. Note can stay on Don't import. Re-importing a SKU updates that product."
+    override val columns = listOf(
+        ImportColumn.make("sku").label("SKU").requiredMapping().aliases("sku", "code"),
+        ImportColumn.make("name").label("Name").requiredMapping(),
+        ImportColumn.make("note").label("Note").aliases("comment"),
+    )
+
+    override fun template(): String = "sku,name,note\nSKU-1,Widget,First run\n"
+
+    override fun resolve(rows: List<ImportRow>): ImportResolution {
+        val known = Product.query().get().associateBy { it.getAttribute("sku").toString() }
+        val issues = mutableListOf<ImportProblem>()
+        val writes = linkedMapOf<String, ProductWrite>()
+        for (row in rows) {
+            val sku = row.values["sku"].orEmpty()
+            val name = row.values["name"].orEmpty()
+            if (sku.isEmpty() && name.isEmpty()) continue
+            if (sku.isEmpty()) issues += ImportProblem(row.line, "SKU is empty.")
+            if (name.isEmpty()) issues += ImportProblem(row.line, "Name is empty.")
+            if (sku.isEmpty() || name.isEmpty()) continue
+            if (writes.containsKey(sku)) {
+                issues += ImportProblem(row.line, "SKU $sku is also on another row.")
+                continue
+            }
+            val existing = known[sku]
+            val note = row.values["note"]
+            writes[sku] = ProductWrite(existing, sku, name, note)
+        }
+        if (writes.isEmpty() && issues.isEmpty()) issues += ImportProblem(1, "The file has no data rows.")
+        if (issues.isNotEmpty()) return ProductPlan(emptyList(), issues)
+        return ProductPlan(writes.values.toList(), emptyList())
+    }
+
+    override fun apply(resolution: ImportResolution) {
+        val plan = resolution as ProductPlan
+        DB.transaction<Unit> {
+            for (write in plan.writes) {
+                val model = write.existing ?: Product()
+                model.setAttribute("sku", write.sku)
+                model.setAttribute("name", write.name)
+                if (write.note != null || write.existing == null) {
+                    model.setAttribute("note", write.note.orEmpty())
+                }
+                model.save()
+            }
+        }
+    }
+}
+
+class ProductPlan(
+    val writes: List<ProductWrite>,
+    override val issues: List<ImportProblem>,
+) : ImportResolution {
+    override val creates = writes.count { it.existing == null }
+    override val updates = writes.count { it.existing != null }
+    override fun summary(): String = when {
+        issues.isNotEmpty() -> "The file still has ${issues.size} problems."
+        creates == 0 && updates == 0 -> "Nothing needs changing."
+        else -> "$creates new products and $updates updated products."
+    }
+}
+
+class ProductWrite(val existing: Product?, val sku: String, val name: String, val note: String?)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class ProductImporter extends Importer {
+    @Override public String getKey() { return "products"; }
+    @Override public String getTitle() { return "Import products"; }
+    @Override public String getListLabel() { return "Products"; }
+    @Override public String getListPath() { return "/admin/products/manage"; }
+    @Override public String getUploadText() {
+        return "Upload a CSV or Excel file of products. SKU and name are required.";
+    }
+    @Override public String getMatchText() {
+        return "SKU and name have to be matched. Note can stay on Don't import.";
+    }
+    @Override public List<ImportColumn> getColumns() {
+        return List.of(
+            ImportColumn.make("sku").label("SKU").requiredMapping().aliases("sku", "code"),
+            ImportColumn.make("name").label("Name").requiredMapping(),
+            ImportColumn.make("note").label("Note")
+        );
+    }
+
+    @Override
+    public ImportResolution resolve(List<ImportRow> rows) {
+        // Match on SKU. Return problems instead of writing.
+        return new ProductPlan(0, 0, List.of());
+    }
+
+    @Override
+    public void apply(ImportResolution resolution) {
+        // Write only the plan from resolve. The framework calls this
+        // after Import, and only when issues is empty.
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+In that Kotlin importer, note is `row.values["note"]`. When the column was left on **Don't import**, the key is missing and an existing note is left alone. When the column was mapped, the cell is applied, including a blank cell.
+
+Attach it with `ImportAction.make().importer(ProductImporter)` and `panel.imports(ProductImporter)`.
+
+## What the framework does not do
+
+It does not choose a match key, a unique column, or an upsert rule. It does not create related records you did not ask for. It does not skip bad rows and write the rest. It does not read a second sheet when the first sheet has rows. It does not open a password-protected workbook. It does not put the importer, the plan, or a database model in the session.
+
+If two lists need two files, register two importers. Each button shows only that list's columns, and Import writes only that list's records, because `apply` is the only method that writes and you only write that list there.
