@@ -33,6 +33,7 @@ import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.firefly.support.PanelBranding
 import org.konaframework.firefly.support.PanelLayout
 import org.konaframework.firefly.support.brandMarkHtml
+import org.konaframework.firefly.support.plainTextFromHtml
 import org.konaframework.firefly.support.mergePanelBranding
 import org.konaframework.firefly.support.resolveEffectiveBranding
 import org.konaframework.firefly.schemas.Schema
@@ -537,7 +538,7 @@ open class Panel {
         val get = SchemaBridge.open(state)
         val type = resolveNavigation(get)
         val branding = effectiveBranding(request)
-        val brand = branding.brandName
+        val brand = plainTextFromHtml(branding.brandName)
         val token = FireflyCsrf.ensure(request)
         val chrome = Chrome().theme(theme).layout(layout)
             .csrfToken(token)
@@ -580,7 +581,7 @@ open class Panel {
     private fun drawAuth(request: Request, title: String, body: String): String {
         applyPanelConfiguration()
         val branding = effectiveBranding(request)
-        val brand = branding.brandName
+        val brand = plainTextFromHtml(branding.brandName)
         val token = FireflyCsrf.ensure(request)
         return Chrome()
             .theme(theme)
@@ -1969,11 +1970,12 @@ open class Panel {
     /**
      * Copyright lives in the main-column footer, centered, so the sidebar foot
      * stays the signed-in line only. Blank copyright adds nothing.
+     * [FireflyBranding.copyrightText] is developer HTML and is not escaped.
      */
     private fun footerCopyrightHtml(branding: FireflyBranding): String {
         val copyrightText = branding.copyrightText
         if (copyrightText.isNullOrBlank()) return ""
-        return """<p class="ff-footer-copyright">${escapeHtml(copyrightText)}</p>"""
+        return """<p class="ff-footer-copyright">$copyrightText</p>"""
     }
 
     /**

@@ -169,7 +169,18 @@ class BrandingTest {
         brandMarkHtml(FireflyBranding.DEFAULT.copy(showLogo = true, logoUrl = "  ", showBrandName = false))
         brandMarkHtml(FireflyBranding.DEFAULT.copy(showLogo = true, logoUrl = "/l.svg", logoDarkUrl = null, showBrandName = false))
         brandMarkHtml(FireflyBranding.DEFAULT.copy(showLogo = true, logoUrl = "/l.svg", logoDarkUrl = "/d.svg", showBrandName = true), "extra")
-        assertTrue(brandMarkHtml(FireflyBranding.DEFAULT.copy(brandName = "&<>\"", showBrandName = true)).contains("&amp;"))
+        val marked = brandMarkHtml(
+            FireflyBranding.DEFAULT.copy(
+                brandName = "<em>Hydro</em>",
+                showBrandName = true,
+                showLogo = true,
+                logoUrl = """/q"&<.svg""",
+            ),
+        )
+        assertTrue(marked.contains("""<span class="ff-brand"><em>Hydro</em></span>"""))
+        assertTrue(marked.contains("""src="/q&quot;&amp;&lt;.svg""""))
+        assertEquals("Hydro", plainTextFromHtml("<em>Hydro</em>"))
+        assertEquals("Desk", plainTextFromHtml("Desk"))
 
         assertThrows<FireflyException> { resolveGoogleFont("") }
         assertThrows<FireflyException> { resolveGoogleFont(42) }
