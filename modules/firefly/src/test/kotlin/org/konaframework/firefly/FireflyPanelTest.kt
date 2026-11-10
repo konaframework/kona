@@ -679,7 +679,11 @@ class FireflyPanelTest {
         assertTrue(html.contains("ff-brand-logo--light"))
         assertTrue(html.contains("/branding/logo.svg"))
         assertTrue(html.contains("Acme"))
-        assertTrue(html.contains("© Acme") || html.contains("ff-sidebar-copyright"))
+        assertTrue(html.contains("© Acme"))
+        val acmeFooter = Regex("""<footer class="ff-footer[^"]*">([\s\S]*?)</footer>""").find(html)
+        assertNotNull(acmeFooter)
+        assertTrue(acmeFooter!!.groupValues[1].contains("© Acme"))
+        assertFalse(html.contains("ff-sidebar-copyright"))
         assertTrue(html.contains("--ff-primary: #112233") || html.contains("#112233"))
         assertTrue(html.contains("""action="/brand/logout"""") || html.contains("/brand/logout") || !html.contains("Sign out"))
 
@@ -892,7 +896,11 @@ class FireflyPanelTest {
             .page(ListPage("one"))
             .mount(copyRouter)
         val copyHtml = send(copyRouter, "GET", "/copy/one").body
-        assertTrue(copyHtml.contains("&amp;") || copyHtml.contains("ff-sidebar-copyright"))
+        assertTrue(copyHtml.contains("&amp;"))
+        val escapedFooter = Regex("""<footer class="ff-footer[^"]*">([\s\S]*?)</footer>""").find(copyHtml)
+        assertNotNull(escapedFooter)
+        assertTrue(escapedFooter!!.groupValues[1].contains("&amp;"))
+        assertFalse(copyHtml.contains("ff-sidebar-copyright"))
 
         val csrfSession = object : org.konaframework.http.RequestSession {
             private val data = linkedMapOf<String, Any?>("_token" to "tok-profile")
@@ -1108,6 +1116,70 @@ class FireflyPanelTest {
         fake.userValue = PlainUser()
         assertNull(adapter.name())
         assertNull(adapter.email())
+    }
+
+    @Test
+    fun copyrightRendersInBodyFooterNotSidebarFoot() {
+        val router = Router()
+        Panel().path("copyfoot")
+            .authenticate(false)
+            .navigation(NavigationType.INVERSE)
+            .branding(
+                org.konaframework.firefly.support.PanelBranding(
+                    name = "Amp",
+                    copyright = "© Savannabits",
+                ),
+            )
+            .page(ListPage("one"))
+            .mount(router)
+        val html = send(router, "GET", "/copyfoot/one").body
+        val footer = Regex("""<footer class="ff-footer[^"]*">([\s\S]*?)</footer>""").find(html)
+        val side = Regex("""<div class="ff-sidebar-foot[^"]*">([\s\S]*?)</div>""").find(html)
+        assertNotNull(footer)
+        assertNotNull(side)
+        assertTrue(footer!!.groupValues[1].contains("© Savannabits"))
+        assertTrue(footer.groupValues[1].contains("ff-footer-copyright"))
+        assertFalse(side!!.groupValues[1].contains("© Savannabits"))
+        assertFalse(side.groupValues[1].contains("ff-sidebar-copyright"))
+        assertFalse(side.groupValues[1].contains("ff-footer-copyright"))
+        assertTrue(side.groupValues[1].contains("Signed in as"))
+        assertTrue(side.groupValues[1].contains("""class="ff-signed-in""""))
+
+        val scrollOpen = html.indexOf("""<div class="ff-scroll">""")
+        val footerOpen = footer.range.first
+        assertTrue(scrollOpen >= 0 && footerOpen > scrollOpen)
+        var depth = 0
+        var index = scrollOpen
+        while (index < footerOpen) {
+            if (html.startsWith("<div", index)) depth++
+            if (html.startsWith("</div>", index)) depth--
+            index++
+        }
+        assertTrue(depth > 0)
+
+        val bare = Router()
+        Panel().path("nocopy").authenticate(false).navigation(NavigationType.TOP)
+            .page(ListPage("one")).mount(bare)
+        val plain = send(bare, "GET", "/nocopy/one").body
+        assertFalse(plain.contains("""class="ff-footer-copyright""""))
+        assertFalse(plain.contains("ff-sidebar-copyright"))
+        assertTrue(Regex("""<div class="ff-sidebar-foot[^"]*">[\s\S]*?Signed in as""").containsMatchIn(plain))
+        assertTrue(
+            Regex("""\.ff-panel \.ff-body\s*\{[^}]*min-height:\s*calc\(100% - 70px\)""")
+                .containsMatchIn(html),
+        )
+        val footerRules = Regex("""([^{]+)\{([^}]*)\}""").findAll(html).filter { rule ->
+            rule.groupValues[1].split(",").any { selector ->
+                val trimmed = selector.trim()
+                trimmed.endsWith(".ff-footer") || trimmed.contains(".ff-footer ")
+            }
+        }
+        assertTrue(footerRules.any())
+        assertTrue(
+            footerRules.none { rule ->
+                Regex("""position:\s*(fixed|sticky)""").containsMatchIn(rule.groupValues[2])
+            },
+        )
     }
 
     @Test
