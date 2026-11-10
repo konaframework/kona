@@ -370,11 +370,18 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   gap: 0.65rem;
   min-height: 2.15rem;
   padding: 0.4rem 0.7rem;
-  border-radius: 0.55rem;
   color: var(--ff-body-text);
   font-size: 0.875rem;
   font-weight: 500;
   transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+/* :where() keeps the stock corner, and a single utility on the same anchor or trigger can replace it. */
+:where(.ff-panel .ff-nav-item > a),
+:where(.ff-panel .ff-nav-top .ff-nav-item > a),
+:where(.ff-panel .ff-nav-top .ff-nav-item.ff-cluster > a),
+:where(.ff-panel .ff-nav-top .ff-nav-dropdown-trigger) {
+  border-radius: 0.55rem;
 }
 
 .ff-panel .ff-nav-icon-wrap {
@@ -556,7 +563,6 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   margin: 0;
   padding: 0.4rem 0.7rem;
   border: 0;
-  border-radius: 0.55rem;
   line-height: 1.2;
   white-space: nowrap;
   appearance: none;

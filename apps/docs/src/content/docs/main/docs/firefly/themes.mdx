@@ -115,7 +115,7 @@ A darker sidebar, a tighter brand, and a wider page are three places to start. T
 
 `column()` matches every `.ff-column`, including table cells. Use `content()` for the page.
 
-`navigationItem()` is every nav item. `navigationItemActive()` is only the open page. Firefly merges that class onto the active leaf and leaves group clusters alone, even when a cluster has `ff-active` because it contains the page. `navigationGroupActive()` is that group: a cluster with `ff-active`, or a sidebar group with `ff-nav-group-active`. The stylesheet targets the hook class, for example `.midnight-item-active`, and does not restate the `ff-active` selector. `ff-active` stays on the element.
+`navigationItem()` is every nav item. `navigationItemActive()` is only the open page. Firefly merges that class onto the active leaf and leaves group clusters alone, even when a cluster has `ff-active` because it contains the page. `navigationGroupActive()` is that group: a cluster with `ff-active`, or a sidebar group with `ff-nav-group-active`. The stylesheet targets the hook class, for example `.midnight-item-active`, and does not restate the `ff-active` selector. `ff-active` stays on the element. Hook methods may return several classes, and `./grind firefly:theme-css` compiles utilities referenced in the theme class.
 
 ## Add a stylesheet
 

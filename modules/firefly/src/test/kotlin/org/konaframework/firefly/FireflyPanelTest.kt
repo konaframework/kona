@@ -1325,8 +1325,9 @@ class FireflyPanelTest {
         val cluster = Regex("""<li class="([^"]*ff-cluster[^"]*)">""").find(bar)!!.groupValues[1]
         assertTrue(cluster.contains("theme-group-active"), cluster)
         assertFalse(cluster.contains("theme-item-active"), cluster)
-        assertTrue(bar.contains("""class="ff-nav-dropdown-trigger""""))
-        assertFalse(bar.contains("ff-nav-dropdown-trigger theme-"))
+        assertTrue(bar.contains("""class="ff-nav-dropdown-trigger theme-group-active""""), bar)
+        val leaf = bar.substringAfter("""class="ff-nav-item ff-active theme-item theme-item-active">""")
+        assertTrue(leaf.substringBefore("</a>").contains("theme-item-active"), leaf)
         val drawer = top.substringAfter("""<nav class="ff-nav ff-nav-drawer"""").substringBefore("</nav>")
         assertTrue(drawer.contains("ff-nav-group-active theme-group theme-group-active"), drawer)
         assertTrue(drawer.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""), drawer)

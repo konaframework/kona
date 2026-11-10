@@ -424,6 +424,8 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-nav-side .ff-nav-group.ff-nav-group-active"))
         assertTrue(css.contains("border-left: 2px solid transparent"))
         assertTrue(css.contains(".ff-panel .ff-nav-item"))
+        assertTrue(css.contains(":where(.ff-panel .ff-nav-item > a)"))
+        assertTrue(css.contains(":where(.ff-panel .ff-nav-top .ff-nav-dropdown-trigger)"))
         assertTrue(css.contains(".ff-panel .ff-page-heading"))
         assertTrue(css.contains(".ff-panel .ff-page-toolbar"))
         assertTrue(css.contains(".ff-panel .ff-page-header > nav"))
@@ -1095,14 +1097,89 @@ class FireflySupportTest {
                 """class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown ff-active theme-item theme-group theme-group-active""""
             ),
         )
-        assertTrue(html.contains("""class="ff-nav-dropdown-trigger""""))
-        assertFalse(html.contains("ff-nav-dropdown-trigger theme-"))
+        assertTrue(html.contains("""class="ff-nav-dropdown-trigger theme-group-active""""))
         assertTrue(html.contains("""class="ff-nav-group theme-group""""))
         assertTrue(html.contains("""class="ff-nav-group ff-nav-group-active theme-group theme-group-active""""))
         assertTrue(html.contains("""class="ff-menu-link ff-active""""))
         assertFalse(html.contains("ff-menu-link ff-active theme-"))
         assertFalse(html.contains("<bad>"))
         assertFalse(html.contains("theme-item-active theme-item-active"))
+    }
+
+    @Test
+    fun hookClassListsLandOnThePaintedActiveItem() {
+        val side = applyThemeClasses(
+            """<aside class="ff-sidebar"></aside>""",
+            object : FireflyTheme() {
+                override fun sidebar() = "alpha rounded-tl-none"
+            },
+        )
+        assertTrue(side.contains("""class="ff-sidebar alpha rounded-tl-none""""))
+
+        val nav = """
+            before
+            <!DOCTYPE html>
+            <!-- note -->
+            <script>if (a < b) {}</script>
+            <style>.a::before { content: "<"; }</style>
+            <link rel="stylesheet" href="/css/app.css">
+            <my-el></my-el>
+            <foo:bar></foo:bar>
+            <div class="keep  me"></div>
+            <section class="ff-nav-group ff-nav-group-active">
+              <h3 class="ff-nav-group-label">Sales</h3>
+              <ul>
+                <li class="ff-nav-item ff-active"><a href="/open">Open</a></li>
+                <li class="ff-nav-item"><a href="/idle">Idle</a></li>
+                <li class="ff-nav-item ff-active"><a class="alpha" href="/part">Part</a></li>
+                <li class="ff-nav-item ff-active"><a class="alpha  rounded-tl-none" href="/same">Same</a></li>
+                <li class="ff-nav-item ff-active">< a href="/spaced">Spaced</a></li>
+                <li class="ff-nav-item ff-active"><a/></li>
+              </ul>
+            </section>
+            <li class="ff-nav-item ff-cluster ff-active">
+              <button type="button" class="ff-nav-dropdown-trigger">Group</button>
+              <ul><li class="ff-nav-item"><a href="/child">Child</a></li></ul>
+            </li>
+            <details class="ff-nav-group ff-nav-group-active">
+              <summary class="ff-nav-group-label">Drawer</summary>
+            </details>
+            <img src="mark.svg">
+            tail
+        """.trimIndent()
+        val theme = object : FireflyTheme() {
+            override fun navigationItem() = "theme-item"
+            override fun navigationItemActive() = "alpha rounded-tl-none <bad>"
+            override fun navigationGroup() = "theme-group"
+            override fun navigationGroupActive() = "theme-group-active"
+        }
+        val html = applyThemeClasses(nav, theme)
+        assertTrue(html.contains("""if (a < b)"""))
+        assertTrue(html.contains("""content: "<";"""))
+        assertTrue(html.contains("""<!DOCTYPE html>"""))
+        assertTrue(html.contains("""<!-- note -->"""))
+        assertTrue(html.contains("""<a href="/open" class="alpha rounded-tl-none">"""), html)
+        assertFalse(html.contains("<bad>"))
+        assertTrue(html.contains("""<a href="/idle">"""))
+        assertTrue(html.contains("""<a class="alpha rounded-tl-none" href="/part">"""))
+        assertTrue(html.contains("""<a class="alpha  rounded-tl-none" href="/same">"""))
+        assertFalse(html.contains("rounded-tl-none rounded-tl-none"))
+        assertTrue(html.contains("""<a class="alpha rounded-tl-none"/>"""))
+        assertTrue(html.contains("""< a href="/spaced" class="alpha rounded-tl-none">"""), html)
+        assertTrue(html.contains("""class="ff-nav-group-label theme-group-active""""))
+        assertTrue(html.contains("""class="ff-nav-dropdown-trigger theme-group-active""""))
+        assertTrue(html.contains("""<a href="/child">"""))
+        assertFalse(html.contains("""href="/child" class=""""))
+        assertFalse(html.contains("""href="/idle" class=""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-active theme-item alpha rounded-tl-none""""))
+        assertTrue(html.contains("tail"))
+        assertEquals(nav, copyPaintedThemeClasses(nav, setOf("ff-nav-item"), "", setOf("ff-active"), setOf("ff-cluster")))
+        assertTrue(copyPaintedThemeClasses("<!-- bare", setOf("ff-nav-item"), "alpha", setOf("ff-active"), emptySet()).startsWith("<!--"))
+        assertTrue(copyPaintedThemeClasses("<script>if (a < b)", setOf("ff-nav-item"), "alpha", setOf("ff-active"), emptySet()).contains("a < b"))
+        assertTrue(copyPaintedThemeClasses("<style>.a { content: \"<\"", setOf("ff-nav-item"), "alpha", setOf("ff-active"), emptySet()).contains("content"))
+        assertTrue(copyPaintedThemeClasses("<li class=\"ff-nav-item ff-active\"", setOf("ff-nav-item"), "alpha", setOf("ff-active"), emptySet()).contains("ff-active"))
+        val closed = copyPaintedThemeClasses("</orphan>plain", setOf("ff-nav-item"), "alpha", setOf("ff-active"), emptySet())
+        assertTrue(closed.contains("</orphan>plain"))
     }
 
     @Test
@@ -1359,12 +1436,19 @@ class FireflySupportTest {
 
     @Test
     fun compiledThemeAssetResolvesAndExpands() {
-        val bare = themeCompileSource(".a { color: var(--ff-primary); }")
+        val bare = themeCompileSource(".a { color: var(--ff-primary); }", emptyList())
         assertTrue(bare.contains("""@import "tailwindcss/theme";"""))
+        assertTrue(bare.contains("""@import "tailwindcss/utilities";"""))
         assertTrue(bare.contains("@theme inline {"))
+        assertFalse(bare.contains("@source"))
         assertTrue(bare.endsWith("\n"))
-        val kept = themeCompileSource(".a { color: var(--ff-primary); }\n")
+        val kept = themeCompileSource(".a { color: var(--ff-primary); }\n", emptyList())
         assertTrue(kept.endsWith("}\n") || kept.endsWith(";\n"))
+        val sourced = themeCompileSource(
+            ".a { color: red; }",
+            listOf("/app/src/main/kotlin/app/panels/admin/themes/**/*.kt"),
+        )
+        assertTrue(sourced.contains("""@source "/app/src/main/kotlin/app/panels/admin/themes/**/*.kt";"""))
         assertTrue(finishCompiledCss(".ok { color: var(--ff-accent); }").contains("color-mix(in srgb, var(--ff-primary)"))
 
         assertEquals("ff-asset:css/foo.css", ThemeAssets.asset("css/foo.css"))
@@ -1618,12 +1702,68 @@ class FireflySupportTest {
         assertTrue(noCli.message!!.contains("Tailwind CLI"))
         ThemeCssCompiler.moduleOverride = null
 
+        val outside = Files.createTempFile("theme-outside", ".css")
+        Files.writeString(outside, ".a { color: var(--ff-primary); }\n")
+        assertEquals(null, ThemeCssCompiler.appRootForStylesheet(outside))
+        val outsideOut = Files.createTempDirectory("theme-outside-out").resolve("out.css")
+        ThemeCssCompiler.compileSource(outside, outsideOut) { command, _ ->
+            Files.writeString(Path.of(command[command.indexOf("--output") + 1]), "/* outside */\n")
+        }
+        val outsideCss = Files.readString(outsideOut)
+        assertTrue(outsideCss.contains("/* outside */"))
+        assertTrue(outsideCss.contains("var(--ff-primary)"))
+        var deepRoot = Files.createTempDirectory("theme-deep")
+        repeat(10) { deepRoot = deepRoot.resolve("d") }
+        Files.createDirectories(deepRoot)
+        assertEquals(null, ThemeCssCompiler.appRootForStylesheet(deepRoot.resolve("a.css")))
+        assertEquals(
+            app.toAbsolutePath().normalize(),
+            ThemeCssCompiler.appRootForStylesheet(cssDir.resolve("a.css"))?.toAbsolutePath()?.normalize(),
+        )
+
+        val bareApp = Files.createTempDirectory("theme-bare")
+        assertEquals(emptyList<String>(), ThemeCssCompiler.themeClassSources(bareApp))
+        Files.createDirectories(bareApp.resolve("src/main/kotlin/app"))
+        Files.writeString(bareApp.resolve("src/main/kotlin/app/Page.kt"), "class Page\n")
+        assertEquals(emptyList<String>(), ThemeCssCompiler.themeClassSources(bareApp))
+        val javaOnly = Files.createTempDirectory("theme-java")
+        val javaThemes = javaOnly.resolve("src/main/java/app/panels/shop/themes")
+        Files.createDirectories(javaThemes)
+        Files.writeString(javaThemes.resolve("Slate.java"), "class Slate {}\n")
+        val javaGlobs = ThemeCssCompiler.themeClassSources(javaOnly)
+        assertEquals(1, javaGlobs.size)
+        assertTrue(javaGlobs.single().endsWith("/themes/**/*.java"))
+
+        val themeDir = app.resolve("src/main/kotlin/app/panels/admin/themes")
+        Files.createDirectories(themeDir)
+        Files.writeString(
+            themeDir.resolve("Harbor.kt"),
+            "class Harbor {\n    override fun navigationItemActive(): String = \"rounded-tl-none\"\n}\n",
+        )
+        val decoy = app.resolve("src/main/kotlin/app/themes")
+        Files.createDirectories(decoy)
+        Files.writeString(decoy.resolve("Nope.kt"), "class Nope { val swatch = \"bg-[#FF2A00]\" }\n")
+        val javaDir = app.resolve("src/main/java/app/panels/admin/themes")
+        Files.createDirectories(javaDir)
+        Files.writeString(
+            javaDir.resolve("Slate.java"),
+            "class Slate { public String navigationItemActive() { return \"rounded-br-none\"; } }\n",
+        )
+        val globs = ThemeCssCompiler.themeClassSources(app)
+        assertTrue(globs.any { it.endsWith("/panels/admin/themes/**/*.kt") })
+        assertTrue(globs.any { it.endsWith("/panels/admin/themes/**/*.java") })
+        assertFalse(globs.any { it.contains("/app/themes/") })
+
         val written = ThemeCssCompiler.compileThemes(app, "a")
         assertEquals(1, written.size)
         val expanded = Files.readString(written.single())
         assertTrue(expanded.contains("background-color: var(--ff-primary-50)"))
         assertTrue(expanded.contains("var(--ff-accent)"))
         assertTrue(expanded.contains("var(--ff-primary)"))
+        assertTrue(expanded.contains(".rounded-tl-none"))
+        assertTrue(expanded.contains("border-top-left-radius: 0"))
+        assertTrue(expanded.contains(".rounded-br-none"))
+        assertTrue(expanded.contains("border-bottom-right-radius: 0"))
         assertFalse(expanded.contains("@apply"))
         assertFalse(expanded.contains("#FF2A00"))
         val both = ThemeCssCompiler.compileThemes(app, null)
