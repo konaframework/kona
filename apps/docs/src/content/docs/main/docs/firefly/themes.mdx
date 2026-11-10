@@ -1,60 +1,50 @@
 ---
 title: Themes and CSS
-description: "Extend FireflyTheme, pass it to theme(), and add classes on the chrome. Empty hooks leave the stock panel unchanged."
+description: "Create a Firefly theme, register it with theme(), and add classes plus a stylesheet on the panel and the sign-in page."
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Change the colors, the type, and any extra CSS inside the frame. Extend `FireflyTheme`, then pass an instance to `theme(...)` on the panel you mount.
+A theme is a subclass of `FireflyTheme` (`org.konaframework.firefly.support.FireflyTheme`). The panel already draws its layout: the sidebar, the top bar, the page, and the sign-in card. The theme adds CSS classes on that layout, and it can link one stylesheet. The layout stays the panel's own layout.
 
-<FireflyShot file="section-themes.png" description="Theme toggle in the panel chrome." />
+A hook is a method on `FireflyTheme`, such as `sidebar()` or `brand()`. The method returns class names. Firefly appends those names onto one element the panel already renders. A hook that returns `""` leaves that element on the stock look.
 
-The theme supplies an id, a `ThemeTokens` object, optional HTML for one chrome slot, and optional extra CSS. `Stylesheet.render` turns the tokens into CSS custom properties on `.ff-panel`. Rules in the shipped stylesheet only match inside `.ff-panel`, so a page that never renders a panel leaves Firefly’s buttons, sidebar, and dialogs alone.
+The default theme is `KonaTheme`. The panel uses it until you pass another theme to `theme(...)`.
 
-The hello samples use the shipped theme. You see it on `/admin/desk`.
+## Create a theme
 
-<FireflyShot file="themed-panel.png" description="The hello-kotlin panel at http://127.0.0.1:4017/admin/desk wearing the shipped theme on the sidebar and the page." />
+From the app directory:
 
-## Extend FireflyTheme
+```bash
+./grind make:firefly-theme MidnightTheme
+```
 
-| Method | Default | What you return |
-|--------|---------|-----------------|
-| `id(): String` | `"custom"` | Short name used in error messages. `KonaTheme` returns `kona` |
-| `tokens(): ThemeTokens` | Kona tokens | Color, type, and size tokens. Override to change the palette |
-| `partial(slot: String): String?` | `null` | Replacement HTML for `sidebar`, `topbar`, `body`, or `footer`. `null` keeps the built-in partial |
-| `extraCss(): String` | `""` | Extra rules. Firefly wraps a non-empty value in `.ff-panel { ... }` |
-| `stylesheet(): String?` | `null` | Stylesheet URL linked from `<head>`, or `null` |
-| Hook methods (`sidebar()`, …) | `""` | Extra classes for one chrome region. See [Style the chrome with classes](#style-the-chrome-with-classes) |
+That writes `src/main/kotlin/app/panels/admin/themes/MidnightTheme.kt`.
 
-Pass an instance to `Panel.theme(...)`. `./grind make:firefly-theme MidnightTheme` writes the class under `app/panels/admin/themes/` (`--panel=` picks another panel).
+`--panel=` chooses the panel package. `--panel=staff` writes `src/main/kotlin/app/panels/staff/themes/MidnightTheme.kt`.
+
+`--lang=kotlin` or `--lang=java` chooses the language. `--lang=java` writes `src/main/java/app/panels/admin/themes/MidnightTheme.java`. When you omit `--lang`, Grind uses Java if the app already has a `.java` file under `src/main/java`, and Kotlin otherwise.
+
+The class extends `FireflyTheme`. `id()` returns `midnighttheme`. `stylesheet()` returns `null`. Every hook returns `""`.
+
+## Register the theme
+
+Call `theme(...)` on the panel and pass an instance. Return that same panel from `panel(...)`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-class HarborTheme : FireflyTheme() {
-    override fun id(): String = "harbor"
+package app.panels.admin
 
-    override fun tokens(): ThemeTokens = ThemeTokens(
-        primary = "#DF8723",
-        accent = "#74453F",
-        surface = "#FAF6F0",
-        heading = "#2A1C10",
-        font = "ui-sans-serif, system-ui, sans-serif",
-        radius = "0.75rem",
-        sidebarWidth = "18rem",
-        topbarHeight = "4rem",
-        bodyBackground = "#FAF6F0",
-        darkPrimary = "#C9A57B",
-        darkSurface = "#1F2937",
-        darkHeading = "#F3F4F6",
-    )
+import app.panels.admin.themes.MidnightTheme
+import org.konaframework.firefly.Panel as FireflyPanel
 
-    override fun sidebar(): String = "bg-slate-950 text-white"
-
-    override fun extraCss(): String =
-        ".ff-sidebar { box-shadow: inset -1px 0 0 var(--ff-accent); }"
+class Panel : FireflyPanel() {
+    override fun panel(panel: FireflyPanel): FireflyPanel =
+        panel
+            .id("admin")
+            .theme(MidnightTheme())
 }
 ```
 
@@ -62,22 +52,16 @@ class HarborTheme : FireflyTheme() {
 <TabItem label="Java">
 
 ```java
-public class HarborTheme extends FireflyTheme {
-    @Override public String id() { return "harbor"; }
+package app.panels.admin;
 
-    @Override public ThemeTokens tokens() {
-        return new ThemeTokens(
-            "#DF8723", "#74453F", "#FAF6F0", "#2A1C10",
-            "ui-sans-serif, system-ui, sans-serif",
-            "0.75rem", "18rem", "4rem", "#FAF6F0",
-            "#C9A57B", "#1F2937", "#F3F4F6"
-        );
-    }
+import app.panels.admin.themes.MidnightTheme;
 
-    @Override public String sidebar() { return "bg-slate-950 text-white"; }
-
-    @Override public String extraCss() {
-        return ".ff-sidebar { box-shadow: inset -1px 0 0 var(--ff-accent); }";
+public class Panel extends org.konaframework.firefly.Panel {
+    @Override
+    public org.konaframework.firefly.Panel panel(org.konaframework.firefly.Panel panel) {
+        return panel
+            .id("admin")
+            .theme(new MidnightTheme());
     }
 }
 ```
@@ -85,131 +69,194 @@ public class HarborTheme extends FireflyTheme {
 </TabItem>
 </Tabs>
 
-Then call `theme(HarborTheme())` on the panel. The sidebar element gains `bg-slate-950 text-white`, `extraCss()` adds the inset shadow, and the primary color is `#DF8723`.
-
-`ThemeTokens` is a class with those twelve constructor parameters, in that order. Each field is a public `val` (a Java getter). Values are inserted into CSS as you provide them. Firefly does not validate that a token is a legal CSS color.
-
+The command prints the same call: `panel.theme(MidnightTheme())` in Kotlin, and `panel.theme(new MidnightTheme())` in Java.
 
 ## Style the chrome with classes
 
-`FireflyTheme` is an open class. `./grind make:firefly-theme MidnightTheme` writes a subclass under `app/panels/admin/themes/`. Pass `--panel=billing` to put it in another panel package. Each hook returns extra CSS classes for one region the shell already draws. An empty string adds nothing, so the stock panel looks the same until you override a hook.
+Each hook returns class names separated by spaces. Firefly appends them to the element in the table. `""` leaves the stock look.
 
-Register it on the panel you mount:
+A darker sidebar, a tighter brand, and a wider page are three places to start. The [stylesheet below](#add-a-stylesheet) defines those three classes, plus the nav hover and the sign-in card.
+
+| Hook | Element | Example |
+| --- | --- | --- |
+| `panel()` | `.ff-panel` | `midnight` |
+| `sidebar()` | `aside.ff-sidebar` | `midnight-sidebar` — darker sidebar |
+| `topbar()` | `header.ff-topbar` | `midnight-topbar` |
+| `brand()` | `.ff-sidebar-brand`, `.ff-topbar-brand`, `.ff-auth-brand` | `midnight-brand` — tighter brand |
+| `navigation()` | `nav.ff-nav` | `midnight-nav` |
+| `navigationItem()` | `.ff-nav-item` | `midnight-item` |
+| `navigationGroup()` | `.ff-nav-group` | `midnight-group` |
+| `content()` | `main.ff-body` | `midnight-wide` — wider page |
+| `pageHeader()` | `.ff-page-header` | `midnight-header` |
+| `footer()` | `footer.ff-footer` | `midnight-footer` |
+| `sidebarFoot()` | `.ff-sidebar-foot` | `midnight-foot` |
+| `userMenu()` | `.ff-user-menu` | `midnight-user` |
+| `column()` | `.ff-column` | `midnight-column` |
+| `scroll()` | `.ff-scroll` | `midnight-scroll` |
+| `auth()` | `body.ff-auth` | `midnight-auth` |
+| `authCard()` | `.ff-auth-panel` | `midnight-card` |
+
+`brand()` is one hook for the three brand elements, so the sidebar, the top bar, and the sign-in brand get the same classes.
+
+`column()` matches every `.ff-column`, including table cells. Use `content()` for the page.
+
+## Add a stylesheet
+
+`stylesheet()` returns the URL of a CSS file. Firefly writes `<link rel="stylesheet" href="...">` at the end of `<head>`, after the stock `<style>` block. `null` or a blank string adds no link.
+
+Put the file in the app's `public/` directory. That directory is the web root, so `public/css/midnight.css` is served at `/css/midnight.css`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
-override fun panel(panel: FireflyPanel): FireflyPanel =
-    panel.id("admin").theme(MidnightTheme())
+override fun stylesheet(): String? = "/css/midnight.css"
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
-return panel.id("admin").theme(new MidnightTheme());
+@Override public String stylesheet() { return "/css/midnight.css"; }
 ```
 
-The render appends those classes onto the existing elements. It does not fork a second layout, and it does not rename `ff-sidebar`, `ff-topbar`, or the other stable classes. `data-ff-theme` stays the light / dark / system toggle.
+</TabItem>
+</Tabs>
 
-| Hook | Elements |
-|------|----------|
-| `panel()` | `.ff-panel` |
-| `sidebar()` | `aside.ff-sidebar` |
-| `topbar()` | `header.ff-topbar` |
-| `brand()` | `.ff-sidebar-brand`, `.ff-topbar-brand`, `.ff-auth-brand` |
-| `navigation()` | `nav.ff-nav` |
-| `navigationItem()` | `.ff-nav-item` |
-| `navigationGroup()` | `.ff-nav-group` |
-| `content()` | `main.ff-body` |
-| `pageHeader()` | `.ff-page-header` |
-| `footer()` | `footer.ff-footer` |
-| `sidebarFoot()` | `.ff-sidebar-foot` |
-| `userMenu()` | `.ff-user-menu` |
-| `column()` | `.ff-column` |
-| `scroll()` | `.ff-scroll` |
-| `auth()` | `body.ff-auth` |
-| `authCard()` | `.ff-auth-panel` |
+A full `https://` URL works the same way when the file is hosted elsewhere.
 
-`stylesheet()` may return a URL. When it is non-blank, the document links that file from `<head>`. Classes are how you reskin a region. `extraCss()` is still wrapped in `.ff-panel { ... }`.
+Write normal CSS. Name the `ff-*` element and the class the hook added. Stock rules use selectors such as `.ff-panel .ff-sidebar`, and the sign-in card is `.ff-auth-panel`. Write your rule at that depth so it applies. The link comes after the stock `<style>` block.
 
-Authenticated screens and guest auth use the same theme, so one subclass can set a sidebar class and an auth-card class. The guest page has no sidebar, so a sidebar class simply has nowhere to land there.
+The sign-in page is `body.ff-auth`. Rules for the card and the sign-in brand use `.ff-auth`.
 
-## Use the shipped KonaTheme
+`extraCss()` still appends a string of CSS, wrapped in `.ff-panel { ... }`. Put sign-in rules in the linked file, where `.ff-auth` is in reach.
 
-`KonaTheme` is the built-in theme. `id()` returns `kona`. `Panel` uses it when you never call `theme(...)`. The hello samples leave it in place.
+This theme fills the hooks from the table. The other hooks stay `""`.
 
-| Token | Light value | Dark token | Dark value |
-|-------|-------------|------------|------------|
-| primary | `#DF8723` | darkPrimary | `#C9A57B` |
-| accent | `#74453F` | — | accent is unchanged in the dark block |
-| surface | `#FAF6F0` | darkSurface | `#1F2937` |
-| heading | `#2A1C10` | darkHeading | `#F3F4F6` |
-| font | `"Inter", "DM Sans", ui-sans-serif, system-ui, sans-serif` (self-hosted woff2) | — | |
-| radius | `0.5rem` | — | |
-| sidebarWidth | `16rem` | — | |
-| topbarHeight | `4rem` | — | |
-| bodyBackground | `#FAF6F0` | written as `--ff-body` | dark block sets `--ff-body` from `darkSurface` |
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
-## Read Stylesheet.render
+```kotlin
+class MidnightTheme : FireflyTheme() {
+    override fun id(): String = "midnighttheme"
 
-`Stylesheet.render(theme)` returns a CSS string:
+    override fun stylesheet(): String? = "/css/midnight.css"
 
-1. A `.ff-panel { ... }` block of custom properties.
-2. A dark block that overrides primary, surface, heading, and body. It targets both the self-class (`.ff-panel.ff-dark`) and an ancestor root (`.ff-dark .ff-panel`), so toggling `ff-dark` on `<html>` is enough.
-3. The shipped component stylesheet.
-4. When `extraCss()` is non-blank after `trim()`, a trailing `.ff-panel { <extra> }` block.
+    override fun sidebar(): String = "midnight-sidebar"
 
-Custom properties:
+    override fun brand(): String = "midnight-brand"
 
-| Property | Token |
-|----------|--------|
-| `--ff-primary` | `primary` / `darkPrimary` |
-| `--ff-accent` | `accent` |
-| `--ff-surface` | `surface` / `darkSurface` |
-| `--ff-shell` | Tracks `--ff-surface` so white `--ff-card` table wraps and sections contrast against the latte shell |
-| `--ff-heading` | `heading` / `darkHeading` |
-| `--ff-font` | `font` |
-| `--ff-radius` | `radius` |
-| `--ff-sidebar-width` | `sidebarWidth` |
-| `--ff-topbar-height` | `topbarHeight` |
-| `--ff-body` | `bodyBackground` / `darkSurface` in the dark block |
+    override fun navigationItem(): String = "midnight-item"
 
-`DefaultLayout` emits `<div class="ff-panel">` without `ff-dark`. The built-in top-bar theme toggle adds `ff-dark` to the document root and remembers the choice in `localStorage['ff-theme']` (`light` / `dark` / `system`), applied before first paint so a reload never flashes. Dark tokens also apply when the panel element itself carries `ff-dark`, which a custom `PanelLayout` can set. See [Panel chrome](/docs/firefly/chrome/).
+    override fun content(): String = "midnight-wide"
 
-## Keep extra CSS inside the panel
-
-After trim, if `extraCss()` is non-empty and any line matches `body` followed by `{` at the start of the line (leading whitespace allowed), `Stylesheet.render` throws `FireflyException`:
-
-```text
-Theme [<id>] CSS must stay under .ff-panel
+    override fun authCard(): String = "midnight-card"
+}
 ```
 
-This is rejected:
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class MidnightTheme extends FireflyTheme {
+    @Override public String id() { return "midnighttheme"; }
+
+    @Override public String stylesheet() { return "/css/midnight.css"; }
+
+    @Override public String sidebar() { return "midnight-sidebar"; }
+
+    @Override public String brand() { return "midnight-brand"; }
+
+    @Override public String navigationItem() { return "midnight-item"; }
+
+    @Override public String content() { return "midnight-wide"; }
+
+    @Override public String authCard() { return "midnight-card"; }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`public/css/midnight.css`:
 
 ```css
-body { background: red; }
+/* Darker sidebar. Stock link color is set on the anchor. */
+.ff-panel .ff-sidebar.midnight-sidebar {
+  background: #1c1917;
+  color: #e7e5e4;
+}
+
+.ff-panel .ff-sidebar.midnight-sidebar .ff-nav-item > a {
+  color: #e7e5e4;
+}
+
+/* Tighter brand. The logo is .ff-brand-logo, the fallback mark is the
+   sidebar ::before, and the name is .ff-brand. On the top bar the brand
+   class sits on the mark itself. */
+.ff-panel .midnight-brand .ff-brand-mark,
+.ff-panel .ff-brand-mark.midnight-brand,
+.ff-auth .midnight-brand .ff-brand-mark {
+  gap: 0.35rem;
+}
+
+.ff-panel .ff-sidebar-brand.midnight-brand:not(.ff-sidebar-brand--logo)::before {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.ff-panel .midnight-brand .ff-brand-logo,
+.ff-auth .midnight-brand .ff-brand-logo {
+  height: 1.35rem;
+}
+
+.ff-panel .midnight-brand .ff-brand,
+.ff-auth .midnight-brand .ff-brand {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+/* Nav item hover. Cluster labels keep the stock hover. */
+@media (hover: hover) {
+  .ff-panel .ff-nav-item.midnight-item:not(.ff-cluster) > a:hover {
+    background: #44403c;
+    color: #fafaf9;
+  }
+}
+
+/* Wider page. The page block inside main.ff-body is .ff-page. */
+.ff-panel .ff-body.midnight-wide .ff-page {
+  max-width: 90rem;
+}
+
+/* Sign-in card. */
+body.ff-auth .ff-auth-panel.midnight-card {
+  background: #fffbeb;
+  border-color: #d6d3d1;
+  box-shadow: none;
+}
 ```
 
-This is accepted, because the selector is not a bare `body` rule:
+The brand rule is on `.ff-sidebar-brand`, `.ff-topbar-brand`, and `.ff-auth-brand`, because `brand()` adds `midnight-brand` to all three. The mark and the name change together, and the gap between them is `0.35rem`.
+
+## Check the panel and the sign-in page
+
+Restart the app. Open the panel, for example `/admin`, and the sign-in page, `/admin/login`.
+
+The same theme is on both. The sidebar, the nav, and the page are on the panel. The brand and the auth card are on the sign-in page. A class from `sidebar()` shows on the panel. A class from `authCard()` shows on the sign-in page. A class from `brand()` shows on both.
+
+## Start from the stock theme
+
+`KonaTheme` is the stock theme. The panel uses it when you never call `theme(...)`.
+
+Your class extends `FireflyTheme`. Every hook there returns `""`. Override only the hooks you care about. Leave the others returning `""`, or delete those empty overrides. The generated file lists every hook so the names are in front of you.
+
+The stock palette stays until you change it. The built-in CSS reads these custom properties on `.ff-panel` and `.ff-auth`: `--ff-primary`, `--ff-accent`, `--ff-surface`, `--ff-heading`, `--ff-font`, `--ff-radius`, `--ff-sidebar-width`, `--ff-topbar-height`, and `--ff-body`. Set them in `midnight.css` when you want different colors, type, or widths:
 
 ```css
-.ff-sidebar { background: var(--ff-surface); }
+.ff-panel,
+.ff-auth {
+  --ff-primary: #c2410c;
+  --ff-sidebar-width: 18rem;
+}
 ```
-
-Empty or whitespace-only `extraCss()` is omitted. The check does not run.
-
-## Shipped component classes
-
-The checked-in stylesheet (`firefly.css`) is the scoped result of the Tailwind CSS v4 authoring file `modules/firefly-support/tailwind/input.css`. Authenticated chrome rules are descendants of `.ff-panel`. Guest auth screens use `.ff-auth` (centered shell, no sidebar). There is no preflight on the host welcome page.
-
-| Selector | Effect |
-|----------|--------|
-| `.ff-panel .ff-btn` | Primary filled button: radius from `--ff-radius`, weight 600 |
-| `.ff-panel .ff-sidebar` | Full-height shell column, width `--ff-sidebar-width`, brand strip + scrollable nav |
-| `.ff-panel .ff-sidebar-brand` | Logo mark + brand label above the side nav |
-| `.ff-panel .ff-sidebar-foot` / `.ff-panel .ff-footer` | Shared shell foot band (padding, type, soft border, fixed `--ff-footer-height`); not a white card |
-| `.ff-panel .ff-nav-item` | Pill links; active item uses `--ff-active` with a primary inset bar |
-| `.ff-panel .ff-topbar` | Card row (no primary top ribbon), height `--ff-topbar-height` |
-| `.ff-panel .ff-body` | Shell background, scrollable page canvas |
-| `.ff-panel .ff-table-wrap` | White card around tables (`--ff-card`), subtle elevation via `--ff-table-shadow` |
-| `.ff-panel .ff-create` / `.ff-edit` / `.ff-view` content | Fills the content column (like relation managers); `[data-ff-max-width="…"]` narrows a component |
-| `.ff-panel .ff-dialog` | Fixed, inset 0, z-index 50 |
-| `.ff-panel .ff-dialog-modal .ff-dialog-window` | Top margin `4rem`, elevated card |
-
-`DefaultLayout` and `AuthLayout` put this CSS in a `<style>` element in the document `<head>`, including `@font-face` for Inter and DM Sans from `/_firefly/fonts/` (immutable browser cache; no Google Fonts CDN). Theme token variables apply to both `.ff-panel` and `.ff-auth`.
