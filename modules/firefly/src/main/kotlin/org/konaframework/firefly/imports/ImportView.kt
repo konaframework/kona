@@ -102,7 +102,8 @@ private fun match(
     }
     return """
         <div class="ni">
-          <p><strong>${escapeHtml(fileName)}</strong>. ${escapeHtml(importer.matchText)}</p>
+          <p class="ni-file">${escapeHtml(fileName)}</p>
+          <p class="ni-help">${escapeHtml(importer.matchText)}</p>
           <p>Test checks every row and writes nothing. Import writes the file only when every row is valid.</p>
           <form method="post" action="${escapeHtml(pagePath)}/cancel">$csrf<input type="hidden" name="importer" value="${escapeHtml(importer.key)}" /><button type="submit" class="ff-action-cancel">Choose a different file</button></form>
           <form method="post" action="${escapeHtml(pagePath)}/run" class="ni-match">
@@ -156,6 +157,8 @@ private fun style(): String = """
       .ni-upload, .ni-match, .ni-actions { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
       .ni-map { display: grid; grid-template-columns: minmax(160px, 220px) minmax(220px, 1fr); gap: 10px 16px; align-items: center; width: min(720px, 100%); }
       .ni-req { color: #9f1239; }
+      .ni-file { margin: 0; font-weight: 600; }
+      .ni-help { margin: 0; }
       .ni-error { color: #9f1239; margin: 0; }
       .ni-done { margin: 0; }
       .ni-scroll { overflow-x: auto; }

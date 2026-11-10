@@ -25,15 +25,10 @@ object ImportMapping {
         val clean = clean(mapping, sheet.headers.size)
         val found = mutableListOf<ImportProblem>()
         if (sheet.rows.isEmpty()) found += ImportProblem(1, "The file has no data rows.")
-        for (column in columns) {
-            if (column.requiredMapping && clean[column.name] == null) {
-                found += ImportProblem(1, "Match a column to ${column.label}.")
-            }
-        }
+        val missing = columns.filter { it.requiredMapping && clean[it.name] == null }.map { it.label }
+        if (missing.isNotEmpty()) found += ImportProblem(1, unmatchedColumnsMessage(missing))
         found += extra
-        val blocked = sheet.rows.isEmpty() ||
-            columns.any { it.requiredMapping && clean[it.name] == null } ||
-            extra.isNotEmpty()
+        val blocked = sheet.rows.isEmpty() || missing.isNotEmpty() || extra.isNotEmpty()
         return if (blocked) found else null
     }
 
@@ -49,6 +44,18 @@ object ImportMapping {
             }
             ImportRow(row.line, values)
         }
+    }
+
+    /** Names every required column the user left on Select a column. This is not the importer's help text. */
+    @JvmStatic
+    fun unmatchedColumnsMessage(labels: List<String>): String {
+        val named = when (labels.size) {
+            1 -> labels[0]
+            2 -> "${labels[0]} and ${labels[1]}"
+            else -> labels.dropLast(1).joinToString(", ") + ", and " + labels.last()
+        }
+        val verb = if (labels.size == 1) "has" else "have"
+        return "$named $verb to be matched to a column."
     }
 
     @JvmStatic

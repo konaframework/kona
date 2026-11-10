@@ -104,7 +104,7 @@ You see one row in the matcher per column, in this order, and no others. A sprea
 
 A blank label throws `Import column [sku] label is blank`. An importer with no columns, a blank title, a blank list label, a blank list path, blank upload text, or blank match text throws `FireflyException` when you register it or attach the action.
 
-`uploadText` is the paragraph on the file form. `matchText` is the paragraph above the selects. `listLabel` and `listPath` are the breadcrumb back to the list. `title` is the page heading, and it is also the link on the bare import page.
+`uploadText` is the paragraph on the file form. After a file is stored, the file name is its own line and `matchText` is the help paragraph above the selects. That help is not an error, and the file name is not joined onto it. `listLabel` and `listPath` are the breadcrumb back to the list. `title` is the page heading, and it is also the link on the bare import page.
 
 ## What the matcher does
 
@@ -130,7 +130,7 @@ Switching `?importer=` to another registered importer drops the uploaded file an
 
 Both buttons post the mapping. The framework then:
 
-1. Rejects the file itself when a required column is still on **Select a column**, when the header row is missing, or when there are no data rows. `resolve` is not called. You see `Match a column to Name.` or `The file has no data rows.`
+1. Rejects the file itself when a required column is still on **Select a column**, when the header row is missing, or when there are no data rows. `resolve` is not called. You see `Name has to be matched to a column.`, `Name and Code have to be matched to a column.`, or `The file has no data rows.` That sentence names the unmatched fields. It does not repeat `matchText`, and it is not shown just because the file was uploaded.
 2. Otherwise calls `resolve` with the mapped rows.
 3. On **Test**, shows `summary()` and the row problems, and stops.
 4. On **Import**, calls `apply` only when `issues` is empty. If any row has a problem, `apply` is not called and the page shows the problems. The uploaded file stays so the user can fix the mapping.
@@ -185,7 +185,7 @@ object ProductImporter : Importer() {
     override val listLabel = "Products"
     override val listPath = "/admin/products/manage"
     override val uploadText = "Upload a CSV or Excel file of products. SKU and name are required. Re-importing a SKU updates that product."
-    override val matchText = "SKU and name have to be matched. Note can stay on Don't import. Re-importing a SKU updates that product."
+    override val matchText = "Note can stay on Don't import. Re-importing a SKU updates that product."
     override val columns = listOf(
         ImportColumn.make("sku").label("SKU").requiredMapping().aliases("sku", "code"),
         ImportColumn.make("name").label("Name").requiredMapping(),
@@ -263,7 +263,7 @@ public class ProductImporter extends Importer {
         return "Upload a CSV or Excel file of products. SKU and name are required.";
     }
     @Override public String getMatchText() {
-        return "SKU and name have to be matched. Note can stay on Don't import.";
+        return "Note can stay on Don't import. Re-importing a SKU updates that product.";
     }
     @Override public List<ImportColumn> getColumns() {
         return List.of(

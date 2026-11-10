@@ -137,7 +137,20 @@ class ImportActionTest {
         assertEquals("Ada", rows.single().values["name"])
         assertFalse(rows.single().values.containsKey("note"))
         val blocked = ImportMapping.issues(columns, mapOf("note" to 1), sheet)
-        assertEquals("Match a column to Name.", blocked?.single()?.message)
+        assertEquals("Name has to be matched to a column.", blocked?.single()?.message)
+        val pair = listOf(
+            ImportColumn.make("name").label("Name").requiredMapping(),
+            ImportColumn.make("code").label("Code").requiredMapping(),
+        )
+        assertEquals(
+            "Name and Code have to be matched to a column.",
+            ImportMapping.issues(pair, emptyMap(), sheet)?.single()?.message,
+        )
+        val trio = pair + ImportColumn.make("note").label("Note").requiredMapping()
+        assertEquals(
+            "Name, Code, and Note have to be matched to a column.",
+            ImportMapping.issues(trio, emptyMap(), sheet)?.single()?.message,
+        )
         assertEquals(
             "The file needs a header row.",
             ImportMapping.issues(columns, emptyMap(), ImportSheet(emptyList(), emptyList()))?.single()?.message,
@@ -354,7 +367,7 @@ class ImportActionTest {
             assertFalse(items.resolved)
             assertEquals(0, items.applied)
             val blockedPage = send(room, "GET", "/admin/import", query = mapOf("importer" to "items"), session = wide)
-            assertTrue(blockedPage.body.contains("Match a column to Name."))
+            assertTrue(blockedPage.body.contains("Name has to be matched to a column."))
 
             val bad = sheetImporter(key = "bad", outcome = { rows ->
                 SimpleResolution(0, 0, listOf(ImportProblem(rows.single().line, "Name is empty.")), "The file still has 1 problem.")
@@ -718,6 +731,65 @@ class ImportActionTest {
         send(loudRouter, "POST", "/admin/import/run", session = loudSession, body = loudRun.second, headers = loudRun.first)
         val loudPage = send(loudRouter, "GET", "/admin/import", query = mapOf("importer" to "loud"), session = loudSession)
         assertTrue(loudPage.body.contains("Stopped."))
+    }
+
+    @Test
+    fun uploadingAWorkbookShowsTheMatcherAndNamesUnmatchedColumnsOnSubmit() {
+        val help = "Re-importing a code updates that route's name."
+        val routes = sheetImporter(
+            key = "routes",
+            title = "Import routes",
+            listLabel = "Routes",
+            matchText = help,
+            columns = listOf(
+                ImportColumn.make("name").label("Name").requiredMapping().aliases("name"),
+                ImportColumn.make("code").label("Code").requiredMapping().aliases("code"),
+            ),
+        )
+        val router = Router()
+        val session = MemSession().also { it.put("_token", "t") }
+        Panel().path("admin").authenticate(false).imports(routes).mount(router)
+        val book = workbookBytes(XSSFWorkbook()) { workbook ->
+            val sheet = workbook.createSheet("Routes")
+            val header = sheet.createRow(0)
+            header.createCell(0).setCellValue("Name")
+            header.createCell(1).setCellValue("Code")
+            val row = sheet.createRow(1)
+            row.createCell(0).setCellValue("Upper Ruiru")
+            row.createCell(1).setCellValue("UR")
+        }
+        val uploaded = multipart(
+            mapOf("importer" to "routes", "_token" to "t"),
+            "Region_import_template.xlsx",
+            book,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        send(router, "POST", "/admin/import", session = session, body = uploaded.second, headers = uploaded.first)
+        assertFalse(routes.resolved)
+        assertEquals(0, routes.applied)
+        val match = send(router, "GET", "/admin/import", query = mapOf("importer" to "routes"), session = session)
+        assertTrue(match.body.contains("name=\"map_name\""))
+        assertTrue(match.body.contains("name=\"map_code\""))
+        assertFalse(match.body.contains("name=\"map_id\""))
+        assertTrue(match.body.contains("""<p class="ni-file">Region_import_template.xlsx</p>"""))
+        assertTrue(match.body.contains("""<p class="ni-help">$help</p>"""))
+        assertFalse(match.body.contains("Region_import_template.xlsx."))
+        assertFalse(match.body.contains("have to be matched to a column"))
+        assertFalse(match.body.contains("<p class=\"ni-error\">"))
+
+        val blocked = form(
+            mapOf("importer" to "routes", "_token" to "t", "map_name" to "", "map_code" to "", "commit" to "1"),
+        )
+        send(router, "POST", "/admin/import/run", session = session, body = blocked.second, headers = blocked.first)
+        assertFalse(routes.resolved)
+        assertEquals(0, routes.applied)
+        val page = send(router, "GET", "/admin/import", query = mapOf("importer" to "routes"), session = session)
+        assertTrue(page.body.contains("Name and Code have to be matched to a column."))
+        assertTrue(page.body.contains("""<p class="ni-help">$help</p>"""))
+        assertFalse(page.body.contains("Region_import_template.xlsx."))
+        val error = Regex("""<p class="ni-error">(.*?)</p>""").find(page.body)?.groupValues?.get(1).orEmpty()
+        assertFalse(error.contains(help))
+        assertFalse(error.contains("Region_import_template.xlsx"))
     }
 
     private class PlainImporter : Importer() {
