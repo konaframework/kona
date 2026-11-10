@@ -778,9 +778,9 @@ class FireflySupportTest {
         )
         assertTrue(escapedAuth.contains("ff-auth-brand"))
         assertTrue(escapedAuth.contains("ff-brand-mark"))
-        assertTrue(escapedAuth.contains("&amp;"))
-        assertTrue(escapedAuth.contains("&lt;"))
-        assertTrue(escapedAuth.contains("&quot;"))
+        assertTrue(escapedAuth.contains("""<span class="ff-brand">A & B <tag> "q"</span>"""))
+        assertTrue(escapedAuth.contains("<title>A &amp; B  &quot;q&quot;</title>"))
+        assertFalse(escapedAuth.contains("&lt;"))
         assertFalse(escapedAuth.contains("""name="csrf-token""""))
         assertTrue(escapedAuth.contains("<title>"))
         assertThrows(FireflyException::class.java) {

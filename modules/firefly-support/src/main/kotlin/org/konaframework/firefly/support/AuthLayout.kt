@@ -12,7 +12,7 @@ class AuthLayout : PanelLayout {
             if (name == b.brandName) b else b.copy(brandName = name)
         }
         val brand = branding.brandName
-        val title = context.documentTitle.ifBlank { brand }
+        val title = context.documentTitle.ifBlank { plainTextFromHtml(brand) }
         val body = context.partials["body"] ?: throw FireflyException("Missing partial [body]")
         val csrf = context.csrfToken
         val meta =
@@ -41,7 +41,7 @@ class AuthLayout : PanelLayout {
             if (branding.copyrightText.isNullOrBlank()) {
                 ""
             } else {
-                """<p class="ff-auth-copyright">${escAttr(branding.copyrightText)}</p>"""
+                """<p class="ff-auth-copyright">${branding.copyrightText}</p>"""
             }
         return """
             <!DOCTYPE html>

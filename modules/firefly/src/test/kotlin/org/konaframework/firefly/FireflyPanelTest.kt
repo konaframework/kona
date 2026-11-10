@@ -439,7 +439,10 @@ class FireflyPanelTest {
         assertTrue(hosted.body.contains("HomeWidget"))
         val plain = Router()
         Panel().path("plain").authenticate(false).brand("A & B <ok> \"go\"").page(ListPage("one")).mount(plain)
-        assertTrue(send(plain, "GET", "/plain/one").body.contains("A &amp; B &lt;ok&gt; &quot;go&quot;"))
+        val plainHtml = send(plain, "GET", "/plain/one").body
+        assertTrue(plainHtml.contains("""<span class="ff-brand">A & B <ok> "go"</span>"""))
+        assertTrue(plainHtml.contains("<title>A &amp; B  &quot;go&quot;</title>"))
+        assertFalse(plainHtml.contains("&lt;ok&gt;"))
         val wide = Router()
         Panel().path("wide").authenticate(false).maxContentWidth("full").page(ListPage("one")).mount(wide)
         val wideHtml = send(wide, "GET", "/wide/one").body
@@ -924,11 +927,13 @@ class FireflyPanelTest {
             .page(ListPage("one"))
             .mount(copyRouter)
         val copyHtml = send(copyRouter, "GET", "/copy/one").body
-        assertTrue(copyHtml.contains("&amp;"))
         val escapedFooter = Regex("""<footer class="ff-footer[^"]*">([\s\S]*?)</footer>""").find(copyHtml)
         assertNotNull(escapedFooter)
-        assertTrue(escapedFooter!!.groupValues[1].contains("&amp;"))
+        assertTrue(escapedFooter!!.groupValues[1].contains("""© A & B <C> "D""""))
+        assertFalse(escapedFooter.groupValues[1].contains("&amp;"))
+        assertFalse(escapedFooter.groupValues[1].contains("&lt;C&gt;"))
         assertFalse(copyHtml.contains("ff-sidebar-copyright"))
+        assertEquals("a&amp;b&lt;c&gt;d&quot;", escapeHtml("a&b<c>d\""))
 
         val csrfSession = object : org.konaframework.http.RequestSession {
             private val data = linkedMapOf<String, Any?>("_token" to "tok-profile")
@@ -1208,6 +1213,42 @@ class FireflyPanelTest {
                 Regex("""position:\s*(fixed|sticky)""").containsMatchIn(rule.groupValues[2])
             },
         )
+    }
+
+    @Test
+    fun brandAndCopyrightRenderAsHtml() {
+        val router = Router()
+        Panel().path("htmlbrand")
+            .authenticate(false)
+            .brand("<em>Hydro</em>")
+            .logo("""/brand/quo"te.svg""")
+            .branding(
+                org.konaframework.firefly.support.PanelBranding(
+                    copyright = """<a href="/legal">Legal</a>""",
+                ),
+            )
+            .page(ListPage("one"))
+            .mount(router)
+        val html = send(router, "GET", "/htmlbrand/one").body
+        assertTrue(html.contains("""<span class="ff-brand"><em>Hydro</em></span>"""))
+        assertTrue(html.contains("""<p class="ff-footer-copyright"><a href="/legal">Legal</a></p>"""))
+        assertTrue(html.contains("""src="/brand/quo&quot;te.svg""""))
+        assertTrue(html.contains("<title>Hydro</title>"))
+        assertFalse(html.contains("&lt;em&gt;"))
+        assertFalse(html.contains("&lt;a "))
+        assertFalse(html.contains("ff-sidebar-copyright"))
+        val side = Regex("""<div class="ff-sidebar-foot[^"]*">([\s\S]*?)</div>""").find(html)
+        assertNotNull(side)
+        assertFalse(side!!.groupValues[1].contains("Legal"))
+        assertFalse(side.groupValues[1].contains("<a href=\"/legal\">"))
+
+        val login = send(router, "GET", "/htmlbrand/login").body
+        assertTrue(login.contains("""<span class="ff-brand"><em>Hydro</em></span>"""))
+        assertTrue(login.contains("""<p class="ff-auth-copyright"><a href="/legal">Legal</a></p>"""))
+        assertTrue(login.contains("""src="/brand/quo&quot;te.svg""""))
+        assertTrue(login.contains("<title>Hydro · Sign in</title>"))
+        assertFalse(login.contains("&lt;em&gt;"))
+        assertFalse(login.contains("&lt;a "))
     }
 
     @Test

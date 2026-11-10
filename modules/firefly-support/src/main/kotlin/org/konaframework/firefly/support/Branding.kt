@@ -425,7 +425,7 @@ fun buildBrandingCss(branding: FireflyBranding): String {
 """.trimIndent()
 }
 
-/** HTML for sidebar / topbar / auth brand mark. */
+/** HTML for sidebar / topbar / auth brand mark. [FireflyBranding.brandName] is developer HTML. */
 fun brandMarkHtml(branding: FireflyBranding, extraClass: String = ""): String {
     val classes = listOf("ff-brand-mark", extraClass.trim()).filter { it.isNotEmpty() }.joinToString(" ")
     val parts = StringBuilder("""<span class="$classes">""")
@@ -440,11 +440,14 @@ fun brandMarkHtml(branding: FireflyBranding, extraClass: String = ""): String {
         )
     }
     if (branding.showBrandName) {
-        parts.append("""<span class="ff-brand">${escapeAttr(branding.brandName)}</span>""")
+        parts.append("""<span class="ff-brand">${branding.brandName}</span>""")
     }
     parts.append("</span>")
     return parts.toString()
 }
+
+/** Brand HTML with tags removed, for `<title>` and other plain-text slots. */
+fun plainTextFromHtml(value: String): String = Regex("<[^>]*>").replace(value, "")
 
 fun normalizeHexColor(value: String): String? {
     val trimmed = value.trim()
