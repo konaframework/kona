@@ -3,6 +3,7 @@ package org.konaframework.firefly.support
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -506,6 +507,22 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-footer"))
         assertTrue(css.contains("--ff-footer-height:"))
         assertTrue(css.contains("min-height: var(--ff-footer-height)"))
+        assertTrue(css.contains("--ff-footer-height: 70px"))
+        val bodyRule = Regex("""\.ff-panel \.ff-body\s*\{[^}]*\}""").find(css)
+        assertNotNull(bodyRule)
+        assertTrue(bodyRule!!.value.contains("min-height: calc(100% - 70px)"))
+        val footerRules = Regex("""([^{]+)\{([^}]*)\}""").findAll(css).filter { rule ->
+            rule.groupValues[1].split(",").any { selector ->
+                val trimmed = selector.trim()
+                trimmed.endsWith(".ff-footer") || trimmed.contains(".ff-footer ")
+            }
+        }
+        assertTrue(footerRules.any())
+        assertTrue(
+            footerRules.none { rule ->
+                Regex("""position:\s*(fixed|sticky)""").containsMatchIn(rule.groupValues[2])
+            },
+        )
         assertTrue(css.contains("background: var(--ff-shell)"))
         assertFalse(
             Regex("""\.ff-panel\s+\.ff-footer\s*\{[^}]*background:\s*var\(--ff-card\)""")
@@ -566,14 +583,15 @@ class FireflySupportTest {
         assertTrue(html.contains("<title>Desk</title>"))
         assertTrue(html.contains("<b>nav</b>"))
         assertTrue(html.contains("<i>foot</i>"))
-        // Footer is pinned under the scroll region (sibling), not nested inside it.
+        // Footer follows the body inside the scroll region, in normal flow.
         val scrollOpen = html.indexOf("""<div class="ff-scroll">""")
+        val mainOpen = html.indexOf("""<main class="ff-body">""")
         val footerOpen = html.indexOf("""<footer class="ff-footer">""")
-        assertTrue(scrollOpen >= 0 && footerOpen > scrollOpen)
-        val afterScrollOpen = html.substring(scrollOpen)
-        val scrollInnerEnd = afterScrollOpen.indexOf("</div>")
-        assertTrue(scrollInnerEnd > 0)
-        assertFalse(afterScrollOpen.substring(0, scrollInnerEnd).contains("""class="ff-footer""""))
+        assertTrue(scrollOpen >= 0 && mainOpen > scrollOpen && footerOpen > mainOpen)
+        val afterFooter = html.substring(footerOpen)
+        val footerEnd = afterFooter.indexOf("</footer>")
+        val scrollClose = afterFooter.indexOf("</div>")
+        assertTrue(footerEnd >= 0 && scrollClose > footerEnd)
         assertTrue(html.contains("ff-sidebar"))
         val noSidebar = Panel().includeSidebar(false).render()
         assertFalse(noSidebar.contains("""<aside class="ff-sidebar""""))

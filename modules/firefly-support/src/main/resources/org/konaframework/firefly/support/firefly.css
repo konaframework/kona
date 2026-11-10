@@ -52,11 +52,10 @@ body.ff-body-root {
 }
 
 .ff-panel {
-  /* One continuous bottom chrome band: sidebar "Signed in as …" and main
-   * .ff-footer share this height whether content is present or empty.
-   * Sized for one .78rem/1.5 line + 0.85rem vertical pad + 1px top border
-   * under border-box (matches Shamar sidebar user py-3/text-xs feel). */
-  --ff-footer-height: calc(2.87rem + 1px);
+  /* Reserved footer band. main.ff-body is at least calc(100% - 70px), so a
+   * short page still places .ff-footer on the bottom edge in normal flow.
+   * A long page grows the body and pushes that footer down. Not position:fixed. */
+  --ff-footer-height: 70px;
   display: flex;
   flex-direction: row;
   height: 100vh;
@@ -142,7 +141,8 @@ body.ff-body-root {
 .ff-panel .ff-scroll {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  /* Definite flex basis so .ff-body min-height: calc(100% - 70px) resolves. */
+  flex: 1 1 0%;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -242,7 +242,6 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   display: block;
 }
 
-.ff-panel .ff-sidebar-copyright,
 .ff-auth .ff-auth-copyright {
   margin: 0;
   padding: 0.65rem 1.1rem;
@@ -312,9 +311,10 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   background: color-mix(in srgb, var(--ff-heading) 32%, transparent);
 }
 
-/* Chrome foot band — sidebar "Signed in as …" and main-column footer share one
- * shell strip (Shamar sidebar user block + matching main foot). Not a white card.
- * Fixed min-height keeps empty vs text rows the exact same height. */
+/* Chrome foot band — sidebar "Signed in as …" and the main-column footer share
+ * one shell strip (not a white card). The body footer stays in normal flow
+ * inside .ff-scroll (not position:fixed or sticky): short pages meet it because
+ * .ff-body reserves this band, long pages push it down after the content. */
 .ff-panel .ff-sidebar-foot,
 .ff-panel .ff-footer {
   box-sizing: border-box;
@@ -328,6 +328,17 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   color: var(--ff-body-subtle);
   font-size: 0.78rem;
   line-height: 1.5;
+}
+
+.ff-panel .ff-footer {
+  justify-content: center;
+  text-align: center;
+}
+
+.ff-panel .ff-footer-copyright {
+  margin: 0;
+  width: 100%;
+  text-align: center;
 }
 
 .ff-panel .ff-sidebar-foot {
@@ -1039,8 +1050,10 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 /* ——— Body / pages ——— */
 .ff-panel .ff-body {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   min-width: 0;
+  /* Always reserve the 70px footer band, even when the footer has no copyright. */
+  min-height: calc(100% - 70px);
   background: var(--ff-shell);
   padding: 1rem 1.15rem 1.75rem;
 }
