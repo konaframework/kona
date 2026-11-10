@@ -359,6 +359,19 @@ class FireflySupportTest {
         assertTrue(authBrand.contains("padding-block: 0"), authBrand)
         assertTrue(css.contains("height: var(--ff-logo-height, 2rem)"))
         assertTrue(css.contains("width: var(--ff-logo-width, auto)"))
+        // html.ff-dark must hide the light logo. The old panel-only :not(.ff-dark) still matched.
+        assertTrue(css.contains("html:not(.ff-dark) .ff-panel:not(.ff-dark) .ff-brand-logo--light"))
+        assertTrue(css.contains("html:not(.ff-dark) .ff-auth:not(.ff-dark) .ff-brand-logo--light"))
+        assertFalse(
+            css.lineSequence().any { line ->
+                val rule = line.trim()
+                rule == ".ff-panel:not(.ff-dark) .ff-brand-logo--light," ||
+                    rule == ".ff-auth:not(.ff-dark) .ff-brand-logo--light," ||
+                    rule == "html:not(.ff-dark) .ff-panel .ff-brand-logo--light," ||
+                    rule == "html:not(.ff-dark) .ff-auth .ff-brand-logo--light {"
+            },
+        )
+        assertTrue(css.contains("html.ff-dark .ff-panel .ff-brand-logo--dark"))
         // Empty sidebar must not keep the column (#499). TOP's drawer aside is zero-width on desktop (#505).
         assertTrue(css.contains(".ff-panel > .ff-sidebar:empty"))
         assertTrue(css.contains(".ff-panel > .ff-sidebar:has(> .ff-sidebar-offcanvas)"))
