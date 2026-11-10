@@ -24,6 +24,8 @@ class ThemeTokens(
 /**
  * Panel chrome theme. Subclass it and override a hook to append CSS classes on a
  * region the shell already draws. Empty hooks leave the stock panel unchanged.
+ * A hook may return several classes separated by spaces. Each token is checked
+ * on its own, so one illegal token does not drop the rest.
  *
  * Register one theme on the panel with `theme(MidnightTheme())`. The render adds
  * those classes to the existing elements (`ff-sidebar`, `ff-topbar`, and the
@@ -160,6 +162,8 @@ open class FireflyTheme {
     /**
      * Extra classes for the active leaf `.ff-nav-item` (the open page).
      * A group cluster that contains the page already has `ff-active` and does not get this class.
+     * The same classes are copied onto the painted anchor or dropdown trigger, which is the box
+     * that shows the corner radius.
      */
     open fun navigationItemActive(): String = ""
 
@@ -169,6 +173,7 @@ open class FireflyTheme {
     /**
      * Extra classes for a group that contains the open page.
      * That is a cluster with `ff-active`, or a group marked `ff-nav-group-active`.
+     * The same classes are copied onto the painted label or trigger.
      */
     open fun navigationGroupActive(): String = ""
 
@@ -223,25 +228,33 @@ class KonaTheme : FireflyTheme() {
     )
 }
 
-/** One chrome hook: markers match any token, [required] must all be present, [excluded] must be absent. */
+/**
+ * One chrome hook: markers match any token, [required] must all be present, [excluded] must be absent.
+ * When [paintChild] is true, the classes are also copied onto the painted child (the anchor, trigger,
+ * or group label). The stock radius lives on that child, not on the wrapper the marker matches.
+ */
 internal class ThemeClassRule(
     val markers: Set<String>,
     val classes: String,
     val required: Set<String>,
     val excluded: Set<String>,
+    val paintChild: Boolean,
 )
 
 private val NO_THEME_TOKENS: Set<String> = emptySet()
 
 private fun rule(markers: Set<String>, classes: String): ThemeClassRule =
-    ThemeClassRule(markers, classes, NO_THEME_TOKENS, NO_THEME_TOKENS)
+    ThemeClassRule(markers, classes, NO_THEME_TOKENS, NO_THEME_TOKENS, false)
+
+private fun paintedRule(markers: Set<String>, classes: String): ThemeClassRule =
+    ThemeClassRule(markers, classes, NO_THEME_TOKENS, NO_THEME_TOKENS, true)
 
 private fun activeRule(
     markers: Set<String>,
     classes: String,
     required: Set<String>,
     excluded: Set<String>,
-): ThemeClassRule = ThemeClassRule(markers, classes, required, excluded)
+): ThemeClassRule = ThemeClassRule(markers, classes, required, excluded, true)
 
 /** Stable class token → extra classes from the matching [FireflyTheme] hook. */
 internal fun FireflyTheme.chromeClasses(): List<ThemeClassRule> = listOf(
@@ -255,7 +268,7 @@ internal fun FireflyTheme.chromeClasses(): List<ThemeClassRule> = listOf(
     activeRule(setOf("ff-nav-item"), navigationItemActive(), setOf("ff-active"), setOf("ff-cluster")),
     rule(setOf("ff-nav-group"), navigationGroup()),
     // Sidebar and drawer groups. Top-bar and app/inverse groups are clusters with ff-active.
-    rule(setOf("ff-nav-group-active"), navigationGroupActive()),
+    paintedRule(setOf("ff-nav-group-active"), navigationGroupActive()),
     activeRule(setOf("ff-cluster"), navigationGroupActive(), setOf("ff-active"), NO_THEME_TOKENS),
     rule(setOf("ff-body"), content()),
     rule(setOf("ff-page-header"), pageHeader()),
@@ -345,8 +358,116 @@ internal fun applyThemeClasses(html: String, theme: FireflyTheme): String {
         val extra = sanitizeThemeClasses(rule.classes)
         if (extra.isEmpty()) continue
         result = appendThemeClasses(result, rule.markers, extra, rule.required, rule.excluded)
+        if (rule.paintChild) {
+            result = copyPaintedThemeClasses(result, rule.markers, extra, rule.required, rule.excluded)
+        }
     }
     return result
+}
+
+private val VOID_TAGS = setOf(
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr",
+)
+
+/**
+ * Copies [extra] onto the painted child of each element the hook already matched.
+ * The child is a direct anchor, `.ff-nav-dropdown-trigger`, or `.ff-nav-group-label`.
+ * Nested links inside a group keep their own hooks. Script and style bodies are left alone.
+ */
+internal fun copyPaintedThemeClasses(
+    html: String,
+    markers: Set<String>,
+    extra: String,
+    required: Set<String>,
+    excluded: Set<String>,
+): String {
+    val adding = extra.split(' ').filter { it.isNotEmpty() }
+    if (adding.isEmpty()) return html
+    val out = StringBuilder(html.length)
+    val stack = ArrayDeque<Boolean>()
+    var index = 0
+    val length = html.length
+    while (index < length) {
+        val start = html.indexOf('<', index)
+        if (start < 0) {
+            out.append(html, index, length)
+            break
+        }
+        out.append(html, index, start)
+        val skipped = rawRegionEnd(html, start)
+        if (skipped >= 0) {
+            out.append(html, start, skipped)
+            index = skipped
+            continue
+        }
+        val end = html.indexOf('>', start + 1)
+        if (end < 0) {
+            out.append(html, start, length)
+            break
+        }
+        val tag = html.substring(start, end + 1)
+        if (tag.startsWith("</")) {
+            out.append(tag)
+            if (stack.isNotEmpty()) stack.removeLast()
+            index = end + 1
+            continue
+        }
+        if (tag.startsWith("<!")) {
+            out.append(tag)
+            index = end + 1
+            continue
+        }
+        val name = openTagName(tag)
+        val tokens = classTokens(tag)
+        val parentPaints = stack.lastOrNull() == true
+        val rewritten = if (parentPaints && isPaintTarget(name, tokens)) withClasses(tag, adding) else tag
+        out.append(rewritten)
+        val selfClosing = tag.endsWith("/>") || name in VOID_TAGS
+        if (!selfClosing) {
+            stack.addLast(themeClassHit(tokens, markers, required, excluded))
+        }
+        index = end + 1
+    }
+    return out.toString()
+}
+
+/** End offset of a comment, script, or style that starts at [start], or -1 when [start] is a normal tag. */
+private fun rawRegionEnd(html: String, start: Int): Int {
+    if (html.startsWith("<!--", start)) {
+        val end = html.indexOf("-->", start + 4)
+        return if (end < 0) html.length else end + 3
+    }
+    val script = html.regionMatches(start, "<script", 0, 7, ignoreCase = true)
+    val style = !script && html.regionMatches(start, "<style", 0, 6, ignoreCase = true)
+    if (!script && !style) return -1
+    val endTag = if (script) "</script>" else "</style>"
+    val end = html.indexOf(endTag, start + endTag.length, ignoreCase = true)
+    return if (end < 0) html.length else end + endTag.length
+}
+
+private fun openTagName(tag: String): String =
+    tag.removePrefix("<").trimStart().takeWhile { it.isLetterOrDigit() || it == '-' || it == ':' }.lowercase()
+
+private fun classTokens(tag: String): List<String> {
+    val match = CLASS_ATTRIBUTE.find(tag) ?: return emptyList()
+    return match.groupValues[1].split(' ').filter { it.isNotEmpty() }
+}
+
+private fun isPaintTarget(tag: String, tokens: List<String>): Boolean =
+    tag == "a" || "ff-nav-dropdown-trigger" in tokens || "ff-nav-group-label" in tokens
+
+private fun withClasses(tag: String, adding: List<String>): String {
+    val match = CLASS_ATTRIBUTE.find(tag)
+    if (match == null) {
+        val at = if (tag.endsWith("/>")) tag.length - 2 else tag.length - 1
+        return tag.substring(0, at) + " class=\"" + adding.joinToString(" ") + "\"" + tag.substring(at)
+    }
+    val existing = match.groupValues[1]
+    val tokens = existing.split(' ').filter { it.isNotEmpty() }
+    val fresh = adding.filter { it !in tokens }
+    if (fresh.isEmpty()) return tag
+    val updated = existing.trimEnd() + " " + fresh.joinToString(" ")
+    return tag.replaceRange(match.range, "class=\"$updated\"")
 }
 
 internal fun escapeThemeAttr(value: String): String = buildString {
@@ -559,9 +680,19 @@ private fun brandColorScaleCss(): String = buildString {
     append("}")
 }
 
-/** `@import` plus `@theme inline` so `@apply` of panel scales becomes `var(--ff-*)`. */
-internal fun themeCompileSource(userCss: String): String = buildString {
+/**
+ * `@import` plus `@theme inline` so `@apply` of panel scales becomes `var(--ff-*)`.
+ * [sources] are Tailwind `@source` globs for panel theme classes. Utilities named only
+ * in those files are emitted. The import does not inline a panel color.
+ */
+internal fun themeCompileSource(userCss: String, sources: List<String>): String = buildString {
     appendLine("""@import "tailwindcss/theme";""")
+    appendLine("""@import "tailwindcss/utilities";""")
+    for (source in sources) {
+        append("@source \"")
+        append(source)
+        appendLine("\";")
+    }
     append(brandColorThemeCss())
     append(userCss)
     if (!userCss.endsWith("\n")) append('\n')

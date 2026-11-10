@@ -159,6 +159,50 @@ object ThemeCssCompiler {
         return found
     }
 
+    /**
+     * App root that contains `src/main`, walking up from a stylesheet under
+     * `src/main/resources/css`. Null when the file is not inside an app tree.
+     */
+    internal fun appRootForStylesheet(source: Path): Path? {
+        var dir = source.parent
+        var steps = 0
+        while (dir != null && steps < 8) {
+            if (Files.isDirectory(dir.resolve("src/main"))) return dir
+            dir = dir.parent
+            steps++
+        }
+        return null
+    }
+
+    /**
+     * Tailwind globs for panel theme classes.
+     * Kotlin and Java files under a `themes` directory inside `panels` are included.
+     * Other source trees are not, so an app color named outside the theme class stays out of the sheet.
+     */
+    internal fun themeClassSources(base: Path): List<String> {
+        val found = ArrayList<String>()
+        for ((language, extension) in listOf("kotlin" to "kt", "java" to "java")) {
+            val root = base.resolve("src/main").resolve(language)
+            if (!Files.isDirectory(root)) continue
+            Files.walk(root).use { stream ->
+                stream.forEach { path ->
+                    if (!Files.isDirectory(path)) return@forEach
+                    if (path.fileName.toString() != "themes") return@forEach
+                    val text = path.toAbsolutePath().normalize().toString().replace('\\', '/')
+                    if (!text.contains("/panels/")) return@forEach
+                    found.add(themeSourceGlob(text, extension))
+                }
+            }
+        }
+        found.sort()
+        return found
+    }
+
+    private fun themeSourceGlob(directory: String, extension: String): String {
+        val cleaned = directory.replace("\"", "").replace("\n", "").replace("\r", "")
+        return "$cleaned/**/*.$extension"
+    }
+
     internal fun themeSlug(name: String): String {
         var value = name.trim()
         if (value.endsWith(".css", ignoreCase = true)) value = value.dropLast(4)
@@ -188,7 +232,9 @@ object ThemeCssCompiler {
         val input = Files.createTempFile(home, "theme-input-", ".css")
         val compiled = Files.createTempFile(home, "theme-output-", ".css")
         try {
-            Files.writeString(input, themeCompileSource(Files.readString(source)))
+            val root = appRootForStylesheet(source)
+            val sources = if (root == null) emptyList() else themeClassSources(root)
+            Files.writeString(input, themeCompileSource(Files.readString(source), sources))
             run(
                 listOf(
                     nodeBinary,
