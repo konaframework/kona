@@ -228,10 +228,10 @@ body.ff-body-root {
   flex-shrink: 0;
 }
 
-.ff-panel:not(.ff-dark) .ff-brand-logo--light,
-.ff-auth:not(.ff-dark) .ff-brand-logo--light,
-html:not(.ff-dark) .ff-panel .ff-brand-logo--light,
-html:not(.ff-dark) .ff-auth .ff-brand-logo--light {
+/* Dark mode sets ff-dark on <html>, not on .ff-panel. A light rule that only
+   checks the panel would still match and show both logos. */
+html:not(.ff-dark) .ff-panel:not(.ff-dark) .ff-brand-logo--light,
+html:not(.ff-dark) .ff-auth:not(.ff-dark) .ff-brand-logo--light {
   display: block;
 }
 
