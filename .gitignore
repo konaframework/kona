@@ -45,6 +45,8 @@ coverage/
 
 # Docs sites (pnpm / Astro for kona; npm for brew/inertia)
 node_modules/
+modules/firefly-support/tailwind/theme-input-*
+modules/firefly-support/tailwind/theme-output-*
 apps/docs/dist/
 apps/docs/.astro/
 apps/docs/.wrangler/

@@ -853,10 +853,19 @@ class GrindTest {
         assertTrue(harbor.contains("override fun authCard(): String = \"\""))
         assertTrue(harbor.contains("panel.theme(Harbor())"))
         assertTrue(harbor.contains("bg-slate-950 text-white"))
-        assertTrue(harbor.contains("// Set true so this theme can use Tailwind utilities and @apply."))
+        assertTrue(harbor.contains("asset(\"css/harbor.css\")"))
+        assertTrue(harbor.contains("./grind firefly:theme-css"))
+        assertTrue(harbor.contains("stylesheet() uses asset()"))
         assertTrue(harbor.contains("// override fun useTailwind(): Boolean = true"))
         assertTrue(harbor.contains("// override fun darkPrimary(): String? = \"#8FCBD6\""))
         assertFalse(harbor.contains("\noverride fun useTailwind(): Boolean = true"))
+        assertFalse(harbor.contains("stylesheet(): String? = null"))
+        val harborCss = Files.readString(base.resolve("src/main/resources/css/harbor.css"))
+        assertTrue(harborCss.contains("firefly-theme"))
+        assertTrue(harborCss.contains("asset(\"css/harbor.css\")"))
+        assertTrue(harborCss.contains("@apply bg-primary-800"))
+        assertTrue(harborCss.contains("var(--ff-primary)"))
+        assertTrue(harborCss.contains("admin panel theme Harbor"))
         assertEquals(0, MakeFireflyThemeCommand().run(listOf("Slate", "--base=$base", "--lang=java")))
         val slate = Files.readString(base.resolve("src/main/java/app/panels/admin/themes/Slate.java"))
         assertTrue(slate.contains("extends FireflyTheme"))
@@ -865,10 +874,13 @@ class GrindTest {
         assertTrue(slate.contains("public String navigationGroupActive() { return \"\"; }"))
         assertTrue(slate.contains("public String authCard() { return \"\"; }"))
         assertTrue(slate.contains("panel.theme(new Slate())"))
+        assertTrue(slate.contains("return asset(\"css/slate.css\")"))
         assertTrue(slate.contains("// @Override public boolean useTailwind() { return true; }"))
         assertTrue(slate.contains("// @Override public String darkPrimary() { return \"#8FCBD6\"; }"))
+        assertTrue(Files.readString(base.resolve("src/main/resources/css/slate.css")).contains("firefly-theme"))
         assertEquals(0, MakeFireflyThemeCommand().run(listOf("MidnightTheme", "--base=$base", "--lang=kotlin", "--panel=staff")))
         assertTrue(Files.readString(base.resolve("src/main/kotlin/app/panels/staff/themes/MidnightTheme.kt")).contains("class MidnightTheme : FireflyTheme()"))
+        assertTrue(Files.readString(base.resolve("src/main/resources/css/midnighttheme.css")).contains("staff panel theme MidnightTheme"))
         assertEquals(0, MakeFireflyThemeCommand().run(listOf("Blank", "--base=$base", "--panel=", "--lang=kotlin")))
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/panels/admin/themes/Blank.kt")))
         assertThrows(GrindException::class.java) { MakeFireflyThemeCommand().run(listOf("Nope", "--base=$base", "--panel=bad-name")) }
@@ -881,6 +893,45 @@ class GrindTest {
         assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-panel" })
         assertTrue(ListCommand.COMMANDS.any { it.first == "firefly:install" })
         assertTrue(ListCommand.COMMANDS.any { it.first == "firefly:publish" })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "firefly:theme-css" })
+    }
+
+    @Test
+    fun compilesThemeStylesheetsIntoPublic() {
+        val base = temp.resolve("theme-css")
+        val css = base.resolve("src/main/resources/css")
+        Files.createDirectories(css)
+        Files.writeString(
+            css.resolve("swatch.css"),
+            """
+            /* firefly-theme */
+            .ff-panel .swatch {
+              @apply bg-primary-50;
+              color: var(--ff-accent);
+            }
+            """.trimIndent() + "\n",
+        )
+        Files.writeString(css.resolve("app.css"), "body { margin: 0; }\n")
+        Files.writeString(css.resolve("plain.css"), ".ff-panel .plain { color: var(--ff-primary); }\n")
+        assertThrows(GrindException::class.java) { FireflyThemeCssCommand().run(listOf("one", "two", "--base=$base")) }
+        assertEquals(1, GrindApplication().run(arrayOf("firefly:theme-css", "missing", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("firefly:theme-css", "Bad Name", "--base=$base")))
+        assertEquals(0, GrindApplication().run(arrayOf("firefly:theme-css", "--help")))
+        assertEquals(0, GrindApplication().run(arrayOf("firefly:theme-css", "plain", "--base=$base")))
+        val plain = Files.readString(base.resolve("public/css/plain.css"))
+        assertTrue(plain.contains("var(--ff-primary)"))
+        assertFalse(plain.contains("@apply"))
+        assertEquals(0, GrindApplication().run(arrayOf("firefly:theme-css", "--base=$base")))
+        assertFalse(Files.exists(base.resolve("public/css/app.css")))
+        val swatch = Files.readString(base.resolve("public/css/swatch.css"))
+        assertTrue(swatch.contains("background-color: var(--ff-primary-50)"))
+        assertTrue(swatch.contains("var(--ff-accent)"))
+        assertTrue(swatch.contains("var(--ff-primary)"))
+        assertFalse(swatch.contains("@apply"))
+        assertFalse(swatch.contains("#FF2A00"))
+        val empty = temp.resolve("theme-css-empty")
+        Files.createDirectories(empty)
+        assertEquals(1, GrindApplication().run(arrayOf("firefly:theme-css", "--base=$empty")))
     }
 
     @Test

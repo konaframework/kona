@@ -34,10 +34,18 @@ class ThemeTokens(
  * slot, and extra rules under `.ff-panel`. [stylesheet] may point at another file.
  * Classes are the way to reskin a region.
  *
- * [useTailwind] loads Tailwind for hook classes and for `@apply` in [stylesheet].
- * That runtime registers scales for the panel colors: primary, accent, success,
- * warning, danger, info, and gray. `500` is the panel variable. Raw `heading`
- * and `surface` tokens are colors too.
+ * [asset] names an uncompiled file under `src/main/resources`. [stylesheet]
+ * returns that token, and the render links the compiled file in `public/`.
+ * `./grind firefly:theme-css` compiles it. A generated theme uses that path
+ * and leaves [useTailwind] off, so the page does not load the browser runtime.
+ *
+ * [useTailwind] loads Tailwind in the browser for hook classes and for `@apply`
+ * in a stylesheet URL. That runtime registers scales for the panel colors:
+ * primary, accent, success, warning, danger, info, and gray. `500` is the panel
+ * variable. Raw `heading` and `surface` tokens are colors too. The compile
+ * happens after the HTML is parsed, so the document stays hidden until the
+ * themed sheet is in the CSSOM. That is the no-build path, and it still
+ * flickers unless that hide stays on.
  * [googleFonts] loads those families on the panel and the sign-in page.
  * Both stay off until a theme overrides them.
  */
@@ -83,23 +91,40 @@ open class FireflyTheme {
     open fun extraCss(): String = ""
 
     /**
-     * Stylesheet URL (`/css/midnight.css` or an absolute URL), or null.
-     * A non-blank value is linked from the document `<head>` before the chrome.
-     * When [useTailwind] is true, that file is fetched in the head and compiled
-     * before the chrome is shown, so `@apply` in it does not arrive late.
+     * Stylesheet URL (`/css/midnight.css` or an absolute URL), an [asset]
+     * token, or null.
+     * A non-blank URL is linked from the document `<head>` before the chrome.
+     * An [asset] token names the uncompiled resources file. The link the
+     * browser receives is the compiled file in `public/`. A missing compiled
+     * file fails the render and names `./grind firefly:theme-css`. It does not
+     * fall back to the browser runtime.
+     * When [useTailwind] is true and this is a plain URL, that file is fetched
+     * in the head and compiled before the chrome is shown, so `@apply` in it
+     * does not arrive late.
      */
     open fun stylesheet(): String? = null
 
     /**
+     * Names the uncompiled stylesheet under `src/main/resources`.
+     * `asset("css/midnight.css")` is `src/main/resources/css/midnight.css`.
+     * The render resolves it to `/css/midnight.css`, the compiled file
+     * `./grind firefly:theme-css` writes under `public/`.
+     */
+    fun asset(path: String): String = ThemeAssets.asset(path)
+
+    /**
      * When true, the panel and the sign-in page load the Tailwind runtime in
      * `<head>` before the chrome. Hook classes such as `bg-primary-800` and
-     * `@apply` in [stylesheet] both apply. The runtime compiles on a promise,
-     * so the document stays `visibility: hidden` until that compile is in the
-     * CSSOM, then it is shown once. The reveal does not change a class or a
-     * background, so the first painted frame is the themed chrome.
+     * `@apply` in a plain [stylesheet] URL both apply. The runtime compiles on
+     * a promise, so the document stays `visibility: hidden` until that compile
+     * is in the CSSOM, then it is shown once. The reveal does not change a
+     * class or a background, so the first painted frame is the themed chrome.
      * `primary-500` is `--ff-primary`, `accent-500` is `--ff-accent`, and the
      * same is true for success, warning, danger, info, and gray. False leaves
      * the stock panel CSS alone and adds no hide.
+     * An [asset] stylesheet does not load this runtime and does not hide the
+     * page, even when this returns true. The compiled file already expanded
+     * `@apply`.
      */
     open fun useTailwind(): Boolean = false
 
@@ -345,6 +370,7 @@ internal fun escapeThemeAttr(value: String): String = buildString {
  * runtime replace the compiled sheet, which flashes stock colors.
  */
 internal fun withThemeStylesheet(html: String, theme: FireflyTheme): String {
+    val compiled = ThemeAssets.isCompiledAsset(theme.stylesheet())
     val extra = themeHeadExtra(theme, html.contains("<body class=\"ff-auth\""))
     var result = html
     if (extra.isNotEmpty()) {
@@ -353,7 +379,7 @@ internal fun withThemeStylesheet(html: String, theme: FireflyTheme): String {
             result = result.substring(0, head) + extra + "\n" + result.substring(head)
         }
     }
-    if (theme.useTailwind()) {
+    if (theme.useTailwind() && !compiled) {
         val body = result.indexOf("</body>")
         if (body >= 0) {
             result = result.substring(0, body) + themePaintScript() + "\n" + result.substring(body)
@@ -364,8 +390,10 @@ internal fun withThemeStylesheet(html: String, theme: FireflyTheme): String {
 
 internal fun themeHeadExtra(theme: FireflyTheme, authDocument: Boolean): String {
     val parts = ArrayList<String>()
-    val href = theme.stylesheet()?.trim().orEmpty()
-    if (theme.useTailwind()) {
+    val raw = theme.stylesheet()?.trim().orEmpty()
+    val compiled = ThemeAssets.isCompiledAsset(raw)
+    val href = if (compiled) ThemeAssets.publicUrl(raw) else raw
+    if (theme.useTailwind() && !compiled) {
         parts.add(themeHold(theme, authDocument))
         parts.add(tailwindHead(href))
     }
@@ -375,7 +403,7 @@ internal fun themeHeadExtra(theme: FireflyTheme, authDocument: Boolean): String 
         parts.add("""<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />""")
         parts.add("""<link rel="stylesheet" href="${escapeThemeAttr(fonts)}" />""")
     }
-    if (!theme.useTailwind() && href.isNotEmpty()) {
+    if (href.isNotEmpty() && (!theme.useTailwind() || compiled)) {
         parts.add("""<link rel="stylesheet" href="${escapeThemeAttr(href)}" />""")
     }
     return parts.joinToString("\n")
@@ -508,6 +536,18 @@ private fun brandColorScaleCss(): String = buildString {
     }
     append("}")
 }
+
+/** `@import` plus `@theme inline` so `@apply` of panel scales becomes `var(--ff-*)`. */
+internal fun themeCompileSource(userCss: String): String = buildString {
+    appendLine("""@import "tailwindcss/theme";""")
+    append(brandColorThemeCss())
+    append(userCss)
+    if (!userCss.endsWith("\n")) append('\n')
+}
+
+/** Scale custom properties in front of the expanded sheet, so the public file stands alone. */
+internal fun finishCompiledCss(expanded: String): String =
+    brandColorScaleCss().trimEnd() + "\n" + expanded.trimStart()
 
 /**
  * `@theme inline` so utilities use `var(--ff-…)` on the element.
