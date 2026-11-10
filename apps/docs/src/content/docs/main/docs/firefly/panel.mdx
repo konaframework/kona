@@ -96,7 +96,7 @@ Firefly does not scan the classpath for pages, resources, or widgets. Register t
 | `resolveBrandingOverrides(...)` | Runtime overlay (settings DB, company logo). Merged over panel branding; fonts stay on panel defaults |
 | `profilePage(ProfilePage)` | Per-panel account page. See [Pages](/docs/firefly/pages/#profile) |
 | `navigation` / `topNavigation()` | `NavigationType` (`APP`, `INVERSE`, `SIDE`, `TOP`). Default `APP`. See [Navigation](/docs/firefly/navigation/) |
-| `theme(FireflyTheme)` | Tokens and partials. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
+| `theme(FireflyTheme)` | Tokens, partials, and chrome classes. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | Replaces the shell arrangement |
 | `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources (`xs`…`7xl`, `full`, `screen`, `prose`). Default is `7xl` (80rem). Pages and resources can override. Tables fill that column |
 | `hook(Hook, html)` | Appends HTML into a chrome hook |
@@ -189,7 +189,7 @@ Tokens: `xs`…`7xl`, `full`, `screen`, `prose`. An unknown token throws `Firefl
 
 ## Pick a theme and a hook
 
-`theme(HarborTheme())` selects the sample theme shipped on the panel artifact: a different primary color, a sidebar partial that keeps the hook markers, and a small extra stylesheet under `.ff-panel`. `hook(Hook.BODY_END, "...")` still injects into the shell. The support `Panel` applies the theme, the layout, and the hooks. Read [Panel chrome](/docs/firefly/chrome/) for slots and partials.
+`theme(HarborTheme())` selects the sample theme shipped on the panel artifact: a different primary color, a sidebar partial that keeps the hook markers, and a small extra stylesheet under `.ff-panel`. Subclass `FireflyTheme` when you want extra classes on the sidebar, top bar, brand, navigation, page header, footer, and auth card instead of a second layout. `./grind make:firefly-theme MidnightTheme` writes that class. See [Themes and CSS](/docs/firefly/themes/#style-the-chrome-with-classes). `hook(Hook.BODY_END, "...")` still injects into the shell. The support `Panel` applies the theme, the layout, and the hooks. Read [Panel chrome](/docs/firefly/chrome/) for slots and partials.
 
 ## Generate the class
 
@@ -199,11 +199,11 @@ Tokens: `xs`…`7xl`, `full`, `screen`, `prose`. An unknown token throws `Firefl
 ./grind make:firefly-panel --lang=java --id=billing --path=staff
 ./grind make:firefly-panel --id=billing --path=
 ./grind firefly:install
-./grind make:firefly-theme Harbor
+./grind make:firefly-theme MidnightTheme
 ./grind firefly:publish
 ```
 
-`make:firefly-panel` and `firefly:install` write `app/panels/{id}/Panel` plus empty `pages/`, `widgets/`, and `resources/` folders. Omit `--path` and the class does not call `path`. `--path=staff` writes `path("staff")`. `--path=` writes `path("")`. `firefly:publish` copies the sidebar partial into `resources/views/firefly/sidebar.crema.html` so you can edit it. Keep the hook markers in that partial, or `render` throws.
+`make:firefly-panel` and `firefly:install` write `app/panels/{id}/Panel` plus empty `pages/`, `widgets/`, and `resources/` folders. Omit `--path` and the class does not call `path`. `--path=staff` writes `path("staff")`. `--path=` writes `path("")`. `firefly:publish` copies the sidebar partial into `resources/views/firefly/sidebar.crema.html` so you can edit it. Keep the hook markers in that partial, or `render` throws. `make:firefly-theme` writes `app/panels/{panel}/themes/` (default panel `admin`). Register that class with `theme(...)`.
 
 ## Next
 

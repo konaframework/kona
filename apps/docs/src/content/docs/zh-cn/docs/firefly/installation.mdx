@@ -114,7 +114,7 @@ From the app directory, `./grind` accepts these Firefly commands. Pass `--lang=j
 | `make:firefly-filter Status` | A table filter under `app/firefly/filters/` |
 | `make:firefly-action SaveRecord` | An action class and view under `app/firefly/actions/` |
 | `make:firefly-layout Banner` | A layout component under `app/firefly/layouts/` |
-| `make:firefly-theme Harbor` | A theme class under `app/firefly/themes/` |
+| `make:firefly-theme MidnightTheme` | A `FireflyTheme` subclass under `app/panels/{panel}/themes/` (`--panel=` defaults to `admin`) |
 | `firefly:publish` | A sidebar partial at `resources/views/firefly/sidebar.crema.html` |
 
 `make:firefly-panel` writes a class named `Panel`. Passing another class name fails. `--id=` is the package folder and the panel id. Omit `--path=` and the generated class does not call `path`, so the prefix is the id. `./grind firefly:install` writes that same tree. It does not add the dependency or the provider. Use `./grind install firefly` for that.

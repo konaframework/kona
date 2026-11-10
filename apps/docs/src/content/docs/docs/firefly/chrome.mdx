@@ -20,7 +20,7 @@ The class that draws the frame is `org.konaframework.firefly.support.Panel`. The
 
 | Method | What you get |
 |--------|----------------|
-| `theme(FireflyTheme)` | Theme used for tokens, CSS, and theme partials. Default: `KonaTheme` |
+| `theme(FireflyTheme)` | Theme used for tokens, CSS, partials, and chrome classes. Default: `KonaTheme`. Empty class hooks leave the stock UI unchanged. See [Themes and CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | Replaces the wrapper. Default: `DefaultLayout`. A later call replaces the earlier layout |
 | `hook(Hook, String)` | Appends HTML for that hook. Several calls for the same hook concatenate, in order |
 | `overridePartial(slot, html)` | App HTML for one slot. Wins over the theme partial and the built-in partial |

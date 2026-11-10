@@ -32,7 +32,7 @@ internal object BuiltinCommandSpecs {
         "make:firefly-widget {name} {--panel=} {--lang=}",
         "make:firefly-panel {name?} {--id=} {--path=} {--lang=}",
         "make:firefly-page {name} {--panel=} {--lang=}",
-        "make:firefly-theme {name} {--lang=}",
+        "make:firefly-theme {name} {--panel=} {--lang=}",
         "make:firefly-resource {name} {--simple} {--generate} {--panel=} {--lang=} {--database=} {--bootstrap=}",
         "make:firefly-relation-manager {resource} {relationship} {titleAttribute} {--attach} {--associate} {--soft-deletes} {--panel=} {--lang=}",
         "firefly:install {--id=} {--path=} {--lang=}",

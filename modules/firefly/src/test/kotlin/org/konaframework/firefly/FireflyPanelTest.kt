@@ -30,6 +30,7 @@ import org.konaframework.firefly.schemas.Text
 import org.konaframework.firefly.support.ChromeContext
 import org.konaframework.firefly.support.DefaultLayout
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.support.FireflyTheme
 import org.konaframework.firefly.support.Hook
 import org.konaframework.firefly.support.PanelLayout
 import org.konaframework.firefly.tables.Table
@@ -1109,6 +1110,47 @@ class FireflyPanelTest {
         assertNull(adapter.email())
     }
 
+    @Test
+    fun themeClassesLandOnTheSidebarAndDefaultAddsNone() {
+        val orders = ListPage("orders")
+        orders.title("Orders")
+        orders.navigationGroup("Shop")
+        val router = Router()
+        Panel().id("desk").path("admin").authenticate(false)
+            .navigation(NavigationType.SIDE)
+            .navigationGroups(NavigationGroup.make("Shop"))
+            .theme(ChromeClassTheme())
+            .page(orders)
+            .mount(router)
+        val html = send(router, "GET", "/admin/orders").body
+        assertTrue(html.contains("""<aside class="ff-sidebar theme-sidebar">"""))
+        assertTrue(html.contains("""<header class="ff-topbar theme-topbar">"""))
+        assertTrue(html.contains("""class="ff-sidebar-brand theme-brand""""))
+        assertTrue(Regex("""class="ff-nav ff-nav-side[^"]*theme-nav""").containsMatchIn(html))
+        assertTrue(Regex("""class="ff-nav-item[^"]*theme-item""").containsMatchIn(html))
+        assertTrue(Regex("""class="ff-nav-group[^"]*theme-group""").containsMatchIn(html))
+        assertTrue(html.contains("""<main class="ff-body theme-content">"""))
+        assertTrue(html.contains("""class="ff-page-header theme-header""""))
+        assertTrue(html.contains("""<footer class="ff-footer theme-footer">"""))
+        assertTrue(html.contains("""class="ff-sidebar-foot theme-foot""""))
+        assertTrue(html.contains("""class="ff-user-menu theme-user""""))
+
+        val plain = Router()
+        Panel().id("plain").path("plain").authenticate(false).page(ListPage("orders")).mount(plain)
+        val stock = send(plain, "GET", "/plain/orders").body
+        assertTrue(stock.contains("""<aside class="ff-sidebar">"""))
+        assertFalse(stock.contains("theme-sidebar"))
+        assertFalse(stock.contains("theme-header"))
+
+        val gate = Router()
+        Panel().id("gate").path("gate").theme(ChromeClassTheme()).mount(gate)
+        val auth = send(gate, "GET", "/gate/login").body
+        assertTrue(auth.contains("""class="ff-auth theme-auth""""))
+        assertTrue(Regex("""class="ff-auth-panel[^"]*theme-auth-card""").containsMatchIn(auth))
+        assertTrue(auth.contains("""class="ff-auth-brand theme-brand""""))
+        assertFalse(auth.contains("""<aside class="ff-sidebar""""))
+    }
+
     private fun renderPanel(guard: PanelGuard, authenticate: Boolean = true): String {
         val router = Router()
         Panel().path("x").navigation(NavigationType.SIDE).authenticate(authenticate)
@@ -1173,6 +1215,22 @@ class FireflyPanelTest {
         writePage(dir, name, text)
         PanelDiscovery.pages(dir, javaClass.classLoader)
     }
+}
+
+private class ChromeClassTheme : FireflyTheme() {
+    override fun sidebar() = "theme-sidebar"
+    override fun topbar() = "theme-topbar"
+    override fun brand() = "theme-brand"
+    override fun navigation() = "theme-nav"
+    override fun navigationItem() = "theme-item"
+    override fun navigationGroup() = "theme-group"
+    override fun content() = "theme-content"
+    override fun pageHeader() = "theme-header"
+    override fun footer() = "theme-footer"
+    override fun sidebarFoot() = "theme-foot"
+    override fun userMenu() = "theme-user"
+    override fun auth() = "theme-auth"
+    override fun authCard() = "theme-auth-card"
 }
 
 private class WrapLayout : PanelLayout {

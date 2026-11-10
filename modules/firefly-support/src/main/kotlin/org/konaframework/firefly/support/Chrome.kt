@@ -889,7 +889,7 @@ class Panel {
             }
             partials[slot] = fill(slot, chosen)
         }
-        return layout.render(
+        val html = layout.render(
             ChromeContext(
                 theme,
                 hooks,
@@ -903,6 +903,7 @@ class Panel {
                 branding,
             ),
         )
+        return applyThemeClasses(withThemeStylesheet(html, theme), theme)
     }
 
     private fun fill(slot: String, template: String): String {

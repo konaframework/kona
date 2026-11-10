@@ -504,14 +504,14 @@ class FireflySupportTest {
         assertEquals("", KonaTheme().extraCss())
         assertEquals(null, KonaTheme().partial("sidebar"))
 
-        val themed = object : FireflyTheme {
+        val themed = object : FireflyTheme() {
             override fun id() = "harbor"
             override fun tokens() = KonaTheme().tokens()
             override fun extraCss() = ".ff-btn { color: red; }"
         }
         assertTrue(Stylesheet.render(themed).contains("color: red"))
 
-        val leak = object : FireflyTheme {
+        val leak = object : FireflyTheme() {
             override fun id() = "leak"
             override fun tokens() = KonaTheme().tokens()
             override fun extraCss() = "body { margin: 0 }"
@@ -838,14 +838,14 @@ class FireflySupportTest {
         )
         assertTrue(authCsrfEscaped.contains("content=\"x&amp;y&lt;&quot; \""))
 
-        val bad = object : FireflyTheme {
+        val bad = object : FireflyTheme() {
             override fun id() = "bad"
             override fun tokens() = KonaTheme().tokens()
             override fun partial(slot: String) = if (slot == "sidebar") "<aside></aside>" else null
         }
         assertThrows(FireflyException::class.java) { Panel().theme(bad).render() }
 
-        val customPartial = object : FireflyTheme {
+        val customPartial = object : FireflyTheme() {
             override fun id() = "partial"
             override fun tokens() = KonaTheme().tokens()
             override fun partial(slot: String) =
@@ -875,5 +875,118 @@ class FireflySupportTest {
         assertThrows(FireflyException::class.java) { builtin("nope") }
         val empty = ChromeContext(KonaTheme(), RenderHooks(), emptyMap(), "")
         assertThrows(FireflyException::class.java) { DefaultLayout().render(empty) }
+    }
+
+    @Test
+    fun themeClassesAppendOnChromeAndDefaultAddsNothing() {
+        val stock = Panel().render()
+        assertEquals(stock, Panel().theme(FireflyTheme()).render())
+        assertTrue(stock.contains("""<aside class="ff-sidebar">"""))
+        assertTrue(stock.contains("""<header class="ff-topbar">"""))
+        assertTrue(stock.contains("""<main class="ff-body">"""))
+        assertTrue(stock.contains("""<footer class="ff-footer">"""))
+        assertFalse(stock.contains("theme-sidebar"))
+        assertFalse(stock.contains("""rel="stylesheet" href="""))
+
+        val bare = FireflyTheme()
+        assertEquals("custom", bare.id())
+        assertEquals(KonaTheme().tokens().primary, bare.tokens().primary)
+        assertEquals(null, bare.stylesheet())
+        assertEquals("", bare.sidebar())
+        assertEquals("", sanitizeThemeClasses("   "))
+        assertEquals("", sanitizeThemeClasses("<script>"))
+        assertEquals("bg-slate-950 dark:text-white", sanitizeThemeClasses("bg-slate-950 \"nope\" dark:text-white"))
+        assertEquals("bg-[#0f172a]", sanitizeThemeClasses("bg-[#0f172a]"))
+        assertFalse(legalThemeClass(""))
+        assertFalse(legalThemeClass("a<b"))
+        assertTrue(legalThemeClass("[&_a]:underline"))
+        assertEquals("", escapeThemeAttr(""))
+        assertEquals("a&amp;b&quot;&lt;c", escapeThemeAttr("a&b\"<c"))
+
+        val untouched = """<nav class="ff-nav ff-nav-side"><li class="ff-nav-item"></li></nav>"""
+        val navOnly = appendThemeClasses(untouched, setOf("ff-nav"), "theme-nav")
+        assertTrue(navOnly.contains("""class="ff-nav ff-nav-side theme-nav""""))
+        assertTrue(navOnly.contains("""class="ff-nav-item""""))
+        val bodyOnly = appendThemeClasses(
+            """<body class="ff-body-root"><main class="ff-body "></main></body>""",
+            setOf("ff-body"),
+            "theme-content",
+        )
+        assertTrue(bodyOnly.contains("""class="ff-body-root""""))
+        assertTrue(bodyOnly.contains("""class="ff-body theme-content""""))
+        val already = """<aside class="ff-sidebar theme-sidebar"></aside>"""
+        assertEquals(already, appendThemeClasses(already, setOf("ff-sidebar"), "theme-sidebar"))
+
+        val theme = object : FireflyTheme() {
+            override fun sidebar() = "theme-sidebar"
+            override fun topbar() = "theme-topbar"
+            override fun brand() = "theme-brand"
+            override fun navigation() = "theme-nav"
+            override fun navigationItem() = "theme-item"
+            override fun navigationGroup() = "theme-group"
+            override fun content() = "theme-content"
+            override fun pageHeader() = "theme-header"
+            override fun footer() = "theme-footer"
+            override fun sidebarFoot() = "theme-foot"
+            override fun userMenu() = "theme-user"
+            override fun panel() = "theme-panel"
+            override fun column() = "theme-column"
+            override fun scroll() = "theme-scroll"
+            override fun auth() = "theme-auth"
+            override fun authCard() = "theme-auth-card <bad>"
+            override fun stylesheet() = "/css/midnight.css"
+        }
+        val html = Panel().theme(theme)
+            .hook(
+                Hook.SIDEBAR_START,
+                """<div class="ff-sidebar-brand"><span class="ff-brand">Acme</span></div>""" +
+                    """<nav class="ff-nav ff-nav-side"><ul class="ff-nav-list">""" +
+                    """<li class="ff-nav-item">Home</li>""" +
+                    """<section class="ff-nav-group">Shop</section></ul></nav>""" +
+                    """<div class="ff-sidebar-foot">foot</div>""",
+            )
+            .hook(Hook.TOPBAR_END, """<span class="ff-brand-mark ff-topbar-brand">T</span><div class="ff-user-menu">u</div>""")
+            .hook(Hook.BODY_START, """<header class="ff-page-header"><h1>Desk</h1></header>""")
+            .render()
+        assertTrue(html.contains("""<aside class="ff-sidebar theme-sidebar">"""))
+        assertTrue(html.contains("""<header class="ff-topbar theme-topbar">"""))
+        assertTrue(html.contains("""class="ff-sidebar-brand theme-brand""""))
+        assertTrue(html.contains("""class="ff-brand-mark ff-topbar-brand theme-brand""""))
+        assertTrue(html.contains("""class="ff-nav ff-nav-side theme-nav""""))
+        assertTrue(html.contains("""class="ff-nav-item theme-item""""))
+        assertTrue(html.contains("""class="ff-nav-group theme-group""""))
+        assertTrue(html.contains("""<main class="ff-body theme-content">"""))
+        assertTrue(html.contains("""class="ff-page-header theme-header""""))
+        assertTrue(html.contains("""<footer class="ff-footer theme-footer">"""))
+        assertTrue(html.contains("""class="ff-sidebar-foot theme-foot""""))
+        assertTrue(html.contains("""class="ff-user-menu theme-user""""))
+        assertTrue(html.contains("""class="ff-panel theme-panel""""))
+        assertTrue(html.contains("""class="ff-column theme-column""""))
+        assertTrue(html.contains("""class="ff-scroll theme-scroll""""))
+        assertTrue(html.contains("""href="/css/midnight.css""""))
+        assertTrue(html.indexOf("""href="/css/midnight.css"""") < html.indexOf("</head>"))
+        assertTrue(html.contains(".ff-sidebar {") || html.contains(".ff-panel .ff-sidebar"))
+        assertFalse(html.contains("theme-sidebar {"))
+
+        val auth = Panel().theme(theme).mode(ChromeMode.AUTH).layout(AuthLayout())
+            .overridePartial(
+                "body",
+                """<main class="ff-auth-main"><!-- ff-hook:body.start --><div class="ff-auth-panel">card</div><!-- ff-hook:body.end --></main>""",
+            )
+            .render()
+        assertTrue(auth.contains("""class="ff-auth theme-auth""""))
+        assertTrue(auth.contains("""class="ff-auth-panel theme-auth-card""""))
+        assertFalse(auth.contains("<bad>"))
+        assertFalse(auth.contains("""<aside class="ff-sidebar""""))
+
+        val blankSheet = object : FireflyTheme() {
+            override fun stylesheet() = "   "
+        }
+        assertFalse(Panel().theme(blankSheet).render().contains("""rel="stylesheet" href="""))
+        val escaped = object : FireflyTheme() {
+            override fun stylesheet() = """/c?a&b"<"""
+        }
+        assertTrue(Panel().theme(escaped).render().contains("""href="/c?a&amp;b&quot;&lt;""""))
+        assertEquals("no-head", withThemeStylesheet("no-head", theme))
     }
 }

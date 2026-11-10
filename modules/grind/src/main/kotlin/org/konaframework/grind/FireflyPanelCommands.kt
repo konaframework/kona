@@ -48,16 +48,26 @@ class MakeFireflyPageCommand {
     }
 }
 
-/** `grind make:firefly-theme <Name>` writes a theme class. */
+/** `grind make:firefly-theme <Name>` writes a FireflyTheme subclass the app can edit. */
 class MakeFireflyThemeCommand {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
-        if (positional.isEmpty()) throw GrindException("Usage: grind make:firefly-theme <Name> [--lang=kotlin|java]")
+        if (positional.isEmpty()) {
+            throw GrindException("Usage: grind make:firefly-theme <Name> [--panel=admin] [--lang=kotlin|java]")
+        }
         val name = positional.first()
         Names.requireClassName("theme", name)
         val base = Names.base(options)
         val lang = Names.lang(base, options)
-        Names.write(base, Names.sourceFile(lang, "app/firefly/themes", name), "Firefly theme", themeSource(name, lang))
+        val panel = panelIdFromOptions(options)
+        val relative = Names.sourceFile(lang, "app/panels/$panel/themes", name)
+        Names.write(base, relative, "Firefly theme", themeSource(name, lang, panel))
+        val hint = if (lang == "java") {
+            "Register it with panel.theme(new $name())"
+        } else {
+            "Register it with panel.theme($name())"
+        }
+        GrindIO().info(hint)
         return 0
     }
 }
@@ -166,30 +176,75 @@ private fun pageSource(name: String, lang: String, panel: String): String = if (
     )
 }
 
-private fun themeSource(name: String, lang: String): String = if (lang == "java") {
+/**
+ * One hook per chrome region. The comment names the element the render appends to.
+ * Empty returns keep the stock panel unchanged until the app overrides a hook.
+ */
+private val THEME_HOOKS = listOf(
+    "panel" to ".ff-panel",
+    "sidebar" to "aside.ff-sidebar",
+    "topbar" to "header.ff-topbar",
+    "brand" to ".ff-sidebar-brand, .ff-topbar-brand, and .ff-auth-brand",
+    "navigation" to "nav.ff-nav",
+    "navigationItem" to ".ff-nav-item",
+    "navigationGroup" to ".ff-nav-group",
+    "content" to "main.ff-body",
+    "pageHeader" to ".ff-page-header",
+    "footer" to "footer.ff-footer",
+    "sidebarFoot" to ".ff-sidebar-foot",
+    "userMenu" to ".ff-user-menu",
+    "column" to ".ff-column",
+    "scroll" to ".ff-scroll",
+    "auth" to "body.ff-auth",
+    "authCard" to ".ff-auth-panel",
+)
+
+private fun themeSource(name: String, lang: String, panel: String): String = if (lang == "java") {
+    val hooks = THEME_HOOKS.map { (method, element) ->
+        "    /** Extra classes for $element. */\n    @Override public String $method() { return \"\"; }"
+    }
     lines(
-        "package app.firefly.themes;",
+        "package app.panels.$panel.themes;",
         "",
         "import org.konaframework.firefly.support.FireflyTheme;",
-        "import org.konaframework.firefly.support.KonaTheme;",
-        "import org.konaframework.firefly.support.ThemeTokens;",
         "",
-        "public class $name implements FireflyTheme {",
-        "    public String id() { return \"${name.lowercase()}\"; }",
-        "    public ThemeTokens tokens() { return new KonaTheme().tokens(); }",
+        "/**",
+        " * Chrome theme for the $panel panel.",
+        " * Override a hook to append CSS classes. Empty strings leave the stock UI unchanged.",
+        " * Register it with {@code panel.theme(new $name())}.",
+        " * Example: {@code public String sidebar() { return \"bg-slate-950 text-white\"; }}",
+        " */",
+        "public class $name extends FireflyTheme {",
+        "    @Override public String id() { return \"${name.lowercase()}\"; }",
+        "",
+        "    /** Stylesheet URL linked from the document head, or null. */",
+        "    @Override public String stylesheet() { return null; }",
+        "",
+        *hooks.toTypedArray(),
         "}",
     )
 } else {
+    val hooks = THEME_HOOKS.map { (method, element) ->
+        "    /** Extra classes for `$element`. */\n    override fun $method(): String = \"\""
+    }
     lines(
-        "package app.firefly.themes",
+        "package app.panels.$panel.themes",
         "",
         "import org.konaframework.firefly.support.FireflyTheme",
-        "import org.konaframework.firefly.support.KonaTheme",
-        "import org.konaframework.firefly.support.ThemeTokens",
         "",
-        "class $name : FireflyTheme {",
+        "/**",
+        " * Chrome theme for the $panel panel.",
+        " * Override a hook to append CSS classes. Empty strings leave the stock UI unchanged.",
+        " * Register it with `panel.theme($name())`.",
+        " * Example: `override fun sidebar(): String = \"bg-slate-950 text-white\"`.",
+        " */",
+        "class $name : FireflyTheme() {",
         "    override fun id(): String = \"${name.lowercase()}\"",
-        "    override fun tokens(): ThemeTokens = KonaTheme().tokens()",
+        "",
+        "    /** Stylesheet URL linked from the document head, or null. */",
+        "    override fun stylesheet(): String? = null",
+        "",
+        *hooks.toTypedArray(),
         "}",
     )
 }

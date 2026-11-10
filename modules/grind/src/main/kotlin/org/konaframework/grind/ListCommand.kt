@@ -45,7 +45,7 @@ class ListCommand(
             "make:firefly-widget" to "Generate a Firefly widget",
             "make:firefly-panel" to "Generate a Firefly panel and its pages, widgets, and resources folders",
             "make:firefly-page" to "Generate a Firefly page",
-            "make:firefly-theme" to "Generate a Firefly theme",
+            "make:firefly-theme" to "Generate a Firefly theme class",
             "make:firefly-resource" to "Generate a Firefly *Resource + pages (--simple; --generate introspects DB columns)",
             "make:firefly-relation-manager" to "Generate a Firefly relation manager (--attach, --associate, --soft-deletes)",
             "firefly:install" to "Generate a Firefly panel tree",
