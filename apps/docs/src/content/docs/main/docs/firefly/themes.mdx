@@ -299,7 +299,9 @@ The runtime loads Tailwind's theme and utilities. It does not load Tailwind's pa
 
 ## Brand colors
 
-With Tailwind on, the panel primary and accent are color scales. `primary-500` is the panel primary (`--ff-primary`). `accent-500` is the panel accent (`--ff-accent`). Steps `50`, `100`, `200`, `300`, and `400` mix that color toward white. Steps `600`, `700`, `800`, and `900` mix it toward black. `bg-primary`, `text-accent`, `text-heading`, and `bg-surface` use those variables as they are. Background, text, and border utilities all follow the scale: `bg-primary-50`, `text-primary-900`, `border-accent-200`.
+With Tailwind on, these panel colors are scales: `primary`, `accent`, `success`, `warning`, `danger`, `info`, and `gray`. Step `500` is that color's variable. `primary-500` is `--ff-primary`. `accent-500` is `--ff-accent`. `success-500` is `--ff-success`. `warning-500` is `--ff-warning`. `danger-500` is `--ff-danger`. `info-500` is `--ff-info`. `gray-500` is `--ff-body-subtle`, the gray the chrome already uses. Steps `50`, `100`, `200`, `300`, and `400` mix that color toward white. Steps `600`, `700`, `800`, and `900` mix it toward black. `bg-primary`, `text-accent`, `text-heading`, `bg-surface`, `bg-success`, and `text-danger` use those variables as they are. Background, text, and border utilities all follow the scale: `bg-primary-50`, `text-primary-900`, `border-accent-200`.
+
+The status colors match the hex the chrome already paints on stats, callouts, and notifications: success `#16a34a`, warning `#d97706`, danger `#dc2626`, info `#2563eb`. Set `--ff-success` (or the matching variable) on `.ff-panel` when a step-500 color should differ.
 
 Use the scale from a hook:
 
@@ -310,6 +312,10 @@ Use the scale from a hook:
 override fun useTailwind(): Boolean = true
 
 override fun sidebar(): String = "bg-primary-500 text-accent-700"
+
+override fun navigationItem(): String = "text-success-500"
+
+override fun footer(): String = "text-danger-700"
 ```
 
 </TabItem>
@@ -319,6 +325,10 @@ override fun sidebar(): String = "bg-primary-500 text-accent-700"
 @Override public boolean useTailwind() { return true; }
 
 @Override public String sidebar() { return "bg-primary-500 text-accent-700"; }
+
+@Override public String navigationItem() { return "text-success-500"; }
+
+@Override public String footer() { return "text-danger-700"; }
 ```
 
 </TabItem>
@@ -329,6 +339,14 @@ The same classes work in the stylesheet `stylesheet()` names:
 ```css
 .ff-panel .ff-sidebar.midnight-sidebar {
   @apply bg-primary-500 text-accent-700;
+}
+
+.ff-panel .ff-nav-item.midnight-item {
+  @apply text-success-500;
+}
+
+.ff-panel .ff-footer.midnight-footer {
+  @apply text-danger-700;
 }
 ```
 

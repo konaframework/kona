@@ -1077,7 +1077,7 @@ class FireflySupportTest {
 
         val branded = object : FireflyTheme() {
             override fun useTailwind() = true
-            override fun sidebar() = "bg-primary-800 text-primary-50 text-accent-700 border-accent-500"
+            override fun sidebar() = "bg-primary-800 text-primary-50 text-accent-700 border-accent-500 text-success-500 text-danger-700 bg-warning-200 border-info-900 bg-gray-500"
         }
         val brandedHtml = Panel().theme(branded).branding(
             FireflyBranding(primaryColor = "#FF2A00", accentColor = "#286291"),
@@ -1087,6 +1087,11 @@ class FireflySupportTest {
         assertTrue(brandedHtml.contains("text-primary-50"))
         assertTrue(brandedHtml.contains("text-accent-700"))
         assertTrue(brandedHtml.contains("border-accent-500"))
+        assertTrue(brandedHtml.contains("text-success-500"))
+        assertTrue(brandedHtml.contains("text-danger-700"))
+        assertTrue(brandedHtml.contains("bg-warning-200"))
+        assertTrue(brandedHtml.contains("border-info-900"))
+        assertTrue(brandedHtml.contains("bg-gray-500"))
         assertTrue(brandedHtml.contains("--ff-primary: #ff2a00"))
         assertTrue(brandedHtml.contains("--ff-accent: #286291"))
         for (html in listOf(brandedHtml, brandedAuth)) {
@@ -1099,6 +1104,20 @@ class FireflySupportTest {
             assertTrue(html.contains("--color-accent: var(--ff-accent);"))
             assertTrue(html.contains("--color-heading: var(--ff-heading);"))
             assertTrue(html.contains("--color-surface: var(--ff-surface);"))
+            assertTrue(html.contains("--ff-success: #16a34a;"))
+            assertTrue(html.contains("--ff-warning: #d97706;"))
+            assertTrue(html.contains("--ff-danger: #dc2626;"))
+            assertTrue(html.contains("--ff-info: #2563eb;"))
+            assertTrue(html.contains("--ff-success-500: var(--ff-success);"))
+            assertTrue(html.contains("--ff-warning-500: var(--ff-warning);"))
+            assertTrue(html.contains("--ff-danger-500: var(--ff-danger);"))
+            assertTrue(html.contains("--ff-info-500: var(--ff-info);"))
+            assertTrue(html.contains("--ff-gray-500: var(--ff-body-subtle);"))
+            assertTrue(html.contains("--color-success: var(--ff-success);"))
+            assertTrue(html.contains("--color-warning: var(--ff-warning);"))
+            assertTrue(html.contains("--color-danger: var(--ff-danger);"))
+            assertTrue(html.contains("--color-info: var(--ff-info);"))
+            assertTrue(html.contains("--color-gray: var(--ff-body-subtle);"))
             assertTrue(html.contains("color-mix(in srgb, var(--ff-primary) 8%, white)"))
             assertTrue(html.contains("color-mix(in srgb, var(--ff-primary) 74%, white)"))
             assertTrue(html.contains("color-mix(in srgb, var(--ff-accent) 84%, black)"))
@@ -1107,19 +1126,34 @@ class FireflySupportTest {
             val themeEnd = html.indexOf("}", themeStart)
             assertTrue(themeStart >= 0 && themeEnd > themeStart)
             assertFalse(html.substring(themeStart, themeEnd).contains("#"))
-            for (step in listOf(50, 100, 200, 300, 400, 500, 600, 700, 800, 900)) {
-                assertTrue(html.contains("--color-primary-$step: var(--ff-primary-$step);"))
-                assertTrue(html.contains("--color-accent-$step: var(--ff-accent-$step);"))
-                assertTrue(html.contains("--ff-primary-$step:"))
-                assertTrue(html.contains("--ff-accent-$step:"))
+            val scales = listOf(
+                "primary" to "--ff-primary",
+                "accent" to "--ff-accent",
+                "success" to "--ff-success",
+                "warning" to "--ff-warning",
+                "danger" to "--ff-danger",
+                "info" to "--ff-info",
+                "gray" to "--ff-body-subtle",
+            )
+            for ((name, source) in scales) {
+                for (step in listOf(50, 100, 200, 300, 400, 500, 600, 700, 800, 900)) {
+                    assertTrue(html.contains("--color-$name-$step: var(--ff-$name-$step);"))
+                    assertTrue(html.contains("--ff-$name-$step:"))
+                }
+                assertTrue(html.contains("--ff-$name-500: var($source);"))
             }
         }
 
         val off = Panel().render()
-        assertFalse(off.contains("--color-primary-500"))
-        assertFalse(off.contains("--color-accent-500"))
-        assertFalse(off.contains("--ff-primary-500"))
-        assertFalse(off.contains("--ff-accent-500"))
+        for (name in listOf("primary", "accent", "success", "warning", "danger", "info", "gray")) {
+            assertFalse(off.contains("--color-$name-500"))
+            assertFalse(off.contains("--ff-$name-500"))
+            assertFalse(off.contains("--color-$name:"))
+        }
+        assertFalse(off.contains("--ff-success:"))
+        assertFalse(off.contains("--ff-warning:"))
+        assertFalse(off.contains("--ff-danger:"))
+        assertFalse(off.contains("--ff-info:"))
         assertFalse(off.contains("@theme inline"))
         assertFalse(off.contains("text/tailwindcss"))
         assertFalse(off.contains("/_firefly/tailwind.js"))

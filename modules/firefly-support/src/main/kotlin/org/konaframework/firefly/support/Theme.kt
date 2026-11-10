@@ -29,8 +29,9 @@ class ThemeTokens(
  * Classes are the way to reskin a region.
  *
  * [useTailwind] loads Tailwind for hook classes and for `@apply` in [stylesheet].
- * That runtime registers `primary` and `accent` scales from `--ff-primary` and
- * `--ff-accent`, plus the raw `heading` and `surface` tokens.
+ * That runtime registers scales for the panel colors: primary, accent, success,
+ * warning, danger, info, and gray. `500` is the panel variable. Raw `heading`
+ * and `surface` tokens are colors too.
  * [googleFonts] loads those families on the panel and the sign-in page.
  * Both stay off until a theme overrides them.
  */
@@ -58,7 +59,8 @@ open class FireflyTheme {
     /**
      * When true, the panel and the sign-in page load the Tailwind runtime.
      * Hook classes such as `bg-primary-800` and `@apply` in [stylesheet] both apply.
-     * `primary-500` is `--ff-primary` and `accent-500` is `--ff-accent`.
+     * `primary-500` is `--ff-primary`, `accent-500` is `--ff-accent`, and the same
+     * is true for success, warning, danger, info, and gray.
      * False leaves the stock panel CSS alone.
      */
     open fun useTailwind(): Boolean = false
@@ -280,18 +282,40 @@ internal fun googleFontsHref(families: List<String>): String? {
     return "https://fonts.googleapis.com/css2?$query"
 }
 
-/** `primary` and `accent` scales. The value is the existing brand variable. */
+/**
+ * Status colors the chrome already paints (stats, callouts, notifications).
+ * They are not custom properties yet, so Tailwind defines them here and a later
+ * rule can replace one. Gray is the existing `--ff-body-subtle`.
+ */
+private val SEMANTIC_COLOR_DEFAULTS = listOf(
+    "--ff-success" to "#16a34a",
+    "--ff-warning" to "#d97706",
+    "--ff-danger" to "#dc2626",
+    "--ff-info" to "#2563eb",
+)
+
+/** Each scale's 500 step is this variable. */
 private val BRAND_COLOR_SCALES = listOf(
     "primary" to "--ff-primary",
     "accent" to "--ff-accent",
+    "success" to "--ff-success",
+    "warning" to "--ff-warning",
+    "danger" to "--ff-danger",
+    "info" to "--ff-info",
+    "gray" to "--ff-body-subtle",
 )
 
-/** Raw tokens that already exist on `.ff-panel` and `.ff-auth`. */
+/** Unsuffixed utilities (`bg-primary`, `text-danger`) for variables that already exist. */
 private val THEME_COLOR_TOKENS = listOf(
     "primary" to "--ff-primary",
     "accent" to "--ff-accent",
     "heading" to "--ff-heading",
     "surface" to "--ff-surface",
+    "success" to "--ff-success",
+    "warning" to "--ff-warning",
+    "danger" to "--ff-danger",
+    "info" to "--ff-info",
+    "gray" to "--ff-body-subtle",
 )
 
 /**
@@ -321,6 +345,13 @@ private fun brandShadeValue(source: String, step: Int, percent: Int): String {
 private fun brandColorScaleCss(): String = buildString {
     appendLine(".ff-panel,")
     appendLine(".ff-auth {")
+    for ((variable, hex) in SEMANTIC_COLOR_DEFAULTS) {
+        append("  ")
+        append(variable)
+        append(": ")
+        append(hex)
+        appendLine(";")
+    }
     for ((name, source) in BRAND_COLOR_SCALES) {
         for ((step, percent) in BRAND_SHADES) {
             append("  --ff-")
@@ -376,8 +407,8 @@ ${brandColorThemeCss()}</style>"""
  * Browser runtime plus a stylesheet source that imports Tailwind utilities
  * without the page reset. A non-blank [href] is fetched and compiled so
  * `@apply` in that file runs. Hook classes are already on the chrome elements,
- * and the runtime reads those class attributes. `primary` and `accent` scales
- * point at the panel brand variables, so `primary-500` stays `--ff-primary`.
+ * and the runtime reads those class attributes. Each `*-500` utility is the
+ * panel variable for that color (`--ff-primary`, `--ff-success`, and the rest).
  */
 internal fun tailwindHead(href: String): String {
     val script = """<script src="${FireflyTailwind.SCRIPT}"></script>"""
