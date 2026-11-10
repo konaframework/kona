@@ -167,7 +167,9 @@ class S3Adapter @JvmOverloads constructor(
             }
         }
         for (dir in directories) {
-            if (!dir.startsWith(prefix.trimEnd('/')) && prefix.isNotEmpty()) continue
+            val trimmed = prefix.trimEnd('/')
+            // An empty prefix matches every key, so check it first; the other order never takes the empty side.
+            if (trimmed.isNotEmpty() && !dir.startsWith(trimmed)) continue
             val relative = unprefixKey(dir)
             if (relative.isEmpty()) continue
             found += if (base.isEmpty()) relative else base + relative.removePrefix(base)
