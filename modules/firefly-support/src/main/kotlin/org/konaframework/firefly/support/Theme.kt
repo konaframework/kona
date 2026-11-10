@@ -50,18 +50,20 @@ open class FireflyTheme {
 
     /**
      * Stylesheet URL (`/css/midnight.css` or an absolute URL), or null.
-     * A non-blank value is linked from the document `<head>`.
-     * When [useTailwind] is true, that file is compiled in the browser instead
-     * of linked as plain CSS, so `@apply` in it works.
+     * A non-blank value is linked from the document `<head>` before the chrome.
+     * When [useTailwind] is true, that file is fetched in the head and compiled
+     * before the chrome is shown, so `@apply` in it does not arrive late.
      */
     open fun stylesheet(): String? = null
 
     /**
-     * When true, the panel and the sign-in page load the Tailwind runtime.
-     * Hook classes such as `bg-primary-800` and `@apply` in [stylesheet] both apply.
-     * `primary-500` is `--ff-primary`, `accent-500` is `--ff-accent`, and the same
-     * is true for success, warning, danger, info, and gray.
-     * False leaves the stock panel CSS alone.
+     * When true, the panel and the sign-in page load the Tailwind runtime in
+     * `<head>` before the chrome. Hook classes such as `bg-primary-800` and
+     * `@apply` in [stylesheet] both apply. The runtime compiles on a promise,
+     * so the document stays on the theme background until that compile has
+     * seen the chrome. `primary-500` is `--ff-primary`, `accent-500` is
+     * `--ff-accent`, and the same is true for success, warning, danger, info,
+     * and gray. False leaves the stock panel CSS alone and adds no wait.
      */
     open fun useTailwind(): Boolean = false
 
@@ -292,34 +294,68 @@ internal fun escapeThemeAttr(value: String): String = buildString {
 }
 
 /**
- * Inserts theme head tags before `</head>`: the Google font stylesheet, the
- * Tailwind runtime, and the plain stylesheet link. A theme that asks for none
- * of those, and a document with no head, is returned as-is.
+ * Inserts theme head tags before `</head>`, and when Tailwind is on, a reveal
+ * script before `</body>`. A theme that asks for none of those, and a document
+ * with no head, is returned as-is.
+ *
+ * The Tailwind browser build compiles on a promise after the parser continues,
+ * and it only reads `style type="text/tailwindcss"`. A plain link would paint
+ * the stock chrome, then pop `@apply` in. The head therefore fetches that file
+ * before the runtime script, and [themePaintScript] keeps the body hidden on
+ * the theme background until the compile has seen the chrome.
  */
 internal fun withThemeStylesheet(html: String, theme: FireflyTheme): String {
-    val extra = themeHeadExtra(theme)
-    if (extra.isEmpty()) return html
-    val head = html.indexOf("</head>")
-    if (head < 0) return html
-    return html.substring(0, head) + extra + "\n" + html.substring(head)
+    val extra = themeHeadExtra(theme, html.contains("<body class=\"ff-auth\""))
+    var result = html
+    if (extra.isNotEmpty()) {
+        val head = result.indexOf("</head>")
+        if (head >= 0) {
+            result = result.substring(0, head) + extra + "\n" + result.substring(head)
+        }
+    }
+    if (theme.useTailwind()) {
+        val body = result.indexOf("</body>")
+        if (body >= 0) {
+            result = result.substring(0, body) + themePaintScript() + "\n" + result.substring(body)
+        }
+    }
+    return result
 }
 
-internal fun themeHeadExtra(theme: FireflyTheme): String {
+internal fun themeHeadExtra(theme: FireflyTheme, authDocument: Boolean): String {
     val parts = ArrayList<String>()
+    val href = theme.stylesheet()?.trim().orEmpty()
+    if (theme.useTailwind()) {
+        parts.add(themeHold(theme, authDocument))
+        parts.add(tailwindHead(href))
+    }
     val fonts = googleFontsHref(theme.googleFonts())
     if (fonts != null) {
         parts.add("""<link rel="preconnect" href="https://fonts.googleapis.com" />""")
         parts.add("""<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />""")
         parts.add("""<link rel="stylesheet" href="${escapeThemeAttr(fonts)}" />""")
     }
-    val href = theme.stylesheet()?.trim().orEmpty()
-    if (theme.useTailwind()) {
-        parts.add(tailwindHead(href))
-    } else if (href.isNotEmpty()) {
+    if (!theme.useTailwind() && href.isNotEmpty()) {
         parts.add("""<link rel="stylesheet" href="${escapeThemeAttr(href)}" />""")
     }
     return parts.joinToString("\n")
 }
+
+/**
+ * Hides the chrome without a blank white wait. The early dark-mode script has
+ * already set `ff-dark`. Auth keeps the light canvas in dark mode because the
+ * guest body paints that color inline; the panel shell covers the viewport,
+ * so its hold uses the dark surface.
+ */
+private fun themeHold(theme: FireflyTheme, authDocument: Boolean): String {
+    val light = holdColor(theme.tokens().bodyBackground)
+    val dark = holdColor(if (authDocument) light else theme.tokens().darkSurface)
+    return """<script>(function(){document.documentElement.classList.add("ff-theme-pending");})();</script>
+<style id="ff-theme-hold">html.ff-theme-pending{background:$light}html.ff-dark.ff-theme-pending{background:$dark}html.ff-theme-pending body{visibility:hidden}</style>"""
+}
+
+/** Drops characters that would close the hold style. Theme colors are otherwise copied through. */
+private fun holdColor(value: String): String = value.replace("<", "").replace(">", "")
 
 /**
  * Google CSS API URL for [families], or null when every name is blank.
@@ -463,20 +499,30 @@ ${brandColorScaleCss()}
 </style>
 <style type="text/tailwindcss">@import "tailwindcss/theme";
 @import "tailwindcss/utilities";
-${brandColorThemeCss()}</style>"""
+${brandColorThemeCss()}
+@utility ff-theme-paint { opacity: 1; }</style>"""
 
 /**
- * Browser runtime plus a stylesheet source that imports Tailwind utilities
- * without the page reset. A non-blank [href] is fetched and compiled so
- * `@apply` in that file runs. Hook classes are already on the chrome elements,
- * and the runtime reads those class attributes. Each `*-500` utility is the
- * panel variable for that color (`--ff-primary`, `--ff-success`, and the rest).
+ * Blocking runtime in the head, after the theme sheet when [href] is set.
+ * The runtime's first build reads every `style type="text/tailwindcss"` already
+ * in the document, and that read happens in a microtask after the script tag.
+ * A synchronous fetch in the previous script puts `@apply` in that read.
+ * `ff-theme-paint` is emitted only once the class is on an element, which is
+ * how the reveal script knows the compile has seen the chrome.
  */
 internal fun tailwindHead(href: String): String {
-    val script = """<script src="${FireflyTailwind.SCRIPT}"></script>"""
     val source = tailwindSource()
+    val script = """<script src="${FireflyTailwind.SCRIPT}"></script>"""
     if (href.isEmpty()) return source + "\n" + script
     val loader =
-        """<script data-ff-tailwind-href="${escapeThemeAttr(href)}">(function(){var href=document.currentScript.getAttribute("data-ff-tailwind-href");fetch(href,{credentials:"same-origin"}).then(function(r){return r.text();}).then(function(css){var el=document.createElement("style");el.setAttribute("type","text/tailwindcss");el.textContent=css;document.head.appendChild(el);}).catch(function(){});})();</script>"""
-    return source + "\n" + script + "\n" + loader
+        """<script data-ff-tailwind-href="${escapeThemeAttr(href)}">(function(){var href=document.currentScript.getAttribute("data-ff-tailwind-href");if(!href)return;document.documentElement.setAttribute("data-ff-theme-href",href);function inject(css){var el=document.createElement("style");el.setAttribute("type","text/tailwindcss");el.setAttribute("data-ff-theme-sheet","");el.textContent=css;document.head.appendChild(el);}var synced=false;try{var xhr=new XMLHttpRequest();xhr.open("GET",href,false);xhr.send(null);if(xhr.status>=200&&xhr.status<300){inject(xhr.responseText);document.documentElement.setAttribute("data-ff-theme-sync","");synced=true;}}catch(e){}if(!synced){fetch(href,{credentials:"same-origin"}).then(function(r){if(!r.ok)throw new Error("theme");return r.text();}).then(inject).catch(function(){document.documentElement.setAttribute("data-ff-theme-failed","");document.head.appendChild(document.createComment("ff-theme-failed"));});}})();</script>"""
+    return source + "\n" + loader + "\n" + script
 }
+
+/**
+ * Runs after the chrome is parsed. Reveals the document once the runtime's
+ * generated style contains `ff-theme-paint`, which means that build scanned
+ * the chrome. A failed sheet or a missing runtime still reveals.
+ */
+private fun themePaintScript(): String =
+    """<script data-ff-theme-reveal>(function(){var root=document.documentElement;if(!root.classList.contains("ff-theme-pending"))return;var revealed=false;function reveal(){if(revealed)return;revealed=true;root.classList.remove("ff-theme-pending");}function generated(){var nodes=document.head?document.head.querySelectorAll("style"):[];var last=null;for(var i=0;i<nodes.length;i++){var s=nodes[i];if(s.getAttribute("type")==="text/tailwindcss")continue;if(s.id==="ff-theme-hold")continue;last=s;}return last;}function sheetReady(){if(root.hasAttribute("data-ff-theme-failed"))return true;if(!root.hasAttribute("data-ff-theme-href"))return true;return !!document.head.querySelector("style[data-ff-theme-sheet]");}var kicked=false;var obs=new MutationObserver(function(){check();});function check(){if(revealed)return;if(!sheetReady())return;var out=generated();if(!out)return;if(!kicked){kicked=true;if(document.body)document.body.classList.add("ff-theme-paint");}if((out.textContent||"").indexOf("ff-theme-paint")!==-1){obs.disconnect();reveal();}}obs.observe(document.head,{childList:true,subtree:true,characterData:true});obs.observe(root,{attributes:true,attributeFilter:["data-ff-theme-failed"]});check();setTimeout(function(){obs.disconnect();reveal();},4000);})();</script>"""
