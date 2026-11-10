@@ -362,6 +362,7 @@ export async function buildSidebar() {
         { label: 'Tenancy', translations: { es: 'Tenencia', fr: 'Multi-locataire', 'zh-CN': '多租户' }, slug: 'docs/firefly/tenancy' },
         { label: 'Plugins', translations: { es: 'Plugins', fr: 'Plugins', 'zh-CN': '插件' }, slug: 'docs/firefly/plugins' },
         { label: 'Import and export', translations: { es: 'Importación y exportación', fr: 'Import et export', 'zh-CN': '导入与导出' }, slug: 'docs/firefly/import-export' },
+        { label: 'Import action', translations: { es: 'Acción de importación', fr: 'Action d’import', 'zh-CN': '导入操作' }, slug: 'docs/firefly/import-action' },
         { label: 'Themes and CSS', translations: { es: 'Temas y CSS', fr: 'Thèmes et CSS', 'zh-CN': '主题与 CSS' }, slug: 'docs/firefly/themes' },
         { label: 'Panel chrome', translations: { es: 'Cromo del panel', fr: 'Chrome du panneau', 'zh-CN': '面板外观' }, slug: 'docs/firefly/chrome' },
         { label: 'Dialog', translations: { es: 'Diálogo', fr: 'Dialogue', 'zh-CN': '对话框' }, slug: 'docs/firefly/dialog' },

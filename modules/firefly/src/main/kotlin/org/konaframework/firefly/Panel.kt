@@ -8,6 +8,13 @@ import org.konaframework.firefly.actions.ActionResult
 import org.konaframework.firefly.tables.RecordScopes
 import org.konaframework.firefly.forms.Field
 import org.konaframework.firefly.forms.FieldValidation
+import org.konaframework.firefly.imports.ImportContext
+import org.konaframework.firefly.imports.ImportPageModel
+import org.konaframework.firefly.imports.ImportPaths
+import org.konaframework.firefly.imports.ImportResult
+import org.konaframework.firefly.imports.ImportRuntime
+import org.konaframework.firefly.imports.Importer
+import org.konaframework.firefly.imports.validateImporter
 import org.konaframework.firefly.notifications.FireflyNotification
 import org.konaframework.firefly.notifications.FireflyToasts
 import org.konaframework.firefly.schemas.Get
@@ -31,6 +38,7 @@ import org.konaframework.firefly.support.resolveEffectiveBranding
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.schemas.Text
 import org.konaframework.firefly.schemas.htmlAttributes
+import org.konaframework.firefly.widgets.Breadcrumb
 import org.konaframework.firefly.widgets.Widget
 import org.konaframework.http.Handler
 import org.konaframework.http.Request
@@ -95,6 +103,8 @@ open class Panel {
     private val tenantList = ArrayList<Tenant>()
     private var tenancy: TenantConfig? = null
     private val plugins = ArrayList<FireflyPlugin>()
+    private val importImporters = ArrayList<Importer>()
+    private var importMaxBytes: Int = 2_000_000
     private var mounted: Boolean = false
     private var resolvedPrefix: String = "admin"
     private var resolvedId: String = "admin"
@@ -429,6 +439,29 @@ open class Panel {
     /** Registers each plugin. Same as calling [plugin] once per entry. */
     fun plugins(vararg plugins: FireflyPlugin): Panel = apply {
         for (entry in plugins) plugin(entry)
+    }
+
+    /**
+     * Mounts `{panel}/import` for these importers and remembers them for [org.konaframework.firefly.imports.ImportAction].
+     * The page is not a navigation item. A later call replaces the list. Empty registers nothing.
+     * [importMaxBytes] defaults to 2 MB.
+     */
+    fun imports(vararg importers: Importer): Panel = apply {
+        for (importer in importers) validateImporter(importer)
+        val seen = HashSet<String>()
+        for (importer in importers) {
+            if (!seen.add(importer.key)) {
+                throw FireflyException("Import [${importer.key}] is already registered")
+            }
+        }
+        importImporters.clear()
+        importImporters.addAll(importers)
+    }
+
+    /** Largest upload accepted by the import page, in bytes. */
+    fun importMaxBytes(bytes: Int): Panel = apply {
+        if (bytes < 1) throw FireflyException("Import max bytes must be positive")
+        importMaxBytes = bytes
     }
 
     fun mount(router: Router): Panel = mount(router, emptyMap())
@@ -881,6 +914,22 @@ open class Panel {
                 tenantProfileRoute(profile, request)
             }.forTenant(null))
         }
+        if (importImporters.isNotEmpty()) {
+            ImportPaths.remember(plainUri("import"))
+            planned.add(Planned("GET", uri("import"), routeName("import")) { request -> showImport(request) })
+            planned.add(Planned("POST", uri("import"), routeName("import.upload")) { request ->
+                postImport(request) { it.upload(request) }
+            })
+            planned.add(Planned("POST", uri("import/run"), routeName("import.run")) { request ->
+                postImport(request) { it.run(request) }
+            })
+            planned.add(Planned("POST", uri("import/cancel"), routeName("import.cancel")) { request ->
+                postImport(request) { it.cancel(request) }
+            })
+            planned.add(Planned("GET", uri("import/template"), routeName("import.template")) { request ->
+                importDenied(request) ?: importResponse(request, runtime(request).template(request))
+            })
+        }
         tagTenant(planned, start, null)
     }
 
@@ -1186,8 +1235,69 @@ open class Panel {
         return inTenant(request) {
             val allowed = if (resource == null) page.canAccess() else resource.allowsPage(page, recordKey(request))
             if (!allowed) return@inTenant forbidden("This action is unauthorized.")
-            Response.html(draw(request, emptyMap(), page.render(pageState(request, dashboardExtras(extras)))))
+            val body = ImportContext.use(at("import")) {
+                page.render(pageState(request, dashboardExtras(extras)))
+            }
+            Response.html(draw(request, emptyMap(), body))
         }
+    }
+
+    private fun showImport(request: Request): Response {
+        val denied = importDenied(request)
+        if (denied != null) return denied
+        return importResponse(request, runtime(request).show(request))
+    }
+
+    private fun postImport(request: Request, handle: (ImportRuntime) -> ImportResult): Response {
+        val denied = importDenied(request)
+        if (denied != null) return denied
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
+        return importResponse(request, handle(runtime(request)))
+    }
+
+    private fun importDenied(request: Request): Response? {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(plainUri("login"))
+        }
+        return null
+    }
+
+    private fun runtime(request: Request): ImportRuntime =
+        ImportRuntime(
+            importers = importImporters.toList(),
+            maxBytes = importMaxBytes,
+            pagePath = at("import"),
+            csrfField = FireflyCsrf.field(FireflyCsrf.ensure(request)),
+        )
+
+    private fun importResponse(request: Request, result: ImportResult): Response = when (result) {
+        is ImportResult.Page -> renderImport(request, result.model)
+        is ImportResult.Redirect -> Response.redirect(result.location)
+        is ImportResult.Download -> Response(200, result.body)
+            .header("Content-Type", "text/csv; charset=utf-8")
+            .header("Content-Disposition", "attachment; filename=\"${result.filename}\"")
+        is ImportResult.Text -> Response.html(result.body, result.status)
+    }
+
+    private fun renderImport(request: Request, model: ImportPageModel): Response {
+        val page = CustomPage("import")
+        page.shouldRegisterNavigation(false)
+        page.title(model.title)
+        val home = at("")
+        if (model.listLabel.isEmpty()) {
+            page.breadcrumbs(Breadcrumb.make("Dashboard", home), Breadcrumb.make("Import"))
+        } else {
+            page.breadcrumbs(
+                Breadcrumb.make("Dashboard", home),
+                Breadcrumb.make(model.listLabel, model.listPath),
+                Breadcrumb.make("Import"),
+            )
+        }
+        page.infolistHtml(model.html)
+        return Response.html(draw(request, emptyMap(), page.render(pageState(request, emptyMap()))))
     }
 
     /** The record a resource page names in `id` / `record`. */

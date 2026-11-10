@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Put an export or import action on a page header or a table when you need to move rows as CSV. Export writes the file. Import reads it back. Both jobs implement `ShouldQueue`, so a queue `Bus` can run them. Pass `null` as the bus and `handle()` runs on the caller.
 
+That import action opens an empty dialog and parses a whole CSV into maps. It does not match columns, and it does not know which field is the match key. For a header button that uploads a CSV or Excel file, asks the user to match columns, and lets the app create or update records, use an [Import action](/docs/firefly/import-action/).
+
 <FireflyShot file="section-import-export.png" description="Resource toolbar used for import and export." />
 
 The dialog stays closed until Alpine opens it, the same as every other Firefly dialog.
