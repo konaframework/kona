@@ -97,6 +97,7 @@ public final class AppSettings {
             s.logo,
             s.logoDark,
             s.logoHeight,
+            null,
             display,
             s.copyright,
             null,

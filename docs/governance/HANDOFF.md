@@ -133,7 +133,7 @@ Do **not** commit desk into kona. Restart serve yourself after framework rebuild
 | Item | Value |
 |------|--------|
 | Default branch | `main` — green; never push directly |
-| Repo version | `kona.version` **0.5.0** (post-Firefly polish: nav, panel hook, Cadence/HTTP deepen). Tag `v0.5.0` when cutting the Central release. |
+| Repo version | `kona.version` **0.5.1** (brand logo size, default table sort by a model attribute). `v0.5.0` is the uploaded Central cut awaiting Portal Publish; do not tag `v0.5.1` until a release cut. |
 | On `main` | Firefly M28–M38 + polish (panel, resources, relation managers, tables/filters, docs, icons); Wire M26 remains on prior `0.3.0` |
 | Active / queued | Confirm `MILESTONES.md` before starting a new milestone. Non-colliding work may parallel |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
@@ -192,7 +192,7 @@ Schemas, forms, infolists, actions, and tables can render on their own for tests
 
 **Remonorepo done (#138):** Wire + Inertia are in-tree (`modules/wire`, `modules/inertia`, samples, `js/wire`). Docs unified into `apps/docs` (Frontend → Wire / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/wire/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-wire-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
 
-**Repo version:** `gradle.properties` `kona.version` is **0.5.0**. Confirm Maven Central after Portal **Publish** before describing the version as downloadable. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
+**Repo version:** `gradle.properties` `kona.version` is **0.5.1** (not tagged). `v0.5.0` remains the uploaded release; confirm Maven Central after Portal **Publish** before describing `0.5.0` as downloadable. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
 
 **Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Wire parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Wire templates.
 

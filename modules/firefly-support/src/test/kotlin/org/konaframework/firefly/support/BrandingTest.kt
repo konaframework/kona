@@ -66,6 +66,7 @@ class BrandingTest {
                 .logo("/b.svg")
                 .logoDark("/bd.svg")
                 .logoHeight("2.5rem")
+                .logoWidth("4rem")
                 .brandDisplay(BrandDisplay.LOGO)
                 .copyright("© B")
                 .googleFont(GoogleFontOptions("Poppins"))
@@ -230,6 +231,99 @@ class BrandingTest {
         )
         buildBrandingCss(FireflyBranding.DEFAULT.copy(primaryColor = "zzz", accentColor = "zzz"))
         BrandingOverrideContext("a", "b", "c")
+
+        assertEquals("2rem", resolveBranding(null).logoHeight)
+        assertEquals("auto", resolveBranding(null).logoWidth)
+        val heightOnly = resolveBranding(PanelBranding(logoHeight = "40px"))
+        assertEquals("40px", heightOnly.logoHeight)
+        assertEquals("auto", heightOnly.logoWidth)
+        val widthOnly = resolveBranding(PanelBranding(logoWidth = "8rem"))
+        assertEquals("auto", widthOnly.logoHeight)
+        assertEquals("8rem", widthOnly.logoWidth)
+        val both = resolveBranding(PanelBranding(logoHeight = 32, logoWidth = "4rem"))
+        assertEquals("32px", both.logoHeight)
+        assertEquals("4rem", both.logoWidth)
+        assertEquals("2rem" to "auto", resolveLogoBox(null, null))
+        assertEquals("36px" to "auto", resolveLogoBox(36, " "))
+        assertEquals("auto" to "2rem", resolveLogoBox(0, "2rem"))
+        assertEquals("1px" to "2px", resolveLogoBox("1px", "2px"))
+        assertEquals("2rem" to "auto", resolveLogoBox(-1, Double.NaN))
+
+        val widthOverride = resolveEffectiveBranding(PanelBranding(name = "P"), PanelBranding(logoWidth = "4rem"))
+        assertEquals("auto", widthOverride.logoHeight)
+        assertEquals("4rem", widthOverride.logoWidth)
+        val keptHeight = resolveEffectiveBranding(
+            PanelBranding(name = "P", logoHeight = "40px"),
+            PanelBranding(logoWidth = "3rem"),
+        )
+        assertEquals("40px", keptHeight.logoHeight)
+        assertEquals("3rem", keptHeight.logoWidth)
+        val keptWidth = resolveEffectiveBranding(
+            PanelBranding(name = "P", logoWidth = "5rem"),
+            PanelBranding(logoHeight = "28px"),
+        )
+        assertEquals("28px", keptWidth.logoHeight)
+        assertEquals("5rem", keptWidth.logoWidth)
+        val heightOnlyOverride = resolveEffectiveBranding(PanelBranding(name = "P"), PanelBranding(logoHeight = "28px"))
+        assertEquals("28px", heightOnlyOverride.logoHeight)
+        assertEquals("auto", heightOnlyOverride.logoWidth)
+        val bothOverride = resolveEffectiveBranding(
+            PanelBranding(name = "P", logoHeight = "10px", logoWidth = "10px"),
+            PanelBranding(logoHeight = "22px", logoWidth = "2rem"),
+        )
+        assertEquals("22px", bothOverride.logoHeight)
+        assertEquals("2rem", bothOverride.logoWidth)
+        val untouched = resolveEffectiveBranding(
+            PanelBranding(name = "P", logoHeight = "18px", logoWidth = "1rem"),
+            PanelBranding(name = "Q"),
+        )
+        assertEquals("18px", untouched.logoHeight)
+        assertEquals("1rem", untouched.logoWidth)
+        assertEquals("40px", resolveEffectiveBranding(
+            PanelBranding(name = "P", logoHeight = "40px"),
+            PanelBranding(logoHeight = 0, logoWidth = -1),
+        ).logoHeight)
+        assertEquals("auto", resolveEffectiveBranding(null, PanelBranding(logoWidth = "6rem")).logoHeight)
+        assertEquals("6rem", resolveEffectiveBranding(null, PanelBranding(logoWidth = "6rem")).logoWidth)
+        assertEquals(
+            "30px",
+            resolveEffectiveBranding(PanelBranding(logoHeight = "30px"), PanelBranding(logoWidth = "  ")).logoHeight,
+        )
+
+        assertEquals("auto", normalizeLogoWidth(null))
+        assertEquals("12px", normalizeLogoWidth(12))
+        assertEquals("4rem", normalizeLogoWidth("4rem"))
+        assertEquals("auto", normalizeLogoWidth(-2))
+        assertEquals("auto", normalizeLogoWidth(""))
+        assertEquals("8px", normalizeLogoWidth("8"))
+        assertEquals("1.5px", normalizeLogoWidth(1.5))
+        assertEquals("auto", normalizeLogoWidth(Double.NaN))
+        assertEquals("auto", normalizeLogoWidth(Double.POSITIVE_INFINITY))
+        assertEquals("auto", normalizeLogoWidth("  "))
+
+        assertEquals(
+            "5rem",
+            mergeBranding(
+                FireflyBranding.DEFAULT.copy(logoWidth = "5rem", logoHeight = "3rem"),
+                FireflyBranding.DEFAULT.copy(logoWidth = " ", logoHeight = " "),
+            ).logoWidth,
+        )
+        assertEquals(
+            "6rem",
+            mergeBranding(
+                FireflyBranding.DEFAULT,
+                FireflyBranding.DEFAULT.copy(logoWidth = "6rem", logoHeight = "4rem"),
+            ).logoWidth,
+        )
+        assertEquals("9rem", PanelBranding.builder().logoWidth("9rem").logoHeight("2rem").build().logoWidth)
+        assertEquals("2rem", mergePanelBranding(PanelBranding(logoWidth = "1rem"), PanelBranding(logoWidth = "2rem"))!!.logoWidth)
+        assertEquals("1rem", mergePanelBranding(PanelBranding(logoWidth = "1rem"), PanelBranding(name = "N"))!!.logoWidth)
+        assertTrue(buildBrandingCss(widthOnly).contains("--ff-logo-width: 8rem"))
+        assertTrue(buildBrandingCss(widthOnly).contains("--ff-logo-height: auto"))
+        assertTrue(Stylesheet.render(KonaTheme(), widthOnly).contains("--ff-logo-width: 8rem"))
+        assertTrue(Stylesheet.render(KonaTheme(), null).contains("--ff-logo-width: auto"))
+        assertTrue(brandMarkHtml(widthOnly.copy(showLogo = true, logoUrl = "/w.svg")).contains("ff-brand-logo"))
+
         assertNotNull(FireflyBranding.DEFAULT)
     }
 }

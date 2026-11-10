@@ -1029,7 +1029,6 @@ class FireflyTablesTest {
         assertThrows(FireflyException::class.java) { calls.page(0) }
         assertThrows(FireflyException::class.java) { calls.perPage(0) }
         assertThrows(FireflyException::class.java) { calls.poll("soon") }
-        assertThrows(FireflyException::class.java) { calls.sort("missing") }
         assertThrows(FireflyException::class.java) { calls.sort("name", "sideways") }
         assertThrows(FireflyException::class.java) { calls.sort("on") }
         assertThrows(FireflyException::class.java) { calls.filter("missing", "x") }
@@ -1267,6 +1266,24 @@ class FireflyTablesTest {
                 .render()
         assertTrue(stack.contains("""data-ff-record-url="view?id=1""""), stack)
         assertTrue(stack.contains("ff-table-card"), stack)
+    }
+
+    @Test
+    fun defaultSortOrdersByAnAttributeThatIsNotAColumn() {
+        val rows = listOf(
+            mapOf("id" to 2, "name" to "Bea"),
+            mapOf("id" to 10, "name" to "Cy"),
+            mapOf("id" to 1, "name" to "Ada"),
+        )
+        val table = Table.memory(rows).columns(TextColumn.make("name"))
+        table.sort("id", "desc")
+        assertEquals(listOf(10, 2, 1), table.load().records.map { it["id"] })
+        assertFalse(table.render().contains("data-ff-sort-column=\"id\""))
+
+        val denied = assertThrows(FireflyException::class.java) { table.sort("name", "asc") }
+        assertTrue(denied.message!!.contains("not sortable"))
+        val sideways = assertThrows(FireflyException::class.java) { table.sort("id", "sideways") }
+        assertTrue(sideways.message!!.contains("asc or desc"))
     }
 }
 

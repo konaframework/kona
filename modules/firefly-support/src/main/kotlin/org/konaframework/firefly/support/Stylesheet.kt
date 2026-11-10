@@ -25,16 +25,19 @@ object Stylesheet {
         val accent: String
         val font: String
         val logoHeight: String
+        val logoWidth: String
         if (branding == null) {
             primary = tokens.primary
             accent = tokens.accent
             font = tokens.font
             logoHeight = "2rem"
+            logoWidth = "auto"
         } else {
             primary = resolveThemeColor(branding.primaryColor, tokens.primary)
             accent = resolveThemeColor(branding.accentColor, tokens.accent)
             font = if (branding.fontFamily.isBlank()) tokens.font else branding.fontFamily
             logoHeight = branding.logoHeight
+            logoWidth = branding.logoWidth
         }
         val variables = """
             .ff-panel,
@@ -49,6 +52,7 @@ object Stylesheet {
               --ff-topbar-height: ${tokens.topbarHeight};
               --ff-body: ${tokens.bodyBackground};
               --ff-logo-height: $logoHeight;
+              --ff-logo-width: $logoWidth;
             }
             .ff-panel {
               background: var(--ff-surface);

@@ -92,7 +92,7 @@ Firefly does not scan the classpath for pages, resources, or widgets. Register t
 | Method | What you get |
 |--------|----------------|
 | `id` / `path` / `brand` / `domain` | String or `Get` closure. Id defaults to `admin`. If `path` is omitted, the prefix is the id. Brand defaults to `Firefly` |
-| `branding(PanelBranding)` / `logo` / `logoDark` / `logoHeight` / `brandDisplay` | Chrome brand mark: name, light/dark logos, height, `BrandDisplay` (`BOTH` / `LOGO` / `NAME`), copyright, fonts, primary/accent colors. See [Branding](#branding) |
+| `branding(PanelBranding)` / `logo` / `logoDark` / `logoHeight` / `brandLogoHeight` / `brandLogoWidth` / `brandDisplay` | Chrome brand mark: name, light/dark logos, height or width, `BrandDisplay` (`BOTH` / `LOGO` / `NAME`), copyright, fonts, primary/accent colors. See [Branding](#branding) |
 | `resolveBrandingOverrides(...)` | Runtime overlay (settings DB, company logo). Merged over panel branding; fonts stay on panel defaults |
 | `profilePage(ProfilePage)` | Per-panel account page. See [Pages](/docs/firefly/pages/#profile) |
 | `navigation` / `topNavigation()` | `NavigationType` (`APP`, `INVERSE`, `SIDE`, `TOP`). Default `APP`. See [Navigation](/docs/firefly/navigation/) |
@@ -115,7 +115,9 @@ Firefly does not scan the classpath for pages, resources, or widgets. Register t
 
 ## Branding
 
-`brand("Desk")` still sets the display name. Prefer `branding(PanelBranding(...))` when you also want logos, copyright, or colors. Shorthand helpers: `logo`, `logoDark`, `logoHeight`, `brandLogoOnly()`, `brandNameOnly()`, `brandLogoAndName()`.
+`brand("Desk")` still sets the display name. Prefer `branding(PanelBranding(...))` when you also want logos, copyright, or colors. Shorthand helpers: `logo`, `logoDark`, `logoHeight`, `brandLogoHeight("32px")`, `brandLogoWidth("32px")`, `brandLogoOnly()`, `brandNameOnly()`, `brandLogoAndName()`.
+
+`brandLogoHeight` and `brandLogoWidth` set the logo in the sidebar, the top bar, and on auth. A CSS length (`32px`, `2rem`) is enough. Set one and the other axis stays `auto`, so the SVG keeps its aspect ratio. Set both when you want both. `logoHeight` is the same height control and also accepts a bare pixel number. The sidebar brand strip, top-bar brand, and auth brand use no vertical padding, so a taller icon is not clipped. Horizontal padding stays so the mark sits off the screen edge.
 
 Each chrome and auth render builds an effective `FireflyBranding`: panel defaults, then `resolveBrandingOverrides` when you set one. Overrides may change name, logos, height, display mode, copyright, and colors — not fonts (`googleFont` / `fontFamily` / `fontUrl` stay on the panel). Logo-only mode falls back to the name when no logo URL is set. When `copyright` is set, it appears in the sidebar footer and on auth screens.
 

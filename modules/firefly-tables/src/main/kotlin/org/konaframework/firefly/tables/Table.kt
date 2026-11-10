@@ -414,9 +414,17 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     fun search(term: String): Table<T, Q> = apply { searchTerm = term }
 
+    /**
+     * Orders the query. A name that is not a declared column is a record attribute
+     * (Filament `defaultSort`), so a resource can order by its primary key without
+     * a hidden column. A declared column must be [Column.sortable]; header clicks
+     * only emit links for those columns.
+     */
     fun sort(column: String, direction: String = "asc"): Table<T, Q> = apply {
-        val target = this.column(column)
-        if (!target.isSortable(tableCell())) throw FireflyException("Column [$column] is not sortable")
+        val declared = columnList.firstOrNull { it.name == column }
+        if (declared != null && !declared.isSortable(tableCell())) {
+            throw FireflyException("Column [$column] is not sortable")
+        }
         val normalized = direction.lowercase()
         if (normalized != "asc" && normalized != "desc") {
             throw FireflyException("Sort direction must be asc or desc")
@@ -722,7 +730,9 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         if (grouped != null) store.sort(query, grouped, "asc")
         val sorting = sortColumn
         if (sorting != null) {
-            store.sort(query, column(sorting).queryName(), sortDirection)
+            val declared = columnList.firstOrNull { it.name == sorting }
+            val attribute = if (declared == null) sorting else declared.queryName()
+            store.sort(query, attribute, sortDirection)
         }
         return query
     }
