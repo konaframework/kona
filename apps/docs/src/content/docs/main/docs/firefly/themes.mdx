@@ -5,7 +5,7 @@ description: "Create a Firefly theme, register it with theme(), and add classes 
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A theme is a subclass of `FireflyTheme` (`org.konaframework.firefly.support.FireflyTheme`). The panel already draws its layout: the sidebar, the top bar, the page, and the sign-in card. The theme adds CSS classes on that layout, and it can link one stylesheet. The layout stays the panel's own layout.
+A theme is a subclass of `FireflyTheme` (`org.konaframework.firefly.support.FireflyTheme`). The panel already draws its layout: the sidebar, the top bar, the page, and the sign-in card. The theme adds CSS classes on that layout, and it can link one stylesheet. The layout stays the panel's own layout. Tailwind and Google fonts stay off until the theme turns them on.
 
 A hook is a method on `FireflyTheme`, such as `sidebar()` or `brand()`. The method returns class names. Firefly appends those names onto one element the panel already renders. A hook that returns `""` leaves that element on the stock look.
 
@@ -25,7 +25,7 @@ That writes `src/main/kotlin/app/panels/admin/themes/MidnightTheme.kt`.
 
 `--lang=kotlin` or `--lang=java` chooses the language. `--lang=java` writes `src/main/java/app/panels/admin/themes/MidnightTheme.java`. When you omit `--lang`, Grind uses Java if the app already has a `.java` file under `src/main/java`, and Kotlin otherwise.
 
-The class extends `FireflyTheme`. `id()` returns `midnighttheme`. `stylesheet()` returns `null`. Every hook returns `""`.
+The class extends `FireflyTheme`. `id()` returns `midnighttheme`. `stylesheet()` returns `null`. Every hook returns `""`. `useTailwind()` is commented out, so a new theme does not load Tailwind.
 
 ## Register the theme
 
@@ -238,6 +238,113 @@ body.ff-auth .ff-auth-panel.midnight-card {
 ```
 
 The brand rule is on `.ff-sidebar-brand`, `.ff-topbar-brand`, and `.ff-auth-brand`, because `brand()` adds `midnight-brand` to all three. The mark and the name change together, and the gap between them is `0.35rem`.
+
+## Use Tailwind
+
+`useTailwind()` turns Tailwind on for this theme. It returns false until you override it, so a stock panel does not load Tailwind.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun useTailwind(): Boolean = true
+
+override fun stylesheet(): String? = "/css/midnight.css"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override public boolean useTailwind() { return true; }
+
+@Override public String stylesheet() { return "/css/midnight.css"; }
+```
+
+</TabItem>
+</Tabs>
+
+Write a utility in `public/css/midnight.css` with `@apply`:
+
+```css
+.ff-panel .ff-sidebar.midnight-sidebar {
+  @apply bg-slate-950 text-stone-100;
+}
+```
+
+Or return the same utilities from a hook. Firefly appends them to the sidebar.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun sidebar(): String = "bg-slate-950 text-stone-100"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override public String sidebar() { return "bg-slate-950 text-stone-100"; }
+```
+
+</TabItem>
+</Tabs>
+
+Restart `./grind serve`. Open the panel. The sidebar is a dark slate, and the text on it is stone.
+
+Firefly serves a Tailwind runtime in the browser. That runtime reads the class attributes on the chrome. A class returned from a hook, such as `bg-slate-950`, is already on the sidebar, so the runtime generates that utility. You do not keep a safelist, and the runtime does not scan your Kotlin. It also compiles `@apply` in the file `stylesheet()` names, and it loads that file for you. A theme that leaves `useTailwind()` false does not serve the runtime, and the stock `ff-*` rules stay as they are.
+
+The runtime loads Tailwind's theme and utilities. It does not load Tailwind's page reset. Start `midnight.css` with `@import "tailwindcss";` when you want that reset. Leave other `@import` rules out of the file while Tailwind is on.
+
+## Use a Google font
+
+`googleFonts()` names one or more families. It returns an empty list until you override it.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun googleFonts(): List<String> = listOf("Figtree", "Source Sans 3")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override public java.util.List<String> googleFonts() {
+    return java.util.List.of("Figtree", "Source Sans 3");
+}
+```
+
+</TabItem>
+</Tabs>
+
+Restart `./grind serve`. The panel and the sign-in page each include a `fonts.googleapis.com` stylesheet. The link uses `display=swap` and asks for weights 400, 500, 600, and 700. Write the family name as you would say it, spaces included. A theme that names no family does not add that link.
+
+Set the family on the panel and the sign-in page in `public/css/midnight.css`:
+
+```css
+.ff-panel,
+.ff-auth {
+  font-family: "Figtree", "Source Sans 3", sans-serif;
+}
+```
+
+With Tailwind on, put that `font-family` in the same file as `@apply`:
+
+```css
+.ff-panel,
+.ff-auth {
+  font-family: "Figtree", "Source Sans 3", sans-serif;
+}
+
+.ff-panel .ff-sidebar.midnight-sidebar {
+  @apply bg-slate-950 text-stone-100;
+}
+```
+
+Open the panel and the sign-in page. The type is Figtree.
 
 ## Check the panel and the sign-in page
 

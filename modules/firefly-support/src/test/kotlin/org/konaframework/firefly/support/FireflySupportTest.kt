@@ -998,4 +998,101 @@ class FireflySupportTest {
         assertTrue(Panel().theme(escaped).render().contains("""href="/c?a&amp;b&quot;&lt;""""))
         assertEquals("no-head", withThemeStylesheet("no-head", theme))
     }
+
+    @Test
+    fun themeTailwindAndGoogleFonts() {
+        assertFalse(FireflyTheme().useTailwind())
+        assertTrue(FireflyTheme().googleFonts().isEmpty())
+        assertEquals(null, googleFontsHref(listOf(" ", "")))
+        assertEquals(
+            "https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap",
+            googleFontsHref(listOf(" ", "Figtree")),
+        )
+        assertEquals(
+            "https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap",
+            googleFontsHref(listOf("Figtree", "Source Sans 3")),
+        )
+        assertTrue(googleFontsHref(listOf("""Figtree"><x"""))!!.contains("Figtree%22%3E%3Cx"))
+
+        val stock = Panel().render()
+        assertFalse(stock.contains("fonts.googleapis.com"))
+        assertFalse(stock.contains("fonts.gstatic.com"))
+        assertFalse(stock.contains("/_firefly/tailwind.js"))
+        assertFalse(stock.contains("text/tailwindcss"))
+
+        val fonts = object : FireflyTheme() {
+            override fun googleFonts() = listOf("Figtree", "Source Sans 3")
+        }
+        val fontPanel = Panel().theme(fonts).render()
+        val fontAuth = authPage(fonts)
+        for (html in listOf(fontPanel, fontAuth)) {
+            assertTrue(html.contains("fonts.googleapis.com"))
+            assertTrue(html.contains("fonts.gstatic.com"))
+            assertTrue(html.contains("family=Figtree"))
+            assertTrue(html.contains("Source+Sans+3"))
+            assertTrue(html.contains("display=swap"))
+            assertTrue(html.contains("""rel="preconnect" href="https://fonts.googleapis.com""""))
+            assertTrue(html.indexOf("family=Figtree") < html.indexOf("</head>"))
+            assertFalse(html.contains("/_firefly/tailwind.js"))
+        }
+
+        val blankFonts = object : FireflyTheme() {
+            override fun googleFonts() = listOf("  ", "")
+        }
+        assertFalse(Panel().theme(blankFonts).render().contains("fonts.googleapis.com"))
+
+        val tailwind = object : FireflyTheme() {
+            override fun useTailwind() = true
+            override fun stylesheet() = "/css/midnight.css"
+            override fun sidebar() = "bg-slate-950"
+        }
+        val twPanel = Panel().theme(tailwind).render()
+        val twAuth = authPage(tailwind)
+        assertTrue(twPanel.contains("bg-slate-950"))
+        for (html in listOf(twPanel, twAuth)) {
+            assertTrue(html.contains("""src="/_firefly/tailwind.js""""))
+            assertTrue(html.contains("text/tailwindcss"))
+            assertTrue(html.contains("""@import "tailwindcss/utilities";"""))
+            assertTrue(html.contains("""data-ff-tailwind-href="/css/midnight.css""""))
+            assertFalse(html.contains("""rel="stylesheet" href="/css/midnight.css""""))
+            assertFalse(html.contains("fonts.googleapis.com"))
+            assertTrue(html.indexOf("/_firefly/tailwind.js") < html.indexOf("</head>"))
+        }
+        assertEquals("no-head", withThemeStylesheet("no-head", tailwind))
+
+        val utilitiesOnly = object : FireflyTheme() {
+            override fun useTailwind() = true
+            override fun stylesheet() = "   "
+        }
+        val utilitiesHtml = Panel().theme(utilitiesOnly).render()
+        assertTrue(utilitiesHtml.contains("""src="/_firefly/tailwind.js""""))
+        assertFalse(utilitiesHtml.contains("data-ff-tailwind-href"))
+        assertFalse(utilitiesHtml.contains("""rel="stylesheet" href="""))
+
+        val quoted = object : FireflyTheme() {
+            override fun useTailwind() = true
+            override fun stylesheet() = """/c?a&b"<"""
+        }
+        assertTrue(Panel().theme(quoted).render().contains("""data-ff-tailwind-href="/c?a&amp;b&quot;&lt;""""))
+
+        val saved = FireflyTailwind.resourcePath
+        try {
+            val bytes = FireflyTailwind.bytes()
+            assertTrue(bytes != null)
+            assertTrue(bytes!!.isNotEmpty())
+            assertTrue(String(bytes).contains("tailwindcss"))
+            FireflyTailwind.resourcePath = "/org/konaframework/firefly/support/no-such-tailwind.js"
+            assertEquals(null, FireflyTailwind.bytes())
+        } finally {
+            FireflyTailwind.resourcePath = saved
+        }
+    }
+
+    private fun authPage(theme: FireflyTheme): String =
+        Panel().theme(theme).mode(ChromeMode.AUTH).layout(AuthLayout())
+            .overridePartial(
+                "body",
+                """<main class="ff-auth-main"><!-- ff-hook:body.start --><div class="ff-auth-panel">card</div><!-- ff-hook:body.end --></main>""",
+            )
+            .render()
 }

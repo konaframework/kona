@@ -27,6 +27,10 @@ class ThemeTokens(
  * [id], [tokens], [partial], and [extraCss] still drive the palette, a replacement
  * slot, and extra rules under `.ff-panel`. [stylesheet] may point at another file.
  * Classes are the way to reskin a region.
+ *
+ * [useTailwind] loads Tailwind for hook classes and for `@apply` in [stylesheet].
+ * [googleFonts] loads those families on the panel and the sign-in page.
+ * Both stay off until a theme overrides them.
  */
 open class FireflyTheme {
     /** Short name used in theme error messages. [KonaTheme] returns `kona`. */
@@ -44,8 +48,23 @@ open class FireflyTheme {
     /**
      * Stylesheet URL (`/css/midnight.css` or an absolute URL), or null.
      * A non-blank value is linked from the document `<head>`.
+     * When [useTailwind] is true, that file is compiled in the browser instead
+     * of linked as plain CSS, so `@apply` in it works.
      */
     open fun stylesheet(): String? = null
+
+    /**
+     * When true, the panel and the sign-in page load the Tailwind runtime.
+     * Hook classes such as `bg-slate-950` and `@apply` in [stylesheet] both apply.
+     * False leaves the stock panel CSS alone.
+     */
+    open fun useTailwind(): Boolean = false
+
+    /**
+     * Google font family names, for example `Figtree` or `Source Sans 3`.
+     * Empty adds no font stylesheet. Names are loaded with `display=swap`.
+     */
+    open fun googleFonts(): List<String> = emptyList()
 
     /** Extra classes for `.ff-panel`. */
     open fun panel(): String = ""
@@ -206,14 +225,71 @@ internal fun escapeThemeAttr(value: String): String = buildString {
 }
 
 /**
- * Links [FireflyTheme.stylesheet] before `</head>` when the theme names a file.
- * Documents without a head, and themes with no stylesheet, are returned as-is.
+ * Inserts theme head tags before `</head>`: the Google font stylesheet, the
+ * Tailwind runtime, and the plain stylesheet link. A theme that asks for none
+ * of those, and a document with no head, is returned as-is.
  */
 internal fun withThemeStylesheet(html: String, theme: FireflyTheme): String {
-    val href = theme.stylesheet()?.trim().orEmpty()
-    if (href.isEmpty()) return html
+    val extra = themeHeadExtra(theme)
+    if (extra.isEmpty()) return html
     val head = html.indexOf("</head>")
     if (head < 0) return html
-    val link = """<link rel="stylesheet" href="${escapeThemeAttr(href)}" />"""
-    return html.substring(0, head) + link + "\n" + html.substring(head)
+    return html.substring(0, head) + extra + "\n" + html.substring(head)
+}
+
+internal fun themeHeadExtra(theme: FireflyTheme): String {
+    val parts = ArrayList<String>()
+    val fonts = googleFontsHref(theme.googleFonts())
+    if (fonts != null) {
+        parts.add("""<link rel="preconnect" href="https://fonts.googleapis.com" />""")
+        parts.add("""<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />""")
+        parts.add("""<link rel="stylesheet" href="${escapeThemeAttr(fonts)}" />""")
+    }
+    val href = theme.stylesheet()?.trim().orEmpty()
+    if (theme.useTailwind()) {
+        parts.add(tailwindHead(href))
+    } else if (href.isNotEmpty()) {
+        parts.add("""<link rel="stylesheet" href="${escapeThemeAttr(href)}" />""")
+    }
+    return parts.joinToString("\n")
+}
+
+/**
+ * Google CSS API URL for [families], or null when every name is blank.
+ * Spaces are encoded. Weights 400, 500, 600, and 700 and `display=swap` are fixed.
+ */
+internal fun googleFontsHref(families: List<String>): String? {
+    val names = ArrayList<String>()
+    for (family in families) {
+        val trimmed = family.trim()
+        if (trimmed.isEmpty()) continue
+        names.add(trimmed)
+    }
+    if (names.isEmpty()) return null
+    val query = StringBuilder()
+    for (index in names.indices) {
+        if (index > 0) query.append('&')
+        query.append("family=")
+        query.append(java.net.URLEncoder.encode(names[index], Charsets.UTF_8))
+        query.append(":wght@400;500;600;700")
+    }
+    query.append("&display=swap")
+    return "https://fonts.googleapis.com/css2?$query"
+}
+
+private const val TAILWIND_SOURCE = """<style type="text/tailwindcss">@import "tailwindcss/theme";
+@import "tailwindcss/utilities";</style>"""
+
+/**
+ * Browser runtime plus a stylesheet source that imports Tailwind utilities
+ * without the page reset. A non-blank [href] is fetched and compiled so
+ * `@apply` in that file runs. Hook classes are already on the chrome elements,
+ * and the runtime reads those class attributes.
+ */
+internal fun tailwindHead(href: String): String {
+    val script = """<script src="${FireflyTailwind.SCRIPT}"></script>"""
+    if (href.isEmpty()) return TAILWIND_SOURCE + "\n" + script
+    val loader =
+        """<script data-ff-tailwind-href="${escapeThemeAttr(href)}">(function(){var href=document.currentScript.getAttribute("data-ff-tailwind-href");fetch(href,{credentials:"same-origin"}).then(function(r){return r.text();}).then(function(css){var el=document.createElement("style");el.setAttribute("type","text/tailwindcss");el.textContent=css;document.head.appendChild(el);}).catch(function(){});})();</script>"""
+    return TAILWIND_SOURCE + "\n" + script + "\n" + loader
 }
