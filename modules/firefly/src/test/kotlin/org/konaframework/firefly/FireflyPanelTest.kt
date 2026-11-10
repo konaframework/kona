@@ -1152,6 +1152,70 @@ class FireflyPanelTest {
     }
 
     @Test
+    fun activeNavHooksMarkTheOpenPageAndItsGroup() {
+        val orders = ListPage("orders")
+        orders.navigationGroup("Sales")
+        val quotes = ListPage("quotes")
+        quotes.navigationGroup("Sales")
+        val loose = ListPage("loose")
+        fun mount(type: NavigationType): Router {
+            val router = Router()
+            Panel().id("desk").path("desk").authenticate(false)
+                .navigation(type)
+                .navigationGroups(NavigationGroup.make("Sales"))
+                .theme(ActiveNavTheme())
+                .page(orders)
+                .page(quotes)
+                .page(loose)
+                .mount(router)
+            return router
+        }
+        val top = send(mount(NavigationType.TOP), "GET", "/desk/quotes").body
+        val bar = top.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        assertTrue(bar.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""), bar)
+        assertTrue(bar.contains("""class="ff-nav-item theme-item""""), bar)
+        assertTrue(
+            bar.contains(
+                """class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown ff-active theme-item theme-group theme-group-active""""
+            ),
+            bar,
+        )
+        assertFalse(bar.contains("theme-item-active theme-item-active"))
+        val cluster = Regex("""<li class="([^"]*ff-cluster[^"]*)">""").find(bar)!!.groupValues[1]
+        assertTrue(cluster.contains("theme-group-active"), cluster)
+        assertFalse(cluster.contains("theme-item-active"), cluster)
+        assertTrue(bar.contains("""class="ff-nav-dropdown-trigger""""))
+        assertFalse(bar.contains("ff-nav-dropdown-trigger theme-"))
+        val drawer = top.substringAfter("""<nav class="ff-nav ff-nav-drawer"""").substringBefore("</nav>")
+        assertTrue(drawer.contains("ff-nav-group-active theme-group theme-group-active"), drawer)
+        assertTrue(drawer.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""), drawer)
+        val menu = top.substringAfter("""class="ff-menu-panel"""").substringBefore("""class="ff-menu-form"""")
+        assertFalse(menu.contains("theme-item-active"), menu)
+        assertFalse(menu.contains("theme-group-active"), menu)
+
+        val inverse = send(mount(NavigationType.INVERSE), "GET", "/desk/quotes").body
+        val inverseTop = inverse.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        val inverseSide = inverse.substringAfter("""<nav class="ff-nav ff-nav-side">""").substringBefore("</nav>")
+        assertTrue(
+            inverseTop.contains("""class="ff-nav-item ff-cluster ff-active theme-item theme-group-active""""),
+            inverseTop,
+        )
+        assertFalse(inverseTop.contains("theme-item-active"), inverseTop)
+        assertTrue(
+            inverseSide.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""),
+            inverseSide,
+        )
+        assertTrue(inverseSide.contains("""class="ff-nav-item theme-item""""), inverseSide)
+        assertFalse(inverseSide.contains("theme-group-active"), inverseSide)
+
+        val onLoose = send(mount(NavigationType.INVERSE), "GET", "/desk/loose").body
+        val looseTop = onLoose.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        assertTrue(looseTop.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""), looseTop)
+        assertTrue(looseTop.contains("""class="ff-nav-item ff-cluster theme-item""""), looseTop)
+        assertFalse(looseTop.contains("theme-group-active"), looseTop)
+    }
+
+    @Test
     fun brandLogoSizeRendersInChrome() {
         val heightRouter = Router()
         Panel().path("mark")
@@ -1269,6 +1333,13 @@ class FireflyPanelTest {
         writePage(dir, name, text)
         PanelDiscovery.pages(dir, javaClass.classLoader)
     }
+}
+
+private class ActiveNavTheme : FireflyTheme() {
+    override fun navigationItem() = "theme-item"
+    override fun navigationItemActive() = "theme-item-active"
+    override fun navigationGroup() = "theme-group"
+    override fun navigationGroupActive() = "theme-group-active"
 }
 
 private class ChromeClassTheme : FireflyTheme() {
