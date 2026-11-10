@@ -37,6 +37,7 @@ internal object BuiltinCommandSpecs {
         "make:firefly-relation-manager {resource} {relationship} {titleAttribute} {--attach} {--associate} {--soft-deletes} {--panel=} {--lang=}",
         "firefly:install {--id=} {--path=} {--lang=}",
         "firefly:publish",
+        "firefly:theme-css {name?}",
         "make:model {name} {--migration} {--controller} {--resource} {--api} {--requests} {--factory} {--seeder} {--seed} {--policy} {--all} {--lang=}",
         "make:migration {name} {--create=} {--table=} {--lang=}",
         "make:factory {name} {--model=} {--lang=}",

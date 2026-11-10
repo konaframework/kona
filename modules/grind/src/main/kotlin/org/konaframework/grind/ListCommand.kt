@@ -50,6 +50,7 @@ class ListCommand(
             "make:firefly-relation-manager" to "Generate a Firefly relation manager (--attach, --associate, --soft-deletes)",
             "firefly:install" to "Generate a Firefly panel tree",
             "firefly:publish" to "Publish the Firefly sidebar partial",
+            "firefly:theme-css" to "Compile Firefly theme stylesheets from resources into public/",
             "make:model" to "Generate a Cadence model (-mcrfspaR companions)",
             "make:migration" to "Generate a migration (auto-registers)",
             "make:factory" to "Generate a factory",

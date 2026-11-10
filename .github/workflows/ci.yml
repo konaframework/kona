@@ -36,6 +36,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install the Firefly theme Tailwind CLI
+        run: npm ci --prefix modules/firefly-support/tailwind
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

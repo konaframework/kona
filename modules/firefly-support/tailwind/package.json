@@ -1,0 +1,8 @@
+{
+  "name": "@kona/firefly-theme-css",
+  "private": true,
+  "description": "Tailwind CLI 4.3.5 for grind firefly:theme-css. Same version as the Firefly browser runtime.",
+  "dependencies": {
+    "@tailwindcss/cli": "4.3.5"
+  }
+}

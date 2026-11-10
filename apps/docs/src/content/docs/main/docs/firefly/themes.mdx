@@ -19,13 +19,26 @@ From the app directory:
 ./grind make:firefly-theme MidnightTheme
 ```
 
-That writes `src/main/kotlin/app/panels/admin/themes/MidnightTheme.kt`.
+That writes two files:
 
-`--panel=` chooses the panel package. `--panel=staff` writes `src/main/kotlin/app/panels/staff/themes/MidnightTheme.kt`.
+- `src/main/kotlin/app/panels/admin/themes/MidnightTheme.kt`
+- `src/main/resources/css/midnighttheme.css`, the uncompiled stylesheet
 
-`--lang=kotlin` or `--lang=java` chooses the language. `--lang=java` writes `src/main/java/app/panels/admin/themes/MidnightTheme.java`. When you omit `--lang`, Grind uses Java if the app already has a `.java` file under `src/main/java`, and Kotlin otherwise.
+`--panel=` chooses the panel package for the class. `--panel=staff` writes `src/main/kotlin/app/panels/staff/themes/MidnightTheme.kt`. The stylesheet stays `src/main/resources/css/midnighttheme.css`.
 
-The class extends `FireflyTheme`. `id()` returns `midnighttheme`. `stylesheet()` returns `null`. Every hook returns `""`. `useTailwind()` is commented out, so a new theme does not load Tailwind.
+`--lang=kotlin` or `--lang=java` chooses the language of the class. `--lang=java` writes `src/main/java/app/panels/admin/themes/MidnightTheme.java`. The stylesheet is the same either way. When you omit `--lang`, Grind uses Java if the app already has a `.java` file under `src/main/java`, and Kotlin otherwise.
+
+The class extends `FireflyTheme`. `id()` returns `midnighttheme`. `stylesheet()` returns `asset("css/midnighttheme.css")`, which names that resources file. Every hook returns `""`. `useTailwind()` is commented out. A generated theme does not load the Tailwind browser runtime.
+
+Compile the stylesheet before you serve the panel:
+
+```bash
+./grind firefly:theme-css
+```
+
+That reads every theme stylesheet under `src/main/resources/css` (a file whose comment contains `firefly-theme`) and writes compiled CSS to `public/css/`. `./grind firefly:theme-css midnighttheme` compiles one file. Run the command again after you edit the resources file. It does not run on each request.
+
+The browser loads `public/css/midnighttheme.css` at `/css/midnighttheme.css`. `@apply` is expanded. `var(--ff-primary)` and the other `--ff-*` tokens stay variables, so the panel color and dark mode still apply. If the compiled file is missing, the page fails and the message names `./grind firefly:theme-css`. The theme does not fall back to the browser runtime.
 
 ## Register the theme
 
@@ -106,28 +119,28 @@ A darker sidebar, a tighter brand, and a wider page are three places to start. T
 
 ## Add a stylesheet
 
-`stylesheet()` returns the URL of a CSS file. Firefly writes `<link rel="stylesheet" href="...">` at the end of `<head>`, after the stock `<style>` block. `null` or a blank string adds no link.
+`stylesheet()` returns either an `asset(...)` token or a URL. Firefly writes `<link rel="stylesheet" href="...">` at the end of `<head>`, after the stock `<style>` block. `null` or a blank string adds no link.
 
-Put the file in the app's `public/` directory. That directory is the web root, so `public/css/midnight.css` is served at `/css/midnight.css`:
+`asset("css/midnighttheme.css")` names the uncompiled source `src/main/resources/css/midnighttheme.css`. At runtime that token becomes the public URL of the compiled file, `/css/midnighttheme.css`. The link the browser receives is that public path. Compile it with `./grind firefly:theme-css`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-override fun stylesheet(): String? = "/css/midnight.css"
+override fun stylesheet(): String? = asset("css/midnighttheme.css")
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-@Override public String stylesheet() { return "/css/midnight.css"; }
+@Override public String stylesheet() { return asset("css/midnighttheme.css"); }
 ```
 
 </TabItem>
 </Tabs>
 
-A full `https://` URL works the same way when the file is hosted elsewhere.
+A literal path such as `/css/midnighttheme.css`, or a full `https://` URL, is linked as given. Use that when the file is already compiled, or when it is hosted elsewhere. `asset(...)` is what a generated theme uses, and it is the path that fails with a message naming `./grind firefly:theme-css` when `public/css/midnighttheme.css` is missing.
 
 Write normal CSS. Name the `ff-*` element and the class the hook added. Stock rules use selectors such as `.ff-panel .ff-sidebar`, and the sign-in card is `.ff-auth-panel`. Write your rule at that depth so it applies. The link comes after the stock `<style>` block.
 
@@ -144,7 +157,7 @@ This theme fills the hooks from the table. The other hooks stay `""`.
 class MidnightTheme : FireflyTheme() {
     override fun id(): String = "midnighttheme"
 
-    override fun stylesheet(): String? = "/css/midnight.css"
+    override fun stylesheet(): String? = asset("css/midnighttheme.css")
 
     override fun sidebar(): String = "midnight-sidebar"
 
@@ -165,7 +178,7 @@ class MidnightTheme : FireflyTheme() {
 public class MidnightTheme extends FireflyTheme {
     @Override public String id() { return "midnighttheme"; }
 
-    @Override public String stylesheet() { return "/css/midnight.css"; }
+    @Override public String stylesheet() { return asset("css/midnighttheme.css"); }
 
     @Override public String sidebar() { return "midnight-sidebar"; }
 
@@ -182,7 +195,7 @@ public class MidnightTheme extends FireflyTheme {
 </TabItem>
 </Tabs>
 
-`public/css/midnight.css`:
+`src/main/resources/css/midnighttheme.css` is the uncompiled source. `./grind firefly:theme-css` writes `public/css/midnighttheme.css`, and that is the file the browser loads:
 
 ```css
 /* Darker sidebar. Stock link color is set on the anchor. */
@@ -245,7 +258,9 @@ The brand rule is on `.ff-sidebar-brand`, `.ff-topbar-brand`, and `.ff-auth-bran
 
 ## Use Tailwind
 
-`useTailwind()` turns Tailwind on for this theme. It returns false until you override it, so a stock panel does not load Tailwind.
+A generated theme compiles Tailwind ahead of time. Put `@apply` in `src/main/resources/css/midnighttheme.css`, run `./grind firefly:theme-css`, and the public file has the expanded CSS. That theme leaves `useTailwind()` off. It does not load `/_firefly/tailwind.js`, and it does not hide the page while a browser compile runs. Panel colors stay `var(--ff-primary)` and the other `--ff-*` tokens, including in dark mode.
+
+`useTailwind()` is the no-build runtime. It returns false until you override it, so a stock panel does not load Tailwind. Turn it on only when you want the browser to compile hook classes and `@apply` itself. That compile still flickers unless the page stays hidden, which Firefly does while `useTailwind()` is true. Leave it off when `stylesheet()` uses `asset(...)`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -268,7 +283,7 @@ override fun stylesheet(): String? = "/css/midnight.css"
 </TabItem>
 </Tabs>
 
-Write a utility in `public/css/midnight.css` with `@apply`:
+The runtime fetches that URL. It is not an `asset(...)` token. Write a utility in the file the URL names with `@apply`:
 
 ```css
 .ff-panel .ff-sidebar.midnight-sidebar {
@@ -297,9 +312,9 @@ override fun sidebar(): String = "bg-slate-950 text-stone-100"
 
 Restart `./grind serve`. Open the panel. The sidebar is a dark slate, and the text on it is stone.
 
-Firefly serves a Tailwind runtime in the browser. That runtime reads the class attributes on the chrome. A class returned from a hook, such as `bg-slate-950`, is already on the sidebar, so the runtime generates that utility. You do not keep a safelist, and the runtime does not scan your Kotlin. It also compiles `@apply` in the file `stylesheet()` names, and it loads that file for you. A theme that leaves `useTailwind()` false does not serve the runtime, and the stock `ff-*` rules stay as they are.
+Firefly serves a Tailwind runtime in the browser when `useTailwind()` is true and `stylesheet()` is a plain URL. That runtime reads the class attributes on the chrome. A class returned from a hook, such as `bg-slate-950`, is already on the sidebar, so the runtime generates that utility. You do not keep a safelist, and the runtime does not scan your Kotlin. It also compiles `@apply` in the file the URL names, and it loads that file for you. The document stays hidden until that compile is in the CSSOM, then it is shown. A theme that leaves `useTailwind()` false does not serve the runtime. A theme whose `stylesheet()` is `asset(...)` does not serve it either, even if `useTailwind()` is true, because the public file is already compiled.
 
-The runtime loads Tailwind's theme and utilities. It does not load Tailwind's page reset. Start `midnight.css` with `@import "tailwindcss";` when you want that reset. Leave other `@import` rules out of the file while Tailwind is on.
+The runtime loads Tailwind's theme and utilities. It does not load Tailwind's page reset. Start the runtime stylesheet with `@import "tailwindcss";` when you want that reset. Leave other `@import` rules out of the file while Tailwind is on. The compiled `asset(...)` path does not need that import. `./grind firefly:theme-css` adds the theme Tailwind already uses.
 
 ## Brand colors
 
@@ -354,7 +369,7 @@ The same classes work in the stylesheet `stylesheet()` names:
 }
 ```
 
-`primaryColor` and `accentColor` on the panel set `--ff-primary` and `--ff-accent`. The scale reads those variables, so `500` stays the brand color. Each step is also a custom property on `.ff-panel` and `.ff-auth` (`--ff-primary-500`, `--ff-accent-700`, and the rest). A later rule can replace one step. A theme that leaves `useTailwind()` false does not add the scale.
+`primaryColor` and `accentColor` on the panel set `--ff-primary` and `--ff-accent`. The scale reads those variables, so `500` stays the brand color. Each step is also a custom property on `.ff-panel` and `.ff-auth` (`--ff-primary-500`, `--ff-accent-700`, and the rest). A later rule can replace one step. `useTailwind()` adds the scale in the page. A compiled theme stylesheet adds the same scale in the public file, so `@apply bg-primary-50` still follows the panel color after `./grind firefly:theme-css`. A theme that uses neither does not add the scale.
 
 Dark mode follows the panel color. A panel primary stays that hue in the dark block: Firefly mixes it toward white or black (`color-mix`) and writes the shade on `--ff-primary` only there. `#FF2A00` becomes `#ff6647`, still a red-orange, not Kona's dark primary `#C9A57B`. The light `--ff-primary` stays the color the panel set. The accent follows the same rule.
 
@@ -387,7 +402,7 @@ override fun googleFonts(): List<String> = listOf("Figtree", "Source Sans 3")
 
 Restart `./grind serve`. The panel and the sign-in page each include a `fonts.googleapis.com` stylesheet. The link uses `display=swap` and asks for weights 400, 500, 600, and 700. Write the family name as you would say it, spaces included. A theme that names no family does not add that link.
 
-Set the family on the panel and the sign-in page in `public/css/midnight.css`:
+Set the family on the panel and the sign-in page in `src/main/resources/css/midnighttheme.css`, then compile it:
 
 ```css
 .ff-panel,
@@ -423,7 +438,7 @@ The same theme is on both. The sidebar, the nav, and the page are on the panel. 
 
 Your class extends `FireflyTheme`. Every hook there returns `""`. Override only the hooks you care about. Leave the others returning `""`, or delete those empty overrides. The generated file lists every hook so the names are in front of you.
 
-The stock palette stays until you change it. The built-in CSS reads these custom properties on `.ff-panel` and `.ff-auth`: `--ff-primary`, `--ff-accent`, `--ff-surface`, `--ff-heading`, `--ff-font`, `--ff-radius`, `--ff-sidebar-width`, `--ff-topbar-height`, and `--ff-body`. Set them in `midnight.css` when you want different colors, type, or widths:
+The stock palette stays until you change it. The built-in CSS reads these custom properties on `.ff-panel` and `.ff-auth`: `--ff-primary`, `--ff-accent`, `--ff-surface`, `--ff-heading`, `--ff-font`, `--ff-radius`, `--ff-sidebar-width`, `--ff-topbar-height`, and `--ff-body`. Set them in the resources stylesheet when you want different colors, type, or widths, then compile:
 
 ```css
 .ff-panel,

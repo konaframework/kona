@@ -1,5 +1,7 @@
 package org.konaframework.grind
 
+import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.support.ThemeCssCompiler
 import java.nio.file.Path
 
 /** `grind make:firefly-panel` writes the panel class and its pages, widgets, and resources folders. */
@@ -62,12 +64,42 @@ class MakeFireflyThemeCommand {
         val panel = panelIdFromOptions(options)
         val relative = Names.sourceFile(lang, "app/panels/$panel/themes", name)
         Names.write(base, relative, "Firefly theme", themeSource(name, lang, panel))
+        val slug = name.lowercase()
+        Names.write(
+            base,
+            "src/main/resources/css/$slug.css",
+            "Firefly theme stylesheet",
+            themeStylesheet(name, panel, slug),
+        )
         val hint = if (lang == "java") {
             "Register it with panel.theme(new $name())"
         } else {
             "Register it with panel.theme($name())"
         }
-        GrindIO().info(hint)
+        val io = GrindIO()
+        io.info(hint)
+        io.info("Compile the stylesheet with ./grind firefly:theme-css $slug")
+        return 0
+    }
+}
+
+/** `grind firefly:theme-css [name]` compiles resources theme CSS into `public/css`. */
+class FireflyThemeCssCommand {
+    fun run(args: List<String>): Int {
+        val (positional, options) = parseOptions(args)
+        if (positional.size > 1) throw GrindException("Usage: grind firefly:theme-css [name]")
+        val base = Names.base(options)
+        val name = positional.firstOrNull()
+        val written = try {
+            ThemeCssCompiler.compileThemes(base, name)
+        } catch (ex: FireflyException) {
+            throw GrindException(ex.message)
+        }
+        val io = GrindIO.fromOptions(options)
+        for (path in written) {
+            val relative = base.relativize(path).toString().replace('\\', '/')
+            io.success("Compiled $relative")
+        }
         return 0
     }
 }
@@ -219,10 +251,15 @@ private fun themeSource(name: String, lang: String, panel: String): String = if 
         "public class $name extends FireflyTheme {",
         "    @Override public String id() { return \"${name.lowercase()}\"; }",
         "",
-        "    /** Stylesheet URL linked from the document head, or null. */",
-        "    @Override public String stylesheet() { return null; }",
+        "    /**",
+        "     * Compiled stylesheet. Source: src/main/resources/css/${name.lowercase()}.css.",
+        "     * Run {@code ./grind firefly:theme-css} after editing it. The browser loads the public file.",
+        "     */",
+        "    @Override public String stylesheet() { return asset(\"css/${name.lowercase()}.css\"); }",
         "",
-        "    // Set true so this theme can use Tailwind utilities and @apply.",
+        "    // Browser Tailwind runtime. It compiles on the page and flickers unless the",
+        "    // document stays hidden until that compile finishes. Leave this off when",
+        "    // stylesheet() uses asset(), which is the compiled file and does not flicker.",
         "    // @Override public boolean useTailwind() { return true; }",
         "",
         "    // Dark primary when it should differ from a mix of the panel primary.",
@@ -249,10 +286,15 @@ private fun themeSource(name: String, lang: String, panel: String): String = if 
         "class $name : FireflyTheme() {",
         "    override fun id(): String = \"${name.lowercase()}\"",
         "",
-        "    /** Stylesheet URL linked from the document head, or null. */",
-        "    override fun stylesheet(): String? = null",
+        "    /**",
+        "     * Compiled stylesheet. Source: src/main/resources/css/${name.lowercase()}.css.",
+        "     * Run `./grind firefly:theme-css` after editing it. The browser loads the public file.",
+        "     */",
+        "    override fun stylesheet(): String? = asset(\"css/${name.lowercase()}.css\")",
         "",
-        "    // Set true so this theme can use Tailwind utilities and @apply.",
+        "    // Browser Tailwind runtime. It compiles on the page and flickers unless the",
+        "    // document stays hidden until that compile finishes. Leave this off when",
+        "    // stylesheet() uses asset(), which is the compiled file and does not flicker.",
         "    // override fun useTailwind(): Boolean = true",
         "",
         "    // Dark primary when it should differ from a mix of the panel primary.",
@@ -262,3 +304,20 @@ private fun themeSource(name: String, lang: String, panel: String): String = if 
         "}",
     )
 }
+
+private fun themeStylesheet(name: String, panel: String, slug: String): String = lines(
+    "/* firefly-theme",
+    " * Uncompiled source for the $panel panel theme $name.",
+    " * stylesheet() points here with asset(\"css/$slug.css\").",
+    " * Compile to public/css/$slug.css:",
+    " *   ./grind firefly:theme-css $slug",
+    " * The browser loads the compiled file. It does not load the Tailwind runtime.",
+    " * @apply expands on compile. var(--ff-primary) stays a variable.",
+    " *",
+    " * .ff-panel .ff-sidebar {",
+    " *   @apply bg-primary-800 text-primary-50;",
+    " *   border-color: var(--ff-primary);",
+    " * }",
+    " */",
+    "",
+)

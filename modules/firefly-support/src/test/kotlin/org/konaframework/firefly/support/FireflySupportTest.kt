@@ -19,6 +19,8 @@ class FireflySupportTest {
     @AfterEach
     fun clearDialogDefaults() {
         Dialog.configureUsing(null)
+        ThemeAssets.root = Path.of("").toAbsolutePath()
+        ThemeCssCompiler.reset()
     }
 
     @Test
@@ -1341,6 +1343,228 @@ class FireflySupportTest {
         } finally {
             FireflyTailwind.resourcePath = saved
         }
+    }
+
+    @Test
+    fun compiledThemeAssetResolvesAndExpands() {
+        val bare = themeCompileSource(".a { color: var(--ff-primary); }")
+        assertTrue(bare.contains("""@import "tailwindcss/theme";"""))
+        assertTrue(bare.contains("@theme inline {"))
+        assertTrue(bare.endsWith("\n"))
+        val kept = themeCompileSource(".a { color: var(--ff-primary); }\n")
+        assertTrue(kept.endsWith("}\n") || kept.endsWith(";\n"))
+        assertTrue(finishCompiledCss(".ok { color: var(--ff-accent); }").contains("color-mix(in srgb, var(--ff-primary)"))
+
+        assertEquals("ff-asset:css/foo.css", ThemeAssets.asset("css/foo.css"))
+        assertEquals(ThemeAssets.asset("css/foo.css"), ThemeAssets.asset("/css/foo.css"))
+        assertEquals(ThemeAssets.asset("css/foo.css"), ThemeAssets.asset("src/main/resources/css/foo.css"))
+        assertEquals(ThemeAssets.asset("css/foo.css"), ThemeAssets.asset("ff-asset:css/foo.css"))
+        assertEquals("node", ThemeCssCompiler.nodeBinary)
+        assertTrue(ThemeCssCompiler.cacheDir.toString().contains("tailwind-"))
+        assertFalse(ThemeAssets.isCompiledAsset(null))
+        assertFalse(ThemeAssets.isCompiledAsset("  "))
+        assertFalse(ThemeAssets.isCompiledAsset("/css/foo.css"))
+        assertTrue(ThemeAssets.isCompiledAsset("  ff-asset:css/foo.css"))
+        for (bad in listOf("", "..", "css\\foo.css", "https://cdn.example/a.css")) {
+            assertThrows(FireflyException::class.java) { ThemeAssets.asset(bad) }
+        }
+
+        val root = Files.createTempDirectory("theme-asset")
+        ThemeAssets.root = root
+        val missing = object : FireflyTheme() {
+            override fun stylesheet() = asset("css/missing.css")
+            override fun useTailwind() = true
+        }
+        val missingError = assertThrows(FireflyException::class.java) { Panel().theme(missing).render() }
+        assertTrue(missingError.message!!.contains("./grind firefly:theme-css"))
+        assertTrue(missingError.message!!.contains("public/css/missing.css"))
+
+        Files.createDirectories(root.resolve("public/css"))
+        Files.writeString(root.resolve("public/css/foo.css"), "/* compiled */\n")
+        val compiled = object : FireflyTheme() {
+            override fun stylesheet() = asset("css/foo.css")
+            override fun useTailwind() = true
+            override fun googleFonts() = listOf("Figtree")
+        }
+        val html = Panel().theme(compiled).render()
+        assertTrue(html.contains("""href="/css/foo.css""""))
+        assertTrue(html.contains("family=Figtree"))
+        assertFalse(html.contains("ff-asset:"))
+        assertFalse(html.contains("/_firefly/tailwind.js"))
+        assertFalse(html.contains("text/tailwindcss"))
+        assertFalse(html.contains("ff-theme-pending"))
+        assertFalse(html.contains("data-ff-theme-reveal"))
+        assertFalse(html.contains("ff-theme-hold"))
+        val auth = authPage(compiled)
+        assertTrue(auth.contains("""href="/css/foo.css""""))
+        assertFalse(auth.contains("/_firefly/tailwind.js"))
+        assertFalse(auth.contains("data-ff-theme-reveal"))
+        val quiet = object : FireflyTheme() {
+            override fun stylesheet() = asset("css/foo.css")
+        }
+        val quietHtml = Panel().theme(quiet).render()
+        assertTrue(quietHtml.contains("""href="/css/foo.css""""))
+        assertFalse(quietHtml.contains("/_firefly/tailwind.js"))
+        assertEquals("no-head", withThemeStylesheet("no-head", compiled))
+
+        assertEquals("harbor", ThemeCssCompiler.themeSlug("Harbor"))
+        assertEquals("aqua", ThemeCssCompiler.themeSlug("Aqua.CSS"))
+        assertEquals("midnighttheme", ThemeCssCompiler.themeSlug("midnighttheme.css"))
+        assertThrows(FireflyException::class.java) { ThemeCssCompiler.themeSlug("  ") }
+        assertThrows(FireflyException::class.java) { ThemeCssCompiler.themeSlug(".css") }
+        assertThrows(FireflyException::class.java) { ThemeCssCompiler.themeSlug("Bad Name") }
+
+        val app = Files.createTempDirectory("theme-app")
+        assertThrows(FireflyException::class.java) { ThemeCssCompiler.themeSources(app, null) }
+        assertThrows(FireflyException::class.java) { ThemeCssCompiler.themeSources(app, "swatch") }
+        val cssDir = app.resolve("src/main/resources/css")
+        Files.createDirectories(cssDir)
+        Files.createDirectories(cssDir.resolve("skip.css"))
+        Files.writeString(cssDir.resolve("notes.txt"), "/* firefly-theme */\n")
+        Files.writeString(cssDir.resolve("app.css"), "body { margin: 0; }\n")
+        assertThrows(FireflyException::class.java) { ThemeCssCompiler.themeSources(app, null) }
+        Files.writeString(cssDir.resolve("b.css"), "/* firefly-theme */\n.b { color: var(--ff-primary); }\n")
+        Files.writeString(
+            cssDir.resolve("a.css"),
+            "/* firefly-theme */\n.ff-panel .a { @apply bg-primary-50; color: var(--ff-accent); }\n",
+        )
+        Files.writeString(cssDir.resolve("plain.css"), ".plain { color: var(--ff-primary); }\n")
+        val found = ThemeCssCompiler.themeSources(app, null)
+        assertEquals(listOf("a.css", "b.css"), found.map { it.fileName.toString() })
+        assertEquals("plain.css", ThemeCssCompiler.themeSources(app, "plain").single().fileName.toString())
+
+        val cache = Files.createTempDirectory("tw-cache")
+        assertEquals(
+            cache.resolve("node_modules"),
+            ThemeCssCompiler.locateTailwindModules(null, null, cache) {
+                Files.createDirectories(it.resolve("node_modules/@tailwindcss/cli"))
+            },
+        )
+        val installError = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.locateTailwindModules(null, null, Files.createTempDirectory("tw-fail")) {
+                throw FireflyException("npm broke")
+            }
+        }
+        assertTrue(installError.message!!.contains("Could not install"))
+        assertTrue(installError.message!!.contains("npm broke"))
+        assertTrue(installError.message!!.contains("firefly:theme-css"))
+        val emptyInstall = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.locateTailwindModules(null, null, Files.createTempDirectory("tw-empty")) { }
+        }
+        assertTrue(emptyInstall.message!!.contains("Could not install"))
+        val badOverride = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.locateTailwindModules(Files.createTempDirectory("tw-override"), null, cache) { }
+        }
+        assertTrue(badOverride.message!!.contains("@tailwindcss/cli"))
+        val override = Files.createTempDirectory("tw-ok").resolve("node_modules")
+        Files.createDirectories(override.resolve("@tailwindcss/cli"))
+        assertEquals(override, ThemeCssCompiler.locateTailwindModules(override, null, cache) { })
+
+        val repo = Files.createTempDirectory("tw-repo")
+        val walked = repo.resolve("modules/firefly-support/tailwind/node_modules")
+        Files.createDirectories(walked.resolve("@tailwindcss/cli"))
+        assertEquals(
+            walked,
+            ThemeCssCompiler.locateTailwindModules(null, repo.resolve("modules/grind"), cache) { },
+        )
+        var deep = Files.createTempDirectory("tw-deep")
+        repeat(10) { deep = deep.resolve("d") }
+        Files.createDirectories(deep)
+        assertEquals(
+            cache.resolve("node_modules"),
+            ThemeCssCompiler.locateTailwindModules(null, deep, cache) { },
+        )
+        assertEquals(
+            cache.resolve("node_modules"),
+            ThemeCssCompiler.locateTailwindModules(null, Path.of("/"), cache) { },
+        )
+
+        val npmHome = Files.createTempDirectory("tw-npm")
+        val npmOk = npmHome.resolve("npm-ok")
+        Files.writeString(
+            npmOk,
+            """
+            #!/bin/sh
+            prefix=""
+            prev=""
+            for a in "$@"; do
+              if [ "${'$'}prev" = "--prefix" ]; then prefix="${'$'}a"; fi
+              prev="${'$'}a"
+            done
+            mkdir -p "${'$'}prefix/node_modules/@tailwindcss/cli"
+            printf '{}' > "${'$'}prefix/node_modules/@tailwindcss/cli/package.json"
+            exit 0
+            """.trimIndent() + "\n",
+        )
+        npmOk.toFile().setExecutable(true)
+        ThemeCssCompiler.npmBinary = npmOk.toString()
+        val npmCache = Files.createTempDirectory("tw-npm-cache")
+        ThemeCssCompiler.npmInstall(npmCache)
+        assertTrue(Files.isDirectory(npmCache.resolve("node_modules/@tailwindcss/cli")))
+        val npmBad = npmHome.resolve("npm-bad")
+        Files.writeString(npmBad, "#!/bin/sh\necho nope >&2\nexit 1\n")
+        npmBad.toFile().setExecutable(true)
+        ThemeCssCompiler.npmBinary = npmBad.toString()
+        val npmFailed = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.npmInstall(Files.createTempDirectory("tw-npm-fail"))
+        }
+        assertTrue(npmFailed.message!!.contains("Tailwind install failed"))
+        assertTrue(npmFailed.message!!.contains("nope"))
+        ThemeCssCompiler.npmBinary = "kona-missing-npm-bin"
+        assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.npmInstall(Files.createTempDirectory("tw-npm-missing"))
+        }
+
+        val work = Files.createTempDirectory("tw-run")
+        ThemeCssCompiler.runChecked(listOf("sh", "-c", "exit 0"), work, 5, "Theme CSS compile failed")
+        val failedRun = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.runChecked(listOf("sh", "-c", "echo bad; exit 3"), work, 5, "Theme CSS compile failed")
+        }
+        assertTrue(failedRun.message!!.contains("Theme CSS compile failed (3)"))
+        assertTrue(failedRun.message!!.contains("bad"))
+        val timed = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.runChecked(listOf("sh", "-c", "sleep 30"), work, 1, "Theme CSS compile failed")
+        }
+        assertTrue(timed.message!!.contains("timed out"))
+        assertTrue(timed.message!!.contains("firefly:theme-css"))
+        val missingNode = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.runChecked(listOf("kona-missing-node-bin"), work, 5, "Theme CSS compile failed")
+        }
+        assertTrue(missingNode.message!!.contains("Node.js"))
+
+        val fakeModules = Files.createTempDirectory("tw-fake").resolve("node_modules")
+        Files.createDirectories(fakeModules.resolve("@tailwindcss/cli/dist"))
+        Files.writeString(fakeModules.resolve("@tailwindcss/cli/dist/index.mjs"), "")
+        ThemeCssCompiler.moduleOverride = fakeModules
+        val source = cssDir.resolve("a.css")
+        val dropped = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.compileSource(source, app.resolve("public/css/a.css")) { command, _ ->
+                Files.deleteIfExists(Path.of(command[command.indexOf("--output") + 1]))
+            }
+        }
+        assertTrue(dropped.message!!.contains("wrote no output"))
+        val noDir = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.compileSource(source, Path.of("/")) { _, _ -> }
+        }
+        assertTrue(noDir.message!!.contains("no directory"))
+        Files.delete(fakeModules.resolve("@tailwindcss/cli/dist/index.mjs"))
+        val noCli = assertThrows(FireflyException::class.java) {
+            ThemeCssCompiler.compileSource(source, app.resolve("public/css/a.css")) { _, _ -> }
+        }
+        assertTrue(noCli.message!!.contains("Tailwind CLI"))
+        ThemeCssCompiler.moduleOverride = null
+
+        val written = ThemeCssCompiler.compileThemes(app, "a")
+        assertEquals(1, written.size)
+        val expanded = Files.readString(written.single())
+        assertTrue(expanded.contains("background-color: var(--ff-primary-50)"))
+        assertTrue(expanded.contains("var(--ff-accent)"))
+        assertTrue(expanded.contains("var(--ff-primary)"))
+        assertFalse(expanded.contains("@apply"))
+        assertFalse(expanded.contains("#FF2A00"))
+        val both = ThemeCssCompiler.compileThemes(app, null)
+        assertEquals(listOf("a.css", "b.css"), both.map { it.fileName.toString() })
+        assertFalse(Files.exists(app.resolve("public/css/app.css")))
     }
 
     private fun authPage(theme: FireflyTheme): String =

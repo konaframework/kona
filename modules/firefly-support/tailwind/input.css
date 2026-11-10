@@ -4,8 +4,9 @@
  * Authoring source for Firefly panel CSS.
  * The shipped stylesheet is src/main/resources/.../firefly.css — a Shamar-shaped
  * panel chrome under .ff-panel and guest auth under .ff-auth (Kona coffee tokens).
- * Expand this file with @apply / @theme when the Tailwind compile step is wired
- * into the module build; until then firefly.css is the source of truth for the look.
+ * App themes compile with this same Tailwind 4.3.5 (`@tailwindcss/cli` in this
+ * directory) via `./grind firefly:theme-css`. firefly.css itself stays the
+ * hand-expanded stylesheet the panel ships.
  */
 
 @custom-variant dark (&:where(.ff-panel.ff-dark, .ff-panel.ff-dark *, .ff-dark .ff-panel, .ff-dark .ff-panel *));
