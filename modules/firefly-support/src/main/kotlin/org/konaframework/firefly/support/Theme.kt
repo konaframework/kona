@@ -35,9 +35,10 @@ class ThemeTokens(
  * Classes are the way to reskin a region.
  *
  * [asset] names an uncompiled file under `src/main/resources`. [stylesheet]
- * returns that token, and the render links the compiled file in `public/`.
- * `./grind firefly:theme-css` compiles it. A generated theme uses that path
- * and leaves [useTailwind] off, so the page does not load the browser runtime.
+ * returns that token. The render links the compiled file in `public/` when
+ * that file exists. `./grind firefly:theme-css` compiles it. A generated theme
+ * uses that path and leaves [useTailwind] off. A missing compiled file loads
+ * the browser runtime with the resources source, so a refresh shows edits.
  *
  * [useTailwind] loads Tailwind in the browser for hook classes and for `@apply`
  * in a stylesheet URL. That runtime registers scales for the panel colors:
@@ -94,13 +95,15 @@ open class FireflyTheme {
      * Stylesheet URL (`/css/midnight.css` or an absolute URL), an [asset]
      * token, or null.
      * A non-blank URL is linked from the document `<head>` before the chrome.
-     * An [asset] token names the uncompiled resources file. The link the
-     * browser receives is the compiled file in `public/`. A missing compiled
-     * file fails the render and names `./grind firefly:theme-css`. It does not
-     * fall back to the browser runtime.
+     * An [asset] token names the uncompiled resources file. When the compiled
+     * file is in `public/`, the browser receives that public URL and does not
+     * load the runtime. When it is missing, the page does not fail: the runtime
+     * compiles `src/main/resources/css/{slug}.css` (the path inside the token)
+     * and the document stays hidden until that compile is in the CSSOM.
      * When [useTailwind] is true and this is a plain URL, that file is fetched
      * in the head and compiled before the chrome is shown, so `@apply` in it
-     * does not arrive late.
+     * does not arrive late. [useTailwind] true stays on the runtime even when
+     * an [asset] file has already been compiled, and feeds it that same source.
      */
     open fun stylesheet(): String? = null
 
@@ -122,9 +125,11 @@ open class FireflyTheme {
      * `primary-500` is `--ff-primary`, `accent-500` is `--ff-accent`, and the
      * same is true for success, warning, danger, info, and gray. False leaves
      * the stock panel CSS alone and adds no hide.
-     * An [asset] stylesheet does not load this runtime and does not hide the
-     * page, even when this returns true. The compiled file already expanded
-     * `@apply`.
+     * An [asset] stylesheet whose compiled file exists does not load this
+     * runtime and does not hide the page, unless this returns true. True keeps
+     * the runtime even when that compiled file exists. A missing compiled file
+     * loads the runtime either way, so the resources source can be edited and
+     * refreshed. The compiled file is the flicker-free path.
      */
     open fun useTailwind(): Boolean = false
 
@@ -356,9 +361,11 @@ internal fun escapeThemeAttr(value: String): String = buildString {
 }
 
 /**
- * Inserts theme head tags before `</head>`, and when Tailwind is on, a reveal
- * script before `</body>`. A theme that asks for none of those, and a document
- * with no head, is returned as-is.
+ * Inserts theme head tags before `</head>`, and when the Tailwind runtime is
+ * on, a reveal script before `</body>`. The runtime is on when
+ * [FireflyTheme.useTailwind] is true, and when an asset stylesheet has no
+ * compiled file in `public/`. A theme that asks for none of those, and a
+ * document with no head, is returned as-is.
  *
  * The Tailwind browser build compiles on a promise after the parser continues,
  * and it only reads `style type="text/tailwindcss"`. A plain link would paint
@@ -370,7 +377,7 @@ internal fun escapeThemeAttr(value: String): String = buildString {
  * runtime replace the compiled sheet, which flashes stock colors.
  */
 internal fun withThemeStylesheet(html: String, theme: FireflyTheme): String {
-    val compiled = ThemeAssets.isCompiledAsset(theme.stylesheet())
+    val runtime = themeUsesRuntime(theme)
     val extra = themeHeadExtra(theme, html.contains("<body class=\"ff-auth\""))
     var result = html
     if (extra.isNotEmpty()) {
@@ -379,7 +386,7 @@ internal fun withThemeStylesheet(html: String, theme: FireflyTheme): String {
             result = result.substring(0, head) + extra + "\n" + result.substring(head)
         }
     }
-    if (theme.useTailwind() && !compiled) {
+    if (runtime) {
         val body = result.indexOf("</body>")
         if (body >= 0) {
             result = result.substring(0, body) + themePaintScript() + "\n" + result.substring(body)
@@ -388,14 +395,28 @@ internal fun withThemeStylesheet(html: String, theme: FireflyTheme): String {
     return result
 }
 
+/**
+ * True when the page should load `/_firefly/tailwind.js` and stay hidden until
+ * that compile is in the CSSOM. [FireflyTheme.useTailwind] always does.
+ * An asset token does too when its compiled public file is missing, so the
+ * uncompiled resources file can be edited and refreshed.
+ */
+internal fun themeUsesRuntime(theme: FireflyTheme): Boolean {
+    if (theme.useTailwind()) return true
+    val raw = theme.stylesheet()?.trim().orEmpty()
+    return ThemeAssets.isCompiledAsset(raw) && !ThemeAssets.hasCompiledFile(raw)
+}
+
 internal fun themeHeadExtra(theme: FireflyTheme, authDocument: Boolean): String {
     val parts = ArrayList<String>()
     val raw = theme.stylesheet()?.trim().orEmpty()
-    val compiled = ThemeAssets.isCompiledAsset(raw)
-    val href = if (compiled) ThemeAssets.publicUrl(raw) else raw
-    if (theme.useTailwind() && !compiled) {
+    val asset = ThemeAssets.isCompiledAsset(raw)
+    val runtime = themeUsesRuntime(theme)
+    if (runtime) {
         parts.add(themeHold(theme, authDocument))
-        parts.add(tailwindHead(href))
+        val userCss = if (asset) ThemeAssets.uncompiledCss(raw) else ""
+        val href = if (asset) "" else raw
+        parts.add(tailwindHead(href, userCss))
     }
     val fonts = googleFontsHref(theme.googleFonts())
     if (fonts != null) {
@@ -403,7 +424,8 @@ internal fun themeHeadExtra(theme: FireflyTheme, authDocument: Boolean): String 
         parts.add("""<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />""")
         parts.add("""<link rel="stylesheet" href="${escapeThemeAttr(fonts)}" />""")
     }
-    if (href.isNotEmpty() && (!theme.useTailwind() || compiled)) {
+    if (raw.isNotEmpty() && !runtime) {
+        val href = if (asset) ThemeAssets.publicUrl(raw) else raw
         parts.add("""<link rel="stylesheet" href="${escapeThemeAttr(href)}" />""")
     }
     return parts.joinToString("\n")
@@ -596,13 +618,28 @@ html { --ff-theme-compiled: 1; }</style>"""
  * reveal script knows that build has landed. It does not depend on a class,
  * so waiting for it does not schedule another build.
  */
-internal fun tailwindHead(href: String): String {
+internal fun tailwindHead(href: String, userCss: String): String {
     val source = tailwindSource()
     val script = """<script src="${FireflyTailwind.SCRIPT}"></script>"""
-    if (href.isEmpty()) return source + "\n" + script
+    val inline = inlineTailwindSheet(userCss)
+    if (href.isEmpty()) {
+        if (inline.isEmpty()) return source + "\n" + script
+        return source + "\n" + inline + "\n" + script
+    }
     val loader =
         """<script data-ff-tailwind-href="${escapeThemeAttr(href)}">(function(){var href=document.currentScript.getAttribute("data-ff-tailwind-href");if(!href)return;document.documentElement.setAttribute("data-ff-theme-href",href);function inject(css){var el=document.createElement("style");el.setAttribute("type","text/tailwindcss");el.setAttribute("data-ff-theme-sheet","");el.textContent=css;document.head.appendChild(el);}var synced=false;try{var xhr=new XMLHttpRequest();xhr.open("GET",href,false);xhr.send(null);if(xhr.status>=200&&xhr.status<300){inject(xhr.responseText);document.documentElement.setAttribute("data-ff-theme-sync","");synced=true;}}catch(e){}if(!synced){fetch(href,{credentials:"same-origin"}).then(function(r){if(!r.ok)throw new Error("theme");return r.text();}).then(inject).catch(function(){document.documentElement.setAttribute("data-ff-theme-failed","");document.head.appendChild(document.createComment("ff-theme-failed"));});}})();</script>"""
     return source + "\n" + loader + "\n" + script
+}
+
+/**
+ * User CSS already in the document, the same sheet the runtime fetch injects.
+ * The resources file is not a public URL, so a missing compiled asset is inlined
+ * and a refresh reads it again. `</` is escaped so the style cannot close early.
+ */
+private fun inlineTailwindSheet(userCss: String): String {
+    if (userCss.isEmpty()) return ""
+    val css = userCss.replace("</", "<\\/")
+    return """<style type="text/tailwindcss" data-ff-theme-sheet>$css</style>"""
 }
 
 /**

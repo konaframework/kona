@@ -1371,41 +1371,93 @@ class FireflySupportTest {
 
         val root = Files.createTempDirectory("theme-asset")
         ThemeAssets.root = root
+        Files.createDirectories(root.resolve("src/main/resources/css"))
+        Files.writeString(
+            root.resolve("src/main/resources/css/missing.css"),
+            ".ff-panel .dev-only { color: red; } /* </style> */\n",
+        )
         val missing = object : FireflyTheme() {
             override fun stylesheet() = asset("css/missing.css")
-            override fun useTailwind() = true
         }
-        val missingError = assertThrows(FireflyException::class.java) { Panel().theme(missing).render() }
-        assertTrue(missingError.message!!.contains("./grind firefly:theme-css"))
-        assertTrue(missingError.message!!.contains("public/css/missing.css"))
+        val missingHtml = Panel().theme(missing).render()
+        assertTrue(missingHtml.contains("""src="/_firefly/tailwind.js""""))
+        assertTrue(missingHtml.contains("text/tailwindcss"))
+        assertTrue(missingHtml.contains("""<style type="text/tailwindcss" data-ff-theme-sheet>"""))
+        assertTrue(missingHtml.contains(".ff-panel .dev-only { color: red; }"))
+        assertTrue(missingHtml.contains("/* <\\/style> */"))
+        assertFalse(missingHtml.contains("/* </style> */"))
+        assertFalse(missingHtml.contains("""rel="stylesheet" href="/css/missing.css""""))
+        assertFalse(missingHtml.contains("data-ff-tailwind-href"))
+        assertFalse(missingHtml.contains("ff-asset:"))
+        assertTrue(missingHtml.contains("html.ff-theme-pending{visibility:hidden}"))
+        assertTrue(missingHtml.contains("html.ff-dark.ff-theme-pending{background:#1F2937}"))
+        assertFalse(missingHtml.contains("html.ff-theme-pending{background:"))
+        assertTrue(missingHtml.contains("data-ff-theme-reveal"))
+        assertTrue(missingHtml.indexOf(".dev-only") < missingHtml.indexOf("/_firefly/tailwind.js"))
+        assertTrue(missingHtml.indexOf("/_firefly/tailwind.js") < missingHtml.indexOf("</head>"))
+        val reveal = missingHtml.substring(missingHtml.indexOf("data-ff-theme-reveal"))
+        assertTrue(reveal.contains("--ff-theme-compiled"))
+        assertFalse(reveal.contains("classList.remove"))
+        val missingAuth = authPage(missing)
+        assertTrue(missingAuth.contains("""src="/_firefly/tailwind.js""""))
+        assertTrue(missingAuth.contains(".ff-panel .dev-only { color: red; }"))
+        assertTrue(missingAuth.contains("html.ff-theme-pending{visibility:hidden}"))
+        assertFalse(missingAuth.contains("html.ff-dark.ff-theme-pending{background:"))
+        assertFalse(missingAuth.contains("""href="/css/missing.css""""))
+        assertTrue(missingAuth.contains("data-ff-theme-reveal"))
+
+        val absent = object : FireflyTheme() {
+            override fun stylesheet() = asset("css/absent.css")
+        }
+        val absentHtml = Panel().theme(absent).render()
+        assertTrue(absentHtml.contains("""src="/_firefly/tailwind.js""""))
+        assertFalse(absentHtml.contains("""<style type="text/tailwindcss" data-ff-theme-sheet>"""))
+        assertFalse(absentHtml.contains(".dev-only"))
+        assertFalse(absentHtml.contains("""href="/css/absent.css""""))
+        assertEquals("", ThemeAssets.uncompiledCss(absent.stylesheet()!!))
 
         Files.createDirectories(root.resolve("public/css"))
         Files.writeString(root.resolve("public/css/foo.css"), "/* compiled */\n")
+        Files.writeString(
+            root.resolve("src/main/resources/css/foo.css"),
+            ".ff-panel .compiled-source { color: blue; }\n",
+        )
         val compiled = object : FireflyTheme() {
             override fun stylesheet() = asset("css/foo.css")
             override fun useTailwind() = true
             override fun googleFonts() = listOf("Figtree")
         }
         val html = Panel().theme(compiled).render()
-        assertTrue(html.contains("""href="/css/foo.css""""))
+        assertTrue(html.contains("""src="/_firefly/tailwind.js""""))
+        assertTrue(html.contains("text/tailwindcss"))
+        assertTrue(html.contains(".ff-panel .compiled-source { color: blue; }"))
         assertTrue(html.contains("family=Figtree"))
         assertFalse(html.contains("ff-asset:"))
-        assertFalse(html.contains("/_firefly/tailwind.js"))
-        assertFalse(html.contains("text/tailwindcss"))
-        assertFalse(html.contains("ff-theme-pending"))
-        assertFalse(html.contains("data-ff-theme-reveal"))
-        assertFalse(html.contains("ff-theme-hold"))
+        assertFalse(html.contains("""href="/css/foo.css""""))
+        assertFalse(html.contains("data-ff-tailwind-href"))
+        assertTrue(html.contains("ff-theme-pending"))
+        assertTrue(html.contains("data-ff-theme-reveal"))
+        assertTrue(html.contains("ff-theme-hold"))
+        assertTrue(html.indexOf("/_firefly/tailwind.js") < html.indexOf("family=Figtree"))
         val auth = authPage(compiled)
-        assertTrue(auth.contains("""href="/css/foo.css""""))
-        assertFalse(auth.contains("/_firefly/tailwind.js"))
-        assertFalse(auth.contains("data-ff-theme-reveal"))
+        assertTrue(auth.contains("""src="/_firefly/tailwind.js""""))
+        assertTrue(auth.contains(".compiled-source"))
+        assertFalse(auth.contains("""href="/css/foo.css""""))
+        assertTrue(auth.contains("data-ff-theme-reveal"))
         val quiet = object : FireflyTheme() {
             override fun stylesheet() = asset("css/foo.css")
         }
         val quietHtml = Panel().theme(quiet).render()
         assertTrue(quietHtml.contains("""href="/css/foo.css""""))
         assertFalse(quietHtml.contains("/_firefly/tailwind.js"))
+        assertFalse(quietHtml.contains("text/tailwindcss"))
+        assertFalse(quietHtml.contains("ff-theme-pending"))
+        assertFalse(quietHtml.contains("data-ff-theme-reveal"))
+        assertFalse(quietHtml.contains(".compiled-source"))
+        assertTrue(ThemeAssets.hasCompiledFile(quiet.stylesheet()!!))
+        assertEquals("/css/foo.css", ThemeAssets.publicUrl(quiet.stylesheet()!!))
         assertEquals("no-head", withThemeStylesheet("no-head", compiled))
+        assertEquals("no-head", withThemeStylesheet("no-head", missing))
 
         assertEquals("harbor", ThemeCssCompiler.themeSlug("Harbor"))
         assertEquals("aqua", ThemeCssCompiler.themeSlug("Aqua.CSS"))
