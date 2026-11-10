@@ -8,8 +8,9 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Uncompiled theme stylesheets live under `src/main/resources`.
- * [asset] names one. The render turns that token into the public URL of the
- * compiled file. [ThemeCssCompiler] writes the compiled file.
+ * [asset] names one. When `public/` has the compiled file, the render links
+ * that URL. When it does not, the render feeds [uncompiledCss] to the Tailwind
+ * runtime instead of failing. [ThemeCssCompiler] writes the compiled file.
  */
 object ThemeAssets {
     const val PREFIX: String = "ff-asset:"
@@ -30,18 +31,34 @@ object ThemeAssets {
         return stylesheet.trim().startsWith(PREFIX)
     }
 
+    /** True when `public/` already has the compiled file for an [asset] token. */
+    @JvmStatic
+    fun hasCompiledFile(stylesheet: String): Boolean =
+        Files.isRegularFile(compiledPath(stylesheet))
+
     /**
-     * Public URL for an [asset] token. Fails when `public/` has no compiled file.
-     * The message names [COMMAND]. There is no browser-runtime fallback.
+     * Public URL for an [asset] token (`/css/foo.css`).
+     * Does not check that the compiled file exists. The head resolver links this
+     * only after [hasCompiledFile].
      */
     @JvmStatic
-    fun publicUrl(stylesheet: String): String {
+    fun publicUrl(stylesheet: String): String = "/${normalize(stylesheet)}"
+
+    /**
+     * Uncompiled source for an [asset] token.
+     * `css/foo.css` is `src/main/resources/css/foo.css`. Empty when that file is absent.
+     */
+    @JvmStatic
+    fun uncompiledCss(stylesheet: String): String {
         val relative = normalize(stylesheet)
-        val file = root.toAbsolutePath().normalize().resolve("public").resolve(relative)
-        if (!Files.isRegularFile(file)) {
-            throw FireflyException("Missing compiled theme stylesheet [public/$relative]. Run $COMMAND")
-        }
-        return "/$relative"
+        val file = root.toAbsolutePath().normalize().resolve("src/main/resources").resolve(relative)
+        if (!Files.isRegularFile(file)) return ""
+        return Files.readString(file)
+    }
+
+    private fun compiledPath(stylesheet: String): Path {
+        val relative = normalize(stylesheet)
+        return root.toAbsolutePath().normalize().resolve("public").resolve(relative)
     }
 
     internal fun normalize(path: String): String {

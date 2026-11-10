@@ -38,7 +38,7 @@ Compile the stylesheet before you serve the panel:
 
 That reads every theme stylesheet under `src/main/resources/css` (a file whose comment contains `firefly-theme`) and writes compiled CSS to `public/css/`. `./grind firefly:theme-css midnighttheme` compiles one file. Run the command again after you edit the resources file. It does not run on each request.
 
-The browser loads `public/css/midnighttheme.css` at `/css/midnighttheme.css`. `@apply` is expanded. `var(--ff-primary)` and the other `--ff-*` tokens stay variables, so the panel color and dark mode still apply. If the compiled file is missing, the page fails and the message names `./grind firefly:theme-css`. The theme does not fall back to the browser runtime.
+The browser loads `public/css/midnighttheme.css` at `/css/midnighttheme.css`. `@apply` is expanded. `var(--ff-primary)` and the other `--ff-*` tokens stay variables, so the panel color and dark mode still apply. When that compiled file is missing, Firefly falls back to the Tailwind runtime and compiles the resources file in the browser, so you can edit the source and refresh. Run `./grind firefly:theme-css` for a flicker-free compiled sheet.
 
 ## Register the theme
 
@@ -140,7 +140,7 @@ override fun stylesheet(): String? = asset("css/midnighttheme.css")
 </TabItem>
 </Tabs>
 
-A literal path such as `/css/midnighttheme.css`, or a full `https://` URL, is linked as given. Use that when the file is already compiled, or when it is hosted elsewhere. `asset(...)` is what a generated theme uses, and it is the path that fails with a message naming `./grind firefly:theme-css` when `public/css/midnighttheme.css` is missing.
+A literal path such as `/css/midnighttheme.css`, or a full `https://` URL, is linked as given. Use that when the file is already compiled, or when it is hosted elsewhere. `asset(...)` is what a generated theme uses. A missing compiled file falls back to the runtime; `./grind firefly:theme-css` writes the flicker-free sheet.
 
 Write normal CSS. Name the `ff-*` element and the class the hook added. Stock rules use selectors such as `.ff-panel .ff-sidebar`, and the sign-in card is `.ff-auth-panel`. Write your rule at that depth so it applies. The link comes after the stock `<style>` block.
 
@@ -312,7 +312,7 @@ override fun sidebar(): String = "bg-slate-950 text-stone-100"
 
 Restart `./grind serve`. Open the panel. The sidebar is a dark slate, and the text on it is stone.
 
-Firefly serves a Tailwind runtime in the browser when `useTailwind()` is true and `stylesheet()` is a plain URL. That runtime reads the class attributes on the chrome. A class returned from a hook, such as `bg-slate-950`, is already on the sidebar, so the runtime generates that utility. You do not keep a safelist, and the runtime does not scan your Kotlin. It also compiles `@apply` in the file the URL names, and it loads that file for you. The document stays hidden until that compile is in the CSSOM, then it is shown. A theme that leaves `useTailwind()` false does not serve the runtime. A theme whose `stylesheet()` is `asset(...)` does not serve it either, even if `useTailwind()` is true, because the public file is already compiled.
+Firefly serves a Tailwind runtime in the browser when `useTailwind()` is true and `stylesheet()` is a plain URL. That runtime reads the class attributes on the chrome. A class returned from a hook, such as `bg-slate-950`, is already on the sidebar, so the runtime generates that utility. You do not keep a safelist, and the runtime does not scan your Kotlin. It also compiles `@apply` in the file the URL names, and it loads that file for you. The document stays hidden until that compile is in the CSSOM, then it is shown. A theme that leaves `useTailwind()` false serves the runtime only when its `asset(...)` file has not been compiled yet. `useTailwind()` true stays on the runtime even when the compiled file exists.
 
 The runtime loads Tailwind's theme and utilities. It does not load Tailwind's page reset. Start the runtime stylesheet with `@import "tailwindcss";` when you want that reset. Leave other `@import` rules out of the file while Tailwind is on. The compiled `asset(...)` path does not need that import. `./grind firefly:theme-css` adds the theme Tailwind already uses.
 
