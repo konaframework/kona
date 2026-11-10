@@ -412,6 +412,14 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   cursor: default;
 }
 
+/* APP group roots are sidebar cluster links. INVERSE group roots are top-bar
+   cluster links. Both navigate, so they take the pointer the heading style
+   removed. SIDE headings and TOP dropdown triggers keep their own rules. */
+.ff-panel .ff-nav-side .ff-nav-item.ff-cluster > a,
+.ff-panel .ff-nav-top .ff-nav-item.ff-cluster > a {
+  cursor: pointer;
+}
+
 .ff-panel .ff-nav-item.ff-cluster > a:hover {
   background: transparent;
   color: var(--ff-body-subtle);
@@ -419,6 +427,13 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 @media (hover: hover) {
   .ff-panel .ff-nav-item:not(.ff-cluster) > a:hover {
+    background: var(--ff-hover);
+    color: var(--ff-heading);
+  }
+
+  /* Same hover fill as a normal item on that surface. Not the active style. */
+  .ff-panel .ff-nav-side .ff-nav-item.ff-cluster > a:hover,
+  .ff-panel .ff-nav-top .ff-nav-item.ff-cluster > a:hover {
     background: var(--ff-hover);
     color: var(--ff-heading);
   }
