@@ -43,6 +43,7 @@ import org.konaframework.firefly.schemas.WizardStep
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.tables.BulkAction
 import org.konaframework.firefly.tables.Table
+import org.konaframework.firefly.tables.TableButton
 import org.konaframework.firefly.tables.TextColumn
 import org.konaframework.firefly.widgets.Dashboard
 import org.konaframework.firefly.widgets.Page
@@ -1215,6 +1216,31 @@ class FireflyResourceTest {
         val domain = Router()
         Panel().path("admin").authenticate(false).domain("admin.test").page(BulkPage()).mount(domain)
         assertEquals(404, post(domain, "/admin/bulk-page", "_bulk_action=stamp&_bulk_keys=1").status)
+    }
+
+    @Test
+    fun managePageKeepsAnUngroupedRowButtonBesideTheMenu() {
+        val resource = object : Resource("routes") {
+            init {
+                simple()
+            }
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to "1", "name" to "North")).columns(
+                    TextColumn.make("name"),
+                ).rowButtons(
+                    TableButton.make("open").label("Open").url("/open").ungrouped(),
+                )
+        }
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(resource).mount(router)
+        val row = send(router, "/admin/routes/manage")
+            .substringAfter("""data-ff-record="1"""")
+            .substringBefore("</tr>")
+        val beforeMenu = row.substringBefore("data-ff-menu-panel")
+        assertTrue(beforeMenu.contains("""href="/open""""))
+        assertTrue(row.contains("data-ff-menu-panel"))
+        assertTrue(row.contains("Delete"))
     }
 
     private fun notes(): Resource = NotesResource()

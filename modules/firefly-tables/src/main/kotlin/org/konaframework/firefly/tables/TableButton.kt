@@ -31,6 +31,7 @@ open class TableButton(val name: String) {
     private var confirmHeading: String? = null
     private var confirmDescription: String = ""
     private var bodyHtml: Function<Cell, String>? = null
+    private var ungroupedFlag = false
 
     fun label(value: String): TableButton = apply { labelValue.set(value) }
 
@@ -57,6 +58,14 @@ open class TableButton(val name: String) {
     fun url(value: String): TableButton = apply { urlValue.set(value) }
 
     fun url(value: Function<Cell, String>): TableButton = apply { urlValue.set(value) }
+
+    /**
+     * Stay beside the ⋯ menu instead of inside it (#514).
+     * Default row actions remain grouped.
+     */
+    fun ungrouped(): TableButton = apply { ungroupedFlag = true }
+
+    fun isUngrouped(): Boolean = ungroupedFlag
 
     fun modal(): TableButton = apply { mode = ButtonMode.MODAL }
 

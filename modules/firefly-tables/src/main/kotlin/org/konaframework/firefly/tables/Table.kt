@@ -295,6 +295,9 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         rowButtonList.addAll(buttons)
     }
 
+    /** Row buttons set with [rowButtons], before a resource page adds its defaults (#514). */
+    fun configuredRowButtons(): List<TableButton> = rowButtonList.toList()
+
     /**
      * Server-side row actions (Filament `recordActions`). Each [Action] runs against the row's record:
      * `Action.make("post").requiresConfirmation().action { record -> … }`. Their handlers run when the
@@ -1205,12 +1208,15 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val cell = rowActionCell(values, key, record)
         val emptySelection = selectedKeys.isEmpty()
         val all = recordButtons + rowButtonList
-        val buttons =
-            if (groupRowActionsFlag && all.size > 1) {
-                listOf(TableButton.group(*all.toTypedArray()))
-            } else {
-                all
-            }
+        val loose = all.filter { it.isUngrouped() }
+        val grouped = all.filter { !it.isUngrouped() }
+        val buttons = ArrayList<TableButton>()
+        buttons.addAll(loose)
+        if (groupRowActionsFlag && grouped.size > 1) {
+            buttons.add(TableButton.group(*grouped.toTypedArray()))
+        } else {
+            buttons.addAll(grouped)
+        }
         val html = buttons.joinToString("") { it.render(cell, emptySelection) }
         val inner = """<div class="ff-row-actions-inner">$html</div>"""
         // Keep flex on an inner wrapper — display:flex on the <td> breaks collapsed

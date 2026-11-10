@@ -698,7 +698,10 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         applyTableQuery(built, state)
         val csrf = state["csrfField"] as? String ?: ""
         // Row dialogs carry the record; the manage list itself stays table-only (no standing form).
+        // Buttons already set on the table (for example an ungrouped link) stay (#514).
+        val custom = built.configuredRowButtons()
         built.rowButtons(
+            *custom.toTypedArray(),
             manageViewButton(),
             manageEditButton(csrf),
             TableButton.make("delete").label("Delete").visible(rowDelete()).confirmPost("delete", csrf),
@@ -750,7 +753,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         applyTableQuery(built, state)
         val csrf = state["csrfField"] as? String ?: ""
         // Row actions — never sidebar links — open the record pages (Shamar list toolbar).
+        val custom = built.configuredRowButtons()
         built.rowButtons(
+            *custom.toTypedArray(),
             TableButton.make("view").label("View").visible(rowView()).url(rowRecordUrl("view")),
             TableButton.make("edit").label("Edit").visible(rowEdit()).url(rowRecordUrl("edit")),
             TableButton.make("delete").label("Delete").visible(rowDelete()).confirmPost("delete", csrf),
