@@ -933,6 +933,8 @@ class FireflySupportTest {
         assertEquals(KonaTheme().tokens().primary, bare.tokens().primary)
         assertEquals(null, bare.stylesheet())
         assertEquals("", bare.sidebar())
+        assertEquals("", bare.navigationItemActive())
+        assertEquals("", bare.navigationGroupActive())
         assertEquals("", sanitizeThemeClasses("   "))
         assertEquals("", sanitizeThemeClasses("<script>"))
         assertEquals("bg-slate-950 dark:text-white", sanitizeThemeClasses("bg-slate-950 \"nope\" dark:text-white"))
@@ -1028,6 +1030,51 @@ class FireflySupportTest {
         }
         assertTrue(Panel().theme(escaped).render().contains("""href="/c?a&amp;b&quot;&lt;""""))
         assertEquals("no-head", withThemeStylesheet("no-head", theme))
+    }
+
+    @Test
+    fun activeNavHooksMergeOntoTheOpenPageOnly() {
+        val nav = """
+            <nav class="ff-nav">
+              <ul>
+                <li class="ff-nav-item">Idle</li>
+                <li class="ff-nav-item ff-active">Open</li>
+                <li class="ff-nav-item ff-cluster ff-active">Group cluster</li>
+                <li class="ff-nav-item ff-cluster">Shut cluster</li>
+                <li class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown ff-active">
+                  <button type="button" class="ff-nav-dropdown-trigger">Top group</button>
+                </li>
+                <section class="ff-nav-group">Other</section>
+                <section class="ff-nav-group ff-nav-group-active">Open group</section>
+                <a class="ff-menu-link ff-active" href="/profile">Profile</a>
+              </ul>
+            </nav>
+        """.trimIndent()
+        assertEquals(nav, applyThemeClasses(nav, FireflyTheme()))
+        val theme = object : FireflyTheme() {
+            override fun navigationItem() = "theme-item"
+            override fun navigationItemActive() = "theme-item-active <bad>"
+            override fun navigationGroup() = "theme-group"
+            override fun navigationGroupActive() = "theme-group-active"
+        }
+        val html = applyThemeClasses(nav, theme)
+        assertTrue(html.contains("""class="ff-nav-item theme-item""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-cluster ff-active theme-item theme-group-active""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-cluster theme-item""""))
+        assertTrue(
+            html.contains(
+                """class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown ff-active theme-item theme-group theme-group-active""""
+            ),
+        )
+        assertTrue(html.contains("""class="ff-nav-dropdown-trigger""""))
+        assertFalse(html.contains("ff-nav-dropdown-trigger theme-"))
+        assertTrue(html.contains("""class="ff-nav-group theme-group""""))
+        assertTrue(html.contains("""class="ff-nav-group ff-nav-group-active theme-group theme-group-active""""))
+        assertTrue(html.contains("""class="ff-menu-link ff-active""""))
+        assertFalse(html.contains("ff-menu-link ff-active theme-"))
+        assertFalse(html.contains("<bad>"))
+        assertFalse(html.contains("theme-item-active theme-item-active"))
     }
 
     @Test
