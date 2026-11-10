@@ -1075,6 +1075,55 @@ class FireflySupportTest {
         }
         assertTrue(Panel().theme(quoted).render().contains("""data-ff-tailwind-href="/c?a&amp;b&quot;&lt;""""))
 
+        val branded = object : FireflyTheme() {
+            override fun useTailwind() = true
+            override fun sidebar() = "bg-primary-800 text-primary-50 text-accent-700 border-accent-500"
+        }
+        val brandedHtml = Panel().theme(branded).branding(
+            FireflyBranding(primaryColor = "#FF2A00", accentColor = "#286291"),
+        ).render()
+        val brandedAuth = authPage(branded)
+        assertTrue(brandedHtml.contains("bg-primary-800"))
+        assertTrue(brandedHtml.contains("text-primary-50"))
+        assertTrue(brandedHtml.contains("text-accent-700"))
+        assertTrue(brandedHtml.contains("border-accent-500"))
+        assertTrue(brandedHtml.contains("--ff-primary: #ff2a00"))
+        assertTrue(brandedHtml.contains("--ff-accent: #286291"))
+        for (html in listOf(brandedHtml, brandedAuth)) {
+            assertTrue(html.contains("@theme inline {"))
+            assertTrue(html.contains("--ff-primary-500: var(--ff-primary);"))
+            assertTrue(html.contains("--ff-accent-500: var(--ff-accent);"))
+            assertTrue(html.contains("--color-primary-500: var(--ff-primary-500);"))
+            assertTrue(html.contains("--color-accent-500: var(--ff-accent-500);"))
+            assertTrue(html.contains("--color-primary: var(--ff-primary);"))
+            assertTrue(html.contains("--color-accent: var(--ff-accent);"))
+            assertTrue(html.contains("--color-heading: var(--ff-heading);"))
+            assertTrue(html.contains("--color-surface: var(--ff-surface);"))
+            assertTrue(html.contains("color-mix(in srgb, var(--ff-primary) 8%, white)"))
+            assertTrue(html.contains("color-mix(in srgb, var(--ff-primary) 74%, white)"))
+            assertTrue(html.contains("color-mix(in srgb, var(--ff-accent) 84%, black)"))
+            assertTrue(html.contains("color-mix(in srgb, var(--ff-accent) 32%, black)"))
+            val themeStart = html.indexOf("@theme inline {")
+            val themeEnd = html.indexOf("}", themeStart)
+            assertTrue(themeStart >= 0 && themeEnd > themeStart)
+            assertFalse(html.substring(themeStart, themeEnd).contains("#"))
+            for (step in listOf(50, 100, 200, 300, 400, 500, 600, 700, 800, 900)) {
+                assertTrue(html.contains("--color-primary-$step: var(--ff-primary-$step);"))
+                assertTrue(html.contains("--color-accent-$step: var(--ff-accent-$step);"))
+                assertTrue(html.contains("--ff-primary-$step:"))
+                assertTrue(html.contains("--ff-accent-$step:"))
+            }
+        }
+
+        val off = Panel().render()
+        assertFalse(off.contains("--color-primary-500"))
+        assertFalse(off.contains("--color-accent-500"))
+        assertFalse(off.contains("--ff-primary-500"))
+        assertFalse(off.contains("--ff-accent-500"))
+        assertFalse(off.contains("@theme inline"))
+        assertFalse(off.contains("text/tailwindcss"))
+        assertFalse(off.contains("/_firefly/tailwind.js"))
+
         val saved = FireflyTailwind.resourcePath
         try {
             val bytes = FireflyTailwind.bytes()

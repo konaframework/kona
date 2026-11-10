@@ -29,6 +29,8 @@ class ThemeTokens(
  * Classes are the way to reskin a region.
  *
  * [useTailwind] loads Tailwind for hook classes and for `@apply` in [stylesheet].
+ * That runtime registers `primary` and `accent` scales from `--ff-primary` and
+ * `--ff-accent`, plus the raw `heading` and `surface` tokens.
  * [googleFonts] loads those families on the panel and the sign-in page.
  * Both stay off until a theme overrides them.
  */
@@ -55,7 +57,8 @@ open class FireflyTheme {
 
     /**
      * When true, the panel and the sign-in page load the Tailwind runtime.
-     * Hook classes such as `bg-slate-950` and `@apply` in [stylesheet] both apply.
+     * Hook classes such as `bg-primary-800` and `@apply` in [stylesheet] both apply.
+     * `primary-500` is `--ff-primary` and `accent-500` is `--ff-accent`.
      * False leaves the stock panel CSS alone.
      */
     open fun useTailwind(): Boolean = false
@@ -277,19 +280,110 @@ internal fun googleFontsHref(families: List<String>): String? {
     return "https://fonts.googleapis.com/css2?$query"
 }
 
-private const val TAILWIND_SOURCE = """<style type="text/tailwindcss">@import "tailwindcss/theme";
-@import "tailwindcss/utilities";</style>"""
+/** `primary` and `accent` scales. The value is the existing brand variable. */
+private val BRAND_COLOR_SCALES = listOf(
+    "primary" to "--ff-primary",
+    "accent" to "--ff-accent",
+)
+
+/** Raw tokens that already exist on `.ff-panel` and `.ff-auth`. */
+private val THEME_COLOR_TOKENS = listOf(
+    "primary" to "--ff-primary",
+    "accent" to "--ff-accent",
+    "heading" to "--ff-heading",
+    "surface" to "--ff-surface",
+)
+
+/**
+ * Brand-color share in each step. 500 is the brand variable itself.
+ * Lower steps mix toward white. Higher steps mix toward black.
+ */
+private val BRAND_SHADES = listOf(
+    50 to 8,
+    100 to 18,
+    200 to 34,
+    300 to 52,
+    400 to 74,
+    500 to 100,
+    600 to 84,
+    700 to 68,
+    800 to 50,
+    900 to 32,
+)
+
+private fun brandShadeValue(source: String, step: Int, percent: Int): String {
+    if (step == 500) return "var($source)"
+    val toward = if (step < 500) "white" else "black"
+    return "color-mix(in srgb, var($source) $percent%, $toward)"
+}
+
+/** Shade custom properties. A later rule can replace one step. */
+private fun brandColorScaleCss(): String = buildString {
+    appendLine(".ff-panel,")
+    appendLine(".ff-auth {")
+    for ((name, source) in BRAND_COLOR_SCALES) {
+        for ((step, percent) in BRAND_SHADES) {
+            append("  --ff-")
+            append(name)
+            append("-")
+            append(step)
+            append(": ")
+            append(brandShadeValue(source, step, percent))
+            appendLine(";")
+        }
+    }
+    append("}")
+}
+
+/**
+ * `@theme inline` so utilities use `var(--ff-…)` on the element.
+ * A `:root` copy would freeze the brand color before `.ff-panel` sets it.
+ */
+private fun brandColorThemeCss(): String = buildString {
+    appendLine("@theme inline {")
+    for ((name, source) in THEME_COLOR_TOKENS) {
+        append("  --color-")
+        append(name)
+        append(": var(")
+        append(source)
+        appendLine(");")
+    }
+    for ((name, _) in BRAND_COLOR_SCALES) {
+        for ((step, _) in BRAND_SHADES) {
+            append("  --color-")
+            append(name)
+            append("-")
+            append(step)
+            append(": var(--ff-")
+            append(name)
+            append("-")
+            append(step)
+            appendLine(");")
+        }
+    }
+    append("}")
+}
+
+private fun tailwindSource(): String =
+    """<style>
+${brandColorScaleCss()}
+</style>
+<style type="text/tailwindcss">@import "tailwindcss/theme";
+@import "tailwindcss/utilities";
+${brandColorThemeCss()}</style>"""
 
 /**
  * Browser runtime plus a stylesheet source that imports Tailwind utilities
  * without the page reset. A non-blank [href] is fetched and compiled so
  * `@apply` in that file runs. Hook classes are already on the chrome elements,
- * and the runtime reads those class attributes.
+ * and the runtime reads those class attributes. `primary` and `accent` scales
+ * point at the panel brand variables, so `primary-500` stays `--ff-primary`.
  */
 internal fun tailwindHead(href: String): String {
     val script = """<script src="${FireflyTailwind.SCRIPT}"></script>"""
-    if (href.isEmpty()) return TAILWIND_SOURCE + "\n" + script
+    val source = tailwindSource()
+    if (href.isEmpty()) return source + "\n" + script
     val loader =
         """<script data-ff-tailwind-href="${escapeThemeAttr(href)}">(function(){var href=document.currentScript.getAttribute("data-ff-tailwind-href");fetch(href,{credentials:"same-origin"}).then(function(r){return r.text();}).then(function(css){var el=document.createElement("style");el.setAttribute("type","text/tailwindcss");el.textContent=css;document.head.appendChild(el);}).catch(function(){});})();</script>"""
-    return TAILWIND_SOURCE + "\n" + script + "\n" + loader
+    return source + "\n" + script + "\n" + loader
 }

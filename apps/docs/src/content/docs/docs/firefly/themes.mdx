@@ -297,6 +297,43 @@ Firefly serves a Tailwind runtime in the browser. That runtime reads the class a
 
 The runtime loads Tailwind's theme and utilities. It does not load Tailwind's page reset. Start `midnight.css` with `@import "tailwindcss";` when you want that reset. Leave other `@import` rules out of the file while Tailwind is on.
 
+## Brand colors
+
+With Tailwind on, the panel primary and accent are color scales. `primary-500` is the panel primary (`--ff-primary`). `accent-500` is the panel accent (`--ff-accent`). Steps `50`, `100`, `200`, `300`, and `400` mix that color toward white. Steps `600`, `700`, `800`, and `900` mix it toward black. `bg-primary`, `text-accent`, `text-heading`, and `bg-surface` use those variables as they are. Background, text, and border utilities all follow the scale: `bg-primary-50`, `text-primary-900`, `border-accent-200`.
+
+Use the scale from a hook:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun useTailwind(): Boolean = true
+
+override fun sidebar(): String = "bg-primary-500 text-accent-700"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override public boolean useTailwind() { return true; }
+
+@Override public String sidebar() { return "bg-primary-500 text-accent-700"; }
+```
+
+</TabItem>
+</Tabs>
+
+The same classes work in the stylesheet `stylesheet()` names:
+
+```css
+.ff-panel .ff-sidebar.midnight-sidebar {
+  @apply bg-primary-500 text-accent-700;
+}
+```
+
+`primaryColor` and `accentColor` on the panel set `--ff-primary` and `--ff-accent`. The scale reads those variables, so `500` stays the brand color. Each step is also a custom property on `.ff-panel` and `.ff-auth` (`--ff-primary-500`, `--ff-accent-700`, and the rest). A later rule can replace one step. A theme that leaves `useTailwind()` false does not add the scale.
+
 ## Use a Google font
 
 `googleFonts()` names one or more families. It returns an empty list until you override it.
