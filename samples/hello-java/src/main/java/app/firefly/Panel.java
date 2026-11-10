@@ -18,6 +18,7 @@ public class Panel extends org.konaframework.firefly.Panel {
             "/branding/kona-logo.svg",
             null,
             null,
+            null,
             BrandDisplay.BOTH,
             "© Desk",
             null,
