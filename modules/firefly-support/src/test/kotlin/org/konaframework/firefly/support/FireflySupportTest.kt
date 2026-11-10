@@ -3,6 +3,7 @@ package org.konaframework.firefly.support
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -358,6 +359,19 @@ class FireflySupportTest {
         assertTrue(authBrand.contains("padding-block: 0"), authBrand)
         assertTrue(css.contains("height: var(--ff-logo-height, 2rem)"))
         assertTrue(css.contains("width: var(--ff-logo-width, auto)"))
+        // html.ff-dark must hide the light logo. The old panel-only :not(.ff-dark) still matched.
+        assertTrue(css.contains("html:not(.ff-dark) .ff-panel:not(.ff-dark) .ff-brand-logo--light"))
+        assertTrue(css.contains("html:not(.ff-dark) .ff-auth:not(.ff-dark) .ff-brand-logo--light"))
+        assertFalse(
+            css.lineSequence().any { line ->
+                val rule = line.trim()
+                rule == ".ff-panel:not(.ff-dark) .ff-brand-logo--light," ||
+                    rule == ".ff-auth:not(.ff-dark) .ff-brand-logo--light," ||
+                    rule == "html:not(.ff-dark) .ff-panel .ff-brand-logo--light," ||
+                    rule == "html:not(.ff-dark) .ff-auth .ff-brand-logo--light {"
+            },
+        )
+        assertTrue(css.contains("html.ff-dark .ff-panel .ff-brand-logo--dark"))
         // Empty sidebar must not keep the column (#499). TOP's drawer aside is zero-width on desktop (#505).
         assertTrue(css.contains(".ff-panel > .ff-sidebar:empty"))
         assertTrue(css.contains(".ff-panel > .ff-sidebar:has(> .ff-sidebar-offcanvas)"))
@@ -493,6 +507,22 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-footer"))
         assertTrue(css.contains("--ff-footer-height:"))
         assertTrue(css.contains("min-height: var(--ff-footer-height)"))
+        assertTrue(css.contains("--ff-footer-height: 70px"))
+        val bodyRule = Regex("""\.ff-panel \.ff-body\s*\{[^}]*\}""").find(css)
+        assertNotNull(bodyRule)
+        assertTrue(bodyRule!!.value.contains("min-height: calc(100% - 70px)"))
+        val footerRules = Regex("""([^{]+)\{([^}]*)\}""").findAll(css).filter { rule ->
+            rule.groupValues[1].split(",").any { selector ->
+                val trimmed = selector.trim()
+                trimmed.endsWith(".ff-footer") || trimmed.contains(".ff-footer ")
+            }
+        }
+        assertTrue(footerRules.any())
+        assertTrue(
+            footerRules.none { rule ->
+                Regex("""position:\s*(fixed|sticky)""").containsMatchIn(rule.groupValues[2])
+            },
+        )
         assertTrue(css.contains("background: var(--ff-shell)"))
         assertFalse(
             Regex("""\.ff-panel\s+\.ff-footer\s*\{[^}]*background:\s*var\(--ff-card\)""")
@@ -553,14 +583,15 @@ class FireflySupportTest {
         assertTrue(html.contains("<title>Desk</title>"))
         assertTrue(html.contains("<b>nav</b>"))
         assertTrue(html.contains("<i>foot</i>"))
-        // Footer is pinned under the scroll region (sibling), not nested inside it.
+        // Footer follows the body inside the scroll region, in normal flow.
         val scrollOpen = html.indexOf("""<div class="ff-scroll">""")
+        val mainOpen = html.indexOf("""<main class="ff-body">""")
         val footerOpen = html.indexOf("""<footer class="ff-footer">""")
-        assertTrue(scrollOpen >= 0 && footerOpen > scrollOpen)
-        val afterScrollOpen = html.substring(scrollOpen)
-        val scrollInnerEnd = afterScrollOpen.indexOf("</div>")
-        assertTrue(scrollInnerEnd > 0)
-        assertFalse(afterScrollOpen.substring(0, scrollInnerEnd).contains("""class="ff-footer""""))
+        assertTrue(scrollOpen >= 0 && mainOpen > scrollOpen && footerOpen > mainOpen)
+        val afterFooter = html.substring(footerOpen)
+        val footerEnd = afterFooter.indexOf("</footer>")
+        val scrollClose = afterFooter.indexOf("</div>")
+        assertTrue(footerEnd >= 0 && scrollClose > footerEnd)
         assertTrue(html.contains("ff-sidebar"))
         val noSidebar = Panel().includeSidebar(false).render()
         assertFalse(noSidebar.contains("""<aside class="ff-sidebar""""))
@@ -902,6 +933,8 @@ class FireflySupportTest {
         assertEquals(KonaTheme().tokens().primary, bare.tokens().primary)
         assertEquals(null, bare.stylesheet())
         assertEquals("", bare.sidebar())
+        assertEquals("", bare.navigationItemActive())
+        assertEquals("", bare.navigationGroupActive())
         assertEquals("", sanitizeThemeClasses("   "))
         assertEquals("", sanitizeThemeClasses("<script>"))
         assertEquals("bg-slate-950 dark:text-white", sanitizeThemeClasses("bg-slate-950 \"nope\" dark:text-white"))
@@ -974,6 +1007,11 @@ class FireflySupportTest {
         assertTrue(html.contains("""class="ff-scroll theme-scroll""""))
         assertTrue(html.contains("""href="/css/midnight.css""""))
         assertTrue(html.indexOf("""href="/css/midnight.css"""") < html.indexOf("</head>"))
+        assertTrue(html.indexOf("</head>") < html.indexOf("<body"))
+        assertTrue(html.indexOf("<body") < html.indexOf("""<aside class="ff-sidebar"""))
+        assertFalse(html.contains("ff-theme-pending"))
+        assertFalse(html.contains("data-ff-theme-reveal"))
+        assertFalse(html.contains("ff-theme-hold"))
         assertTrue(html.contains(".ff-sidebar {") || html.contains(".ff-panel .ff-sidebar"))
         assertFalse(html.contains("theme-sidebar {"))
 
@@ -987,16 +1025,69 @@ class FireflySupportTest {
         assertTrue(auth.contains("""class="ff-auth-panel theme-auth-card""""))
         assertFalse(auth.contains("<bad>"))
         assertFalse(auth.contains("""<aside class="ff-sidebar""""))
+        assertTrue(auth.indexOf("""href="/css/midnight.css"""") < auth.indexOf("</head>"))
+        assertTrue(auth.indexOf("</head>") < auth.indexOf("<body"))
+        assertFalse(auth.contains("ff-theme-pending"))
+        assertFalse(auth.contains("data-ff-theme-reveal"))
 
         val blankSheet = object : FireflyTheme() {
             override fun stylesheet() = "   "
         }
-        assertFalse(Panel().theme(blankSheet).render().contains("""rel="stylesheet" href="""))
+        val blankHtml = Panel().theme(blankSheet).render()
+        assertFalse(blankHtml.contains("""rel="stylesheet" href="""))
+        assertFalse(blankHtml.contains("ff-theme-pending"))
+        assertFalse(blankHtml.contains("data-ff-theme-reveal"))
+        assertFalse(blankHtml.contains("ff-theme-hold"))
         val escaped = object : FireflyTheme() {
             override fun stylesheet() = """/c?a&b"<"""
         }
         assertTrue(Panel().theme(escaped).render().contains("""href="/c?a&amp;b&quot;&lt;""""))
         assertEquals("no-head", withThemeStylesheet("no-head", theme))
+    }
+
+    @Test
+    fun activeNavHooksMergeOntoTheOpenPageOnly() {
+        val nav = """
+            <nav class="ff-nav">
+              <ul>
+                <li class="ff-nav-item">Idle</li>
+                <li class="ff-nav-item ff-active">Open</li>
+                <li class="ff-nav-item ff-cluster ff-active">Group cluster</li>
+                <li class="ff-nav-item ff-cluster">Shut cluster</li>
+                <li class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown ff-active">
+                  <button type="button" class="ff-nav-dropdown-trigger">Top group</button>
+                </li>
+                <section class="ff-nav-group">Other</section>
+                <section class="ff-nav-group ff-nav-group-active">Open group</section>
+                <a class="ff-menu-link ff-active" href="/profile">Profile</a>
+              </ul>
+            </nav>
+        """.trimIndent()
+        assertEquals(nav, applyThemeClasses(nav, FireflyTheme()))
+        val theme = object : FireflyTheme() {
+            override fun navigationItem() = "theme-item"
+            override fun navigationItemActive() = "theme-item-active <bad>"
+            override fun navigationGroup() = "theme-group"
+            override fun navigationGroupActive() = "theme-group-active"
+        }
+        val html = applyThemeClasses(nav, theme)
+        assertTrue(html.contains("""class="ff-nav-item theme-item""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-cluster ff-active theme-item theme-group-active""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-cluster theme-item""""))
+        assertTrue(
+            html.contains(
+                """class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown ff-active theme-item theme-group theme-group-active""""
+            ),
+        )
+        assertTrue(html.contains("""class="ff-nav-dropdown-trigger""""))
+        assertFalse(html.contains("ff-nav-dropdown-trigger theme-"))
+        assertTrue(html.contains("""class="ff-nav-group theme-group""""))
+        assertTrue(html.contains("""class="ff-nav-group ff-nav-group-active theme-group theme-group-active""""))
+        assertTrue(html.contains("""class="ff-menu-link ff-active""""))
+        assertFalse(html.contains("ff-menu-link ff-active theme-"))
+        assertFalse(html.contains("<bad>"))
+        assertFalse(html.contains("theme-item-active theme-item-active"))
     }
 
     @Test
@@ -1019,6 +1110,9 @@ class FireflySupportTest {
         assertFalse(stock.contains("fonts.gstatic.com"))
         assertFalse(stock.contains("/_firefly/tailwind.js"))
         assertFalse(stock.contains("text/tailwindcss"))
+        assertFalse(stock.contains("ff-theme-pending"))
+        assertFalse(stock.contains("data-ff-theme-reveal"))
+        assertFalse(stock.contains("ff-theme-hold"))
 
         val fonts = object : FireflyTheme() {
             override fun googleFonts() = listOf("Figtree", "Source Sans 3")
@@ -1033,7 +1127,10 @@ class FireflySupportTest {
             assertTrue(html.contains("display=swap"))
             assertTrue(html.contains("""rel="preconnect" href="https://fonts.googleapis.com""""))
             assertTrue(html.indexOf("family=Figtree") < html.indexOf("</head>"))
+            assertTrue(html.indexOf("</head>") < html.indexOf("<body"))
             assertFalse(html.contains("/_firefly/tailwind.js"))
+            assertFalse(html.contains("ff-theme-pending"))
+            assertFalse(html.contains("data-ff-theme-reveal"))
         }
 
         val blankFonts = object : FireflyTheme() {
@@ -1053,12 +1150,66 @@ class FireflySupportTest {
             assertTrue(html.contains("""src="/_firefly/tailwind.js""""))
             assertTrue(html.contains("text/tailwindcss"))
             assertTrue(html.contains("""@import "tailwindcss/utilities";"""))
+            assertTrue(html.contains("""@utility ff-theme-paint"""))
             assertTrue(html.contains("""data-ff-tailwind-href="/css/midnight.css""""))
+            assertTrue(html.contains("""xhr.open("GET",href,false)"""))
             assertFalse(html.contains("""rel="stylesheet" href="/css/midnight.css""""))
             assertFalse(html.contains("fonts.googleapis.com"))
-            assertTrue(html.indexOf("/_firefly/tailwind.js") < html.indexOf("</head>"))
+            val headEnd = html.indexOf("</head>")
+            val bodyAt = html.indexOf("<body")
+            assertTrue(html.indexOf("getItem('ff-theme')") < html.indexOf("ff-theme-pending"))
+            assertTrue(html.indexOf("ff-theme-pending") < html.indexOf("data-ff-tailwind-href"))
+            assertTrue(html.indexOf("data-ff-tailwind-href") < html.indexOf("/_firefly/tailwind.js"))
+            assertTrue(html.indexOf("/_firefly/tailwind.js") < headEnd)
+            assertTrue(headEnd < bodyAt)
+            assertTrue(html.indexOf("data-ff-theme-reveal") > bodyAt)
+            assertTrue(html.indexOf("data-ff-theme-reveal") < html.indexOf("</body>"))
         }
+        assertTrue(twPanel.indexOf("</head>") < twPanel.indexOf("""<aside class="ff-sidebar"""))
+        assertTrue(twPanel.indexOf("</head>") < twPanel.indexOf("""<header class="ff-topbar""""))
+        assertTrue(twPanel.indexOf("</head>") < twPanel.indexOf("""<main class="ff-body""""))
+        assertTrue(twAuth.indexOf("</head>") < twAuth.indexOf("""class="ff-auth-panel""""))
+        assertTrue(twPanel.contains("html.ff-theme-pending{background:#FAF6F0}"))
+        assertTrue(twPanel.contains("html.ff-dark.ff-theme-pending{background:#1F2937}"))
+        assertTrue(twAuth.contains("html.ff-theme-pending{background:#FAF6F0}"))
+        assertTrue(twAuth.contains("html.ff-dark.ff-theme-pending{background:#FAF6F0}"))
+        assertFalse(twAuth.contains("html.ff-dark.ff-theme-pending{background:#1F2937}"))
         assertEquals("no-head", withThemeStylesheet("no-head", tailwind))
+        val headOnly = withThemeStylesheet("<head></head>", tailwind)
+        assertTrue(headOnly.contains("""id="ff-theme-hold""""))
+        assertTrue(headOnly.contains("#1F2937"))
+        assertFalse(headOnly.contains("data-ff-theme-reveal"))
+        val bodyOnly = withThemeStylesheet("<body class=\"ff-auth\"></body>", tailwind)
+        assertTrue(bodyOnly.contains("data-ff-theme-reveal"))
+        assertFalse(bodyOnly.contains("""id="ff-theme-hold""""))
+
+        val painted = object : FireflyTheme() {
+            override fun useTailwind() = true
+            override fun stylesheet() = "/css/both.css"
+            override fun googleFonts() = listOf("Figtree")
+            override fun tokens() = ThemeTokens(
+                primary = "#111111",
+                accent = "#222222",
+                surface = "#333333",
+                heading = "#444444",
+                font = "sans-serif",
+                radius = "0",
+                sidebarWidth = "1rem",
+                topbarHeight = "1rem",
+                bodyBackground = "#abc</style>",
+                darkPrimary = "#111111",
+                darkSurface = "#def<bad>",
+                darkHeading = "#eeeeee",
+            )
+        }
+        val paintedPanel = Panel().theme(painted).render()
+        val paintedAuth = authPage(painted)
+        assertTrue(paintedPanel.contains("html.ff-theme-pending{background:#abc/style}"))
+        assertTrue(paintedPanel.contains("html.ff-dark.ff-theme-pending{background:#defbad}"))
+        assertTrue(paintedAuth.contains("html.ff-dark.ff-theme-pending{background:#abc/style}"))
+        assertTrue(paintedPanel.indexOf("/_firefly/tailwind.js") < paintedPanel.indexOf("family=Figtree"))
+        assertTrue(paintedPanel.indexOf("family=Figtree") < paintedPanel.indexOf("</head>"))
+        assertTrue(paintedAuth.indexOf("/_firefly/tailwind.js") < paintedAuth.indexOf("family=Figtree"))
 
         val utilitiesOnly = object : FireflyTheme() {
             override fun useTailwind() = true
@@ -1066,8 +1217,13 @@ class FireflySupportTest {
         }
         val utilitiesHtml = Panel().theme(utilitiesOnly).render()
         assertTrue(utilitiesHtml.contains("""src="/_firefly/tailwind.js""""))
+        assertTrue(utilitiesHtml.contains("ff-theme-pending"))
+        assertTrue(utilitiesHtml.contains("data-ff-theme-reveal"))
+        assertTrue(utilitiesHtml.indexOf("/_firefly/tailwind.js") < utilitiesHtml.indexOf("</head>"))
+        assertTrue(utilitiesHtml.indexOf("</head>") < utilitiesHtml.indexOf("<body"))
+        assertTrue(utilitiesHtml.indexOf("data-ff-theme-reveal") > utilitiesHtml.indexOf("<body"))
         assertFalse(utilitiesHtml.contains("data-ff-tailwind-href"))
-        assertFalse(utilitiesHtml.contains("""rel="stylesheet" href="""))
+        assertFalse(utilitiesHtml.contains("""rel="stylesheet" href=""""))
 
         val quoted = object : FireflyTheme() {
             override fun useTailwind() = true

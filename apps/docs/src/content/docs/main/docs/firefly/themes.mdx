@@ -85,7 +85,9 @@ A darker sidebar, a tighter brand, and a wider page are three places to start. T
 | `brand()` | `.ff-sidebar-brand`, `.ff-topbar-brand`, `.ff-auth-brand` | `midnight-brand` — tighter brand |
 | `navigation()` | `nav.ff-nav` | `midnight-nav` |
 | `navigationItem()` | `.ff-nav-item` | `midnight-item` |
+| `navigationItemActive()` | the open page (`.ff-nav-item.ff-active` that is not a group cluster) | `midnight-item-active` |
 | `navigationGroup()` | `.ff-nav-group` | `midnight-group` |
+| `navigationGroupActive()` | a group that contains the open page | `midnight-group-active` |
 | `content()` | `main.ff-body` | `midnight-wide` — wider page |
 | `pageHeader()` | `.ff-page-header` | `midnight-header` |
 | `footer()` | `footer.ff-footer` | `midnight-footer` |
@@ -99,6 +101,8 @@ A darker sidebar, a tighter brand, and a wider page are three places to start. T
 `brand()` is one hook for the three brand elements, so the sidebar, the top bar, and the sign-in brand get the same classes.
 
 `column()` matches every `.ff-column`, including table cells. Use `content()` for the page.
+
+`navigationItem()` is every nav item. `navigationItemActive()` is only the open page. Firefly merges that class onto the active leaf and leaves group clusters alone, even when a cluster has `ff-active` because it contains the page. `navigationGroupActive()` is that group: a cluster with `ff-active`, or a sidebar group with `ff-nav-group-active`. The stylesheet targets the hook class, for example `.midnight-item-active`, and does not restate the `ff-active` selector. `ff-active` stays on the element.
 
 ## Add a stylesheet
 

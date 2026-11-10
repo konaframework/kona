@@ -679,7 +679,11 @@ class FireflyPanelTest {
         assertTrue(html.contains("ff-brand-logo--light"))
         assertTrue(html.contains("/branding/logo.svg"))
         assertTrue(html.contains("Acme"))
-        assertTrue(html.contains("© Acme") || html.contains("ff-sidebar-copyright"))
+        assertTrue(html.contains("© Acme"))
+        val acmeFooter = Regex("""<footer class="ff-footer[^"]*">([\s\S]*?)</footer>""").find(html)
+        assertNotNull(acmeFooter)
+        assertTrue(acmeFooter!!.groupValues[1].contains("© Acme"))
+        assertFalse(html.contains("ff-sidebar-copyright"))
         assertTrue(html.contains("--ff-primary: #112233") || html.contains("#112233"))
 
         val hue = Router()
@@ -920,7 +924,11 @@ class FireflyPanelTest {
             .page(ListPage("one"))
             .mount(copyRouter)
         val copyHtml = send(copyRouter, "GET", "/copy/one").body
-        assertTrue(copyHtml.contains("&amp;") || copyHtml.contains("ff-sidebar-copyright"))
+        assertTrue(copyHtml.contains("&amp;"))
+        val escapedFooter = Regex("""<footer class="ff-footer[^"]*">([\s\S]*?)</footer>""").find(copyHtml)
+        assertNotNull(escapedFooter)
+        assertTrue(escapedFooter!!.groupValues[1].contains("&amp;"))
+        assertFalse(copyHtml.contains("ff-sidebar-copyright"))
 
         val csrfSession = object : org.konaframework.http.RequestSession {
             private val data = linkedMapOf<String, Any?>("_token" to "tok-profile")
@@ -1139,6 +1147,70 @@ class FireflyPanelTest {
     }
 
     @Test
+    fun copyrightRendersInBodyFooterNotSidebarFoot() {
+        val router = Router()
+        Panel().path("copyfoot")
+            .authenticate(false)
+            .navigation(NavigationType.INVERSE)
+            .branding(
+                org.konaframework.firefly.support.PanelBranding(
+                    name = "Amp",
+                    copyright = "© Savannabits",
+                ),
+            )
+            .page(ListPage("one"))
+            .mount(router)
+        val html = send(router, "GET", "/copyfoot/one").body
+        val footer = Regex("""<footer class="ff-footer[^"]*">([\s\S]*?)</footer>""").find(html)
+        val side = Regex("""<div class="ff-sidebar-foot[^"]*">([\s\S]*?)</div>""").find(html)
+        assertNotNull(footer)
+        assertNotNull(side)
+        assertTrue(footer!!.groupValues[1].contains("© Savannabits"))
+        assertTrue(footer.groupValues[1].contains("ff-footer-copyright"))
+        assertFalse(side!!.groupValues[1].contains("© Savannabits"))
+        assertFalse(side.groupValues[1].contains("ff-sidebar-copyright"))
+        assertFalse(side.groupValues[1].contains("ff-footer-copyright"))
+        assertTrue(side.groupValues[1].contains("Signed in as"))
+        assertTrue(side.groupValues[1].contains("""class="ff-signed-in""""))
+
+        val scrollOpen = html.indexOf("""<div class="ff-scroll">""")
+        val footerOpen = footer.range.first
+        assertTrue(scrollOpen >= 0 && footerOpen > scrollOpen)
+        var depth = 0
+        var index = scrollOpen
+        while (index < footerOpen) {
+            if (html.startsWith("<div", index)) depth++
+            if (html.startsWith("</div>", index)) depth--
+            index++
+        }
+        assertTrue(depth > 0)
+
+        val bare = Router()
+        Panel().path("nocopy").authenticate(false).navigation(NavigationType.TOP)
+            .page(ListPage("one")).mount(bare)
+        val plain = send(bare, "GET", "/nocopy/one").body
+        assertFalse(plain.contains("""class="ff-footer-copyright""""))
+        assertFalse(plain.contains("ff-sidebar-copyright"))
+        assertTrue(Regex("""<div class="ff-sidebar-foot[^"]*">[\s\S]*?Signed in as""").containsMatchIn(plain))
+        assertTrue(
+            Regex("""\.ff-panel \.ff-body\s*\{[^}]*min-height:\s*calc\(100% - 70px\)""")
+                .containsMatchIn(html),
+        )
+        val footerRules = Regex("""([^{]+)\{([^}]*)\}""").findAll(html).filter { rule ->
+            rule.groupValues[1].split(",").any { selector ->
+                val trimmed = selector.trim()
+                trimmed.endsWith(".ff-footer") || trimmed.contains(".ff-footer ")
+            }
+        }
+        assertTrue(footerRules.any())
+        assertTrue(
+            footerRules.none { rule ->
+                Regex("""position:\s*(fixed|sticky)""").containsMatchIn(rule.groupValues[2])
+            },
+        )
+    }
+
+    @Test
     fun themeClassesLandOnTheSidebarAndDefaultAddsNone() {
         val orders = ListPage("orders")
         orders.title("Orders")
@@ -1177,6 +1249,70 @@ class FireflyPanelTest {
         assertTrue(Regex("""class="ff-auth-panel[^"]*theme-auth-card""").containsMatchIn(auth))
         assertTrue(auth.contains("""class="ff-auth-brand theme-brand""""))
         assertFalse(auth.contains("""<aside class="ff-sidebar""""))
+    }
+
+    @Test
+    fun activeNavHooksMarkTheOpenPageAndItsGroup() {
+        val orders = ListPage("orders")
+        orders.navigationGroup("Sales")
+        val quotes = ListPage("quotes")
+        quotes.navigationGroup("Sales")
+        val loose = ListPage("loose")
+        fun mount(type: NavigationType): Router {
+            val router = Router()
+            Panel().id("desk").path("desk").authenticate(false)
+                .navigation(type)
+                .navigationGroups(NavigationGroup.make("Sales"))
+                .theme(ActiveNavTheme())
+                .page(orders)
+                .page(quotes)
+                .page(loose)
+                .mount(router)
+            return router
+        }
+        val top = send(mount(NavigationType.TOP), "GET", "/desk/quotes").body
+        val bar = top.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        assertTrue(bar.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""), bar)
+        assertTrue(bar.contains("""class="ff-nav-item theme-item""""), bar)
+        assertTrue(
+            bar.contains(
+                """class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown ff-active theme-item theme-group theme-group-active""""
+            ),
+            bar,
+        )
+        assertFalse(bar.contains("theme-item-active theme-item-active"))
+        val cluster = Regex("""<li class="([^"]*ff-cluster[^"]*)">""").find(bar)!!.groupValues[1]
+        assertTrue(cluster.contains("theme-group-active"), cluster)
+        assertFalse(cluster.contains("theme-item-active"), cluster)
+        assertTrue(bar.contains("""class="ff-nav-dropdown-trigger""""))
+        assertFalse(bar.contains("ff-nav-dropdown-trigger theme-"))
+        val drawer = top.substringAfter("""<nav class="ff-nav ff-nav-drawer"""").substringBefore("</nav>")
+        assertTrue(drawer.contains("ff-nav-group-active theme-group theme-group-active"), drawer)
+        assertTrue(drawer.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""), drawer)
+        val menu = top.substringAfter("""class="ff-menu-panel"""").substringBefore("""class="ff-menu-form"""")
+        assertFalse(menu.contains("theme-item-active"), menu)
+        assertFalse(menu.contains("theme-group-active"), menu)
+
+        val inverse = send(mount(NavigationType.INVERSE), "GET", "/desk/quotes").body
+        val inverseTop = inverse.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        val inverseSide = inverse.substringAfter("""<nav class="ff-nav ff-nav-side">""").substringBefore("</nav>")
+        assertTrue(
+            inverseTop.contains("""class="ff-nav-item ff-cluster ff-active theme-item theme-group-active""""),
+            inverseTop,
+        )
+        assertFalse(inverseTop.contains("theme-item-active"), inverseTop)
+        assertTrue(
+            inverseSide.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""),
+            inverseSide,
+        )
+        assertTrue(inverseSide.contains("""class="ff-nav-item theme-item""""), inverseSide)
+        assertFalse(inverseSide.contains("theme-group-active"), inverseSide)
+
+        val onLoose = send(mount(NavigationType.INVERSE), "GET", "/desk/loose").body
+        val looseTop = onLoose.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        assertTrue(looseTop.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""), looseTop)
+        assertTrue(looseTop.contains("""class="ff-nav-item ff-cluster theme-item""""), looseTop)
+        assertFalse(looseTop.contains("theme-group-active"), looseTop)
     }
 
     @Test
@@ -1297,6 +1433,13 @@ class FireflyPanelTest {
         writePage(dir, name, text)
         PanelDiscovery.pages(dir, javaClass.classLoader)
     }
+}
+
+private class ActiveNavTheme : FireflyTheme() {
+    override fun navigationItem() = "theme-item"
+    override fun navigationItemActive() = "theme-item-active"
+    override fun navigationGroup() = "theme-group"
+    override fun navigationGroupActive() = "theme-group-active"
 }
 
 private class ChromeClassTheme : FireflyTheme() {
