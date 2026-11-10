@@ -41,6 +41,16 @@ class RecordActionsTableTest {
     }
 
     @Test
+    fun configuredRowButtonsKeepsTheButtonsSetOnTheTable() {
+        val open = TableButton.make("open").label("Open").url("/open").ungrouped()
+        val table = table().rowButtons(open)
+        assertSame(open, table.configuredRowButtons().single())
+        val edit = TableButton.make("edit").label("Edit").url("/edit")
+        table.rowButtons(edit)
+        assertSame(edit, table.configuredRowButtons().single())
+    }
+
+    @Test
     fun ungroupedRowButtonStaysOutsideTheMenu() {
         val html = table().rowButtons(
             TableButton.make("open").label("Open").url("/open").ungrouped(),
