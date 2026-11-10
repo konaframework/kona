@@ -1,5 +1,11 @@
 package org.konaframework.firefly.support
 
+/**
+ * Palette for a theme.
+ * [darkPrimary], [darkSurface], and [darkHeading] are the dark values used when the panel
+ * did not set that light color. They do not replace a primary or accent the panel set.
+ * Override [FireflyTheme.darkPrimary] (and the matching hooks) to force a dark color.
+ */
 class ThemeTokens(
     val primary: String,
     val accent: String,
@@ -41,6 +47,34 @@ open class FireflyTheme {
 
     /** Color, type, and size tokens. The default is the shipped Kona palette. */
     open fun tokens(): ThemeTokens = KonaTheme().tokens()
+
+    /**
+     * Explicit dark primary, or null to follow the panel.
+     * Null derives a shade of the panel primary when the panel set one.
+     * When the panel set no primary, the dark block uses [tokens] `darkPrimary`
+     * (Kona's `#C9A57B` on [KonaTheme]). That token is the fallback, not an override:
+     * a theme that only fills `tokens().darkPrimary` does not replace a panel primary.
+     */
+    open fun darkPrimary(): String? = null
+
+    /**
+     * Explicit dark accent, or null to follow the panel.
+     * Null derives a shade of the panel accent when the panel set one, and otherwise
+     * leaves the light accent in place for dark mode too.
+     */
+    open fun darkAccent(): String? = null
+
+    /**
+     * Explicit dark surface, or null to use [tokens] `darkSurface`.
+     * The panel cannot set a surface, so this hook is the theme override.
+     */
+    open fun darkSurface(): String? = null
+
+    /**
+     * Explicit dark heading, or null to use [tokens] `darkHeading`.
+     * The panel cannot set a heading, so this hook is the theme override.
+     */
+    open fun darkHeading(): String? = null
 
     /** Replacement HTML for a chrome slot, or null to keep the built-in partial. */
     open fun partial(slot: String): String? = null
@@ -149,7 +183,8 @@ class KonaTheme : FireflyTheme() {
         topbarHeight = "3.75rem",
         bodyBackground = "#FAF6F0",
         /* Dark chrome matches Shamar calm dark (gray shell / near-white headings).
-         * Primary stays latte so brand accents remain coffee-toned on gray surfaces. */
+         * darkPrimary is the fallback when the panel sets no primary. A panel primary
+         * keeps its own hue in dark mode instead of this latte. */
         darkPrimary = "#C9A57B",
         darkSurface = "#1F2937",
         darkHeading = "#F3F4F6",
