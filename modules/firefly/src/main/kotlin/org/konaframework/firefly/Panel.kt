@@ -217,6 +217,21 @@ open class Panel {
      */
     fun brandLogoWidth(value: String): Panel = branding(PanelBranding(logoWidth = value))
 
+    /** Brand primary. Dark mode uses a shade of this color unless [darkPrimary] is set. */
+    fun primary(color: String): Panel = branding(PanelBranding(primaryColor = color))
+
+    /** Brand accent. Dark mode uses a shade of this color unless [darkAccent] is set. */
+    fun accent(color: String): Panel = branding(PanelBranding(accentColor = color))
+
+    /**
+     * Dark-mode primary. Wins over the shade derived from [primary].
+     * Leave it unset to follow the panel primary, or the Kona dark primary when the panel sets none.
+     */
+    fun darkPrimary(color: String): Panel = branding(PanelBranding(darkPrimaryColor = color))
+
+    /** Dark-mode accent. Wins over the shade derived from [accent]. */
+    fun darkAccent(color: String): Panel = branding(PanelBranding(darkAccentColor = color))
+
     /**
      * Runtime branding overrides (DB settings, company logo, etc.).
      * Merged over [branding] when rendering shell and auth.
@@ -543,6 +558,7 @@ open class Panel {
         chrome.hook(Hook.BODY_START, body)
         val toasts = flashToasts(request)
         if (toasts.isNotEmpty()) chrome.hook(Hook.BODY_END, toasts)
+        chrome.hook(Hook.FOOTER, footerCopyrightHtml(branding))
         return chrome.render()
     }
 
@@ -1933,7 +1949,7 @@ open class Panel {
                 """<nav class="ff-nav ff-nav-side"$accordion>${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
             }
         }
-        return offcanvas + brandBlock + nav + drawerNav(path, get) + sidebarFootHtml(user, branding)
+        return offcanvas + brandBlock + nav + drawerNav(path, get) + sidebarFootHtml(user)
     }
 
     /**
@@ -1947,15 +1963,17 @@ open class Panel {
     }
 
     /** Sidebar footer with the "Signed in as …" line (Shamar sidebar user block). */
-    private fun sidebarFootHtml(user: ChromeUser, branding: FireflyBranding): String {
+    private fun sidebarFootHtml(user: ChromeUser): String =
+        """<div class="ff-sidebar-foot"><span>Signed in as <span class="ff-signed-in">${escapeHtml(user.primary)}</span></span></div>"""
+
+    /**
+     * Copyright lives in the main-column footer, centered, so the sidebar foot
+     * stays the signed-in line only. Blank copyright adds nothing.
+     */
+    private fun footerCopyrightHtml(branding: FireflyBranding): String {
         val copyrightText = branding.copyrightText
-        val copyright =
-            if (copyrightText.isNullOrBlank()) {
-                ""
-            } else {
-                """<p class="ff-sidebar-copyright">${escapeHtml(copyrightText)}</p>"""
-            }
-        return """<div class="ff-sidebar-foot">$copyright<span>Signed in as <span class="ff-signed-in">${escapeHtml(user.primary)}</span></span></div>"""
+        if (copyrightText.isNullOrBlank()) return ""
+        return """<p class="ff-footer-copyright">${escapeHtml(copyrightText)}</p>"""
     }
 
     /**

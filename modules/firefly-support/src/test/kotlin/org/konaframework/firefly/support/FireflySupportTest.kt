@@ -3,6 +3,7 @@ package org.konaframework.firefly.support
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -358,6 +359,19 @@ class FireflySupportTest {
         assertTrue(authBrand.contains("padding-block: 0"), authBrand)
         assertTrue(css.contains("height: var(--ff-logo-height, 2rem)"))
         assertTrue(css.contains("width: var(--ff-logo-width, auto)"))
+        // html.ff-dark must hide the light logo. The old panel-only :not(.ff-dark) still matched.
+        assertTrue(css.contains("html:not(.ff-dark) .ff-panel:not(.ff-dark) .ff-brand-logo--light"))
+        assertTrue(css.contains("html:not(.ff-dark) .ff-auth:not(.ff-dark) .ff-brand-logo--light"))
+        assertFalse(
+            css.lineSequence().any { line ->
+                val rule = line.trim()
+                rule == ".ff-panel:not(.ff-dark) .ff-brand-logo--light," ||
+                    rule == ".ff-auth:not(.ff-dark) .ff-brand-logo--light," ||
+                    rule == "html:not(.ff-dark) .ff-panel .ff-brand-logo--light," ||
+                    rule == "html:not(.ff-dark) .ff-auth .ff-brand-logo--light {"
+            },
+        )
+        assertTrue(css.contains("html.ff-dark .ff-panel .ff-brand-logo--dark"))
         // Empty sidebar must not keep the column (#499). TOP's drawer aside is zero-width on desktop (#505).
         assertTrue(css.contains(".ff-panel > .ff-sidebar:empty"))
         assertTrue(css.contains(".ff-panel > .ff-sidebar:has(> .ff-sidebar-offcanvas)"))
@@ -493,6 +507,22 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-footer"))
         assertTrue(css.contains("--ff-footer-height:"))
         assertTrue(css.contains("min-height: var(--ff-footer-height)"))
+        assertTrue(css.contains("--ff-footer-height: 70px"))
+        val bodyRule = Regex("""\.ff-panel \.ff-body\s*\{[^}]*\}""").find(css)
+        assertNotNull(bodyRule)
+        assertTrue(bodyRule!!.value.contains("min-height: calc(100% - 70px)"))
+        val footerRules = Regex("""([^{]+)\{([^}]*)\}""").findAll(css).filter { rule ->
+            rule.groupValues[1].split(",").any { selector ->
+                val trimmed = selector.trim()
+                trimmed.endsWith(".ff-footer") || trimmed.contains(".ff-footer ")
+            }
+        }
+        assertTrue(footerRules.any())
+        assertTrue(
+            footerRules.none { rule ->
+                Regex("""position:\s*(fixed|sticky)""").containsMatchIn(rule.groupValues[2])
+            },
+        )
         assertTrue(css.contains("background: var(--ff-shell)"))
         assertFalse(
             Regex("""\.ff-panel\s+\.ff-footer\s*\{[^}]*background:\s*var\(--ff-card\)""")
@@ -553,14 +583,15 @@ class FireflySupportTest {
         assertTrue(html.contains("<title>Desk</title>"))
         assertTrue(html.contains("<b>nav</b>"))
         assertTrue(html.contains("<i>foot</i>"))
-        // Footer is pinned under the scroll region (sibling), not nested inside it.
+        // Footer follows the body inside the scroll region, in normal flow.
         val scrollOpen = html.indexOf("""<div class="ff-scroll">""")
+        val mainOpen = html.indexOf("""<main class="ff-body">""")
         val footerOpen = html.indexOf("""<footer class="ff-footer">""")
-        assertTrue(scrollOpen >= 0 && footerOpen > scrollOpen)
-        val afterScrollOpen = html.substring(scrollOpen)
-        val scrollInnerEnd = afterScrollOpen.indexOf("</div>")
-        assertTrue(scrollInnerEnd > 0)
-        assertFalse(afterScrollOpen.substring(0, scrollInnerEnd).contains("""class="ff-footer""""))
+        assertTrue(scrollOpen >= 0 && mainOpen > scrollOpen && footerOpen > mainOpen)
+        val afterFooter = html.substring(footerOpen)
+        val footerEnd = afterFooter.indexOf("</footer>")
+        val scrollClose = afterFooter.indexOf("</div>")
+        assertTrue(footerEnd >= 0 && scrollClose > footerEnd)
         assertTrue(html.contains("ff-sidebar"))
         val noSidebar = Panel().includeSidebar(false).render()
         assertFalse(noSidebar.contains("""<aside class="ff-sidebar""""))
@@ -902,6 +933,8 @@ class FireflySupportTest {
         assertEquals(KonaTheme().tokens().primary, bare.tokens().primary)
         assertEquals(null, bare.stylesheet())
         assertEquals("", bare.sidebar())
+        assertEquals("", bare.navigationItemActive())
+        assertEquals("", bare.navigationGroupActive())
         assertEquals("", sanitizeThemeClasses("   "))
         assertEquals("", sanitizeThemeClasses("<script>"))
         assertEquals("bg-slate-950 dark:text-white", sanitizeThemeClasses("bg-slate-950 \"nope\" dark:text-white"))
@@ -1011,6 +1044,51 @@ class FireflySupportTest {
         }
         assertTrue(Panel().theme(escaped).render().contains("""href="/c?a&amp;b&quot;&lt;""""))
         assertEquals("no-head", withThemeStylesheet("no-head", theme))
+    }
+
+    @Test
+    fun activeNavHooksMergeOntoTheOpenPageOnly() {
+        val nav = """
+            <nav class="ff-nav">
+              <ul>
+                <li class="ff-nav-item">Idle</li>
+                <li class="ff-nav-item ff-active">Open</li>
+                <li class="ff-nav-item ff-cluster ff-active">Group cluster</li>
+                <li class="ff-nav-item ff-cluster">Shut cluster</li>
+                <li class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown ff-active">
+                  <button type="button" class="ff-nav-dropdown-trigger">Top group</button>
+                </li>
+                <section class="ff-nav-group">Other</section>
+                <section class="ff-nav-group ff-nav-group-active">Open group</section>
+                <a class="ff-menu-link ff-active" href="/profile">Profile</a>
+              </ul>
+            </nav>
+        """.trimIndent()
+        assertEquals(nav, applyThemeClasses(nav, FireflyTheme()))
+        val theme = object : FireflyTheme() {
+            override fun navigationItem() = "theme-item"
+            override fun navigationItemActive() = "theme-item-active <bad>"
+            override fun navigationGroup() = "theme-group"
+            override fun navigationGroupActive() = "theme-group-active"
+        }
+        val html = applyThemeClasses(nav, theme)
+        assertTrue(html.contains("""class="ff-nav-item theme-item""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-active theme-item theme-item-active""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-cluster ff-active theme-item theme-group-active""""))
+        assertTrue(html.contains("""class="ff-nav-item ff-cluster theme-item""""))
+        assertTrue(
+            html.contains(
+                """class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown ff-active theme-item theme-group theme-group-active""""
+            ),
+        )
+        assertTrue(html.contains("""class="ff-nav-dropdown-trigger""""))
+        assertFalse(html.contains("ff-nav-dropdown-trigger theme-"))
+        assertTrue(html.contains("""class="ff-nav-group theme-group""""))
+        assertTrue(html.contains("""class="ff-nav-group ff-nav-group-active theme-group theme-group-active""""))
+        assertTrue(html.contains("""class="ff-menu-link ff-active""""))
+        assertFalse(html.contains("ff-menu-link ff-active theme-"))
+        assertFalse(html.contains("<bad>"))
+        assertFalse(html.contains("theme-item-active theme-item-active"))
     }
 
     @Test

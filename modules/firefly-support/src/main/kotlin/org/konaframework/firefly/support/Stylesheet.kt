@@ -26,19 +26,30 @@ object Stylesheet {
         val font: String
         val logoHeight: String
         val logoWidth: String
+        val suppliedPrimary: String?
+        val suppliedAccent: String?
         if (branding == null) {
             primary = tokens.primary
             accent = tokens.accent
             font = tokens.font
             logoHeight = "2rem"
             logoWidth = "auto"
+            suppliedPrimary = null
+            suppliedAccent = null
         } else {
             primary = resolveThemeColor(branding.primaryColor, tokens.primary)
             accent = resolveThemeColor(branding.accentColor, tokens.accent)
             font = if (branding.fontFamily.isBlank()) tokens.font else branding.fontFamily
             logoHeight = branding.logoHeight
             logoWidth = branding.logoWidth
+            suppliedPrimary = panelSuppliedColor(branding.panelPrimary, branding.primaryColor, FireflyBranding.DEFAULT.primaryColor)
+            suppliedAccent = panelSuppliedColor(branding.panelAccent, branding.accentColor, FireflyBranding.DEFAULT.accentColor)
         }
+        val darkPrimary = resolveDarkBrandColor(branding?.panelDarkPrimary, theme.darkPrimary(), suppliedPrimary, tokens.darkPrimary)
+        val darkAccent = explicitOrDerivedDark(branding?.panelDarkAccent, theme.darkAccent(), suppliedAccent)
+        val darkSurface = themeDarkOrFallback(theme.darkSurface(), tokens.darkSurface)
+        val darkHeading = themeDarkOrFallback(theme.darkHeading(), tokens.darkHeading)
+        val darkAccentRule = if (darkAccent == null) "" else "\n              --ff-accent: $darkAccent;"
         val variables = """
             .ff-panel,
             .ff-auth {
@@ -62,10 +73,10 @@ object Stylesheet {
             .ff-auth.ff-dark,
             .ff-dark .ff-panel,
             .ff-dark .ff-auth {
-              --ff-primary: ${tokens.darkPrimary};
-              --ff-surface: ${tokens.darkSurface};
-              --ff-heading: ${tokens.darkHeading};
-              --ff-body: ${tokens.darkSurface};
+              --ff-primary: $darkPrimary;$darkAccentRule
+              --ff-surface: $darkSurface;
+              --ff-heading: $darkHeading;
+              --ff-body: $darkSurface;
             }
             .ff-panel.ff-dark,
             .ff-dark .ff-panel {

@@ -16,7 +16,7 @@ enum class BrandDisplay {
  * Panel chrome branding config (Shamar `PanelBranding`).
  * Empty / null fields are ignored when merging.
  */
-data class PanelBranding(
+data class PanelBranding @JvmOverloads constructor(
     val name: String? = null,
     val logo: String? = null,
     val logoDark: String? = null,
@@ -29,6 +29,10 @@ data class PanelBranding(
     val fontUrl: String? = null,
     val primaryColor: String? = null,
     val accentColor: String? = null,
+    /** Dark primary. Null derives a shade of [primaryColor], or the theme fallback when that is unset. */
+    val darkPrimaryColor: String? = null,
+    /** Dark accent. Null derives a shade of [accentColor], or keeps the light accent when that is unset. */
+    val darkAccentColor: String? = null,
 ) {
     fun merge(override: PanelBranding?): PanelBranding {
         if (override == null) return this
@@ -53,6 +57,8 @@ data class PanelBranding(
         private var fontUrl: String? = null
         private var primaryColor: String? = null
         private var accentColor: String? = null
+        private var darkPrimaryColor: String? = null
+        private var darkAccentColor: String? = null
 
         fun name(value: String?) = apply { name = value }
         fun logo(value: String?) = apply { logo = value }
@@ -66,6 +72,8 @@ data class PanelBranding(
         fun fontUrl(value: String?) = apply { fontUrl = value }
         fun primaryColor(value: String?) = apply { primaryColor = value }
         fun accentColor(value: String?) = apply { accentColor = value }
+        fun darkPrimaryColor(value: String?) = apply { darkPrimaryColor = value }
+        fun darkAccentColor(value: String?) = apply { darkAccentColor = value }
 
         fun build(): PanelBranding =
             PanelBranding(
@@ -81,6 +89,8 @@ data class PanelBranding(
                 fontUrl,
                 primaryColor,
                 accentColor,
+                darkPrimaryColor,
+                darkAccentColor,
             )
     }
 }
@@ -111,6 +121,17 @@ data class FireflyBranding(
     val fontPreconnect: Boolean = false,
     val primaryColor: String = DEFAULT.primaryColor,
     val accentColor: String = DEFAULT.accentColor,
+    /**
+     * Primary the panel set, normalized, or null when the panel left primary unset.
+     * A null value is what selects the theme's dark fallback (Kona's `#C9A57B` on [KonaTheme]).
+     */
+    val panelPrimary: String? = null,
+    /** Accent the panel set, normalized, or null when the panel left accent unset. */
+    val panelAccent: String? = null,
+    /** Explicit dark primary from the panel. Null means derive, or use the theme fallback. */
+    val panelDarkPrimary: String? = null,
+    /** Explicit dark accent from the panel. Null means derive, or keep the light accent. */
+    val panelDarkAccent: String? = null,
 ) {
     companion object {
         @JvmField
@@ -158,6 +179,8 @@ fun mergePanelBranding(base: PanelBranding?, override: PanelBranding?): PanelBra
         fontUrl = nonBlank(override.fontUrl) ?: nonBlank(base.fontUrl),
         primaryColor = nonBlank(override.primaryColor) ?: nonBlank(base.primaryColor),
         accentColor = nonBlank(override.accentColor) ?: nonBlank(base.accentColor),
+        darkPrimaryColor = nonBlank(override.darkPrimaryColor) ?: nonBlank(base.darkPrimaryColor),
+        darkAccentColor = nonBlank(override.darkAccentColor) ?: nonBlank(base.darkAccentColor),
     )
 }
 
@@ -185,6 +208,10 @@ fun mergeBranding(base: FireflyBranding, override: FireflyBranding?): FireflyBra
             fontPreconnect = override.fontPreconnect || base.fontPreconnect,
             primaryColor = choose(override.primaryColor, base.primaryColor),
             accentColor = choose(override.accentColor, base.accentColor),
+            panelPrimary = override.panelPrimary ?: base.panelPrimary,
+            panelAccent = override.panelAccent ?: base.panelAccent,
+            panelDarkPrimary = override.panelDarkPrimary ?: base.panelDarkPrimary,
+            panelDarkAccent = override.panelDarkAccent ?: base.panelDarkAccent,
         ),
     )
 }
@@ -222,6 +249,10 @@ fun resolveBranding(config: PanelBranding?): FireflyBranding {
             fontPreconnect = preconnect,
             primaryColor = if (primary == null) FireflyBranding.DEFAULT.primaryColor else primary,
             accentColor = if (accent == null) FireflyBranding.DEFAULT.accentColor else accent,
+            panelPrimary = primary?.let { hexOrNull(it) },
+            panelAccent = accent?.let { hexOrNull(it) },
+            panelDarkPrimary = nonBlank(config.darkPrimaryColor)?.let { hexOrNull(it) },
+            panelDarkAccent = nonBlank(config.darkAccentColor)?.let { hexOrNull(it) },
         ),
     )
 }
@@ -245,6 +276,10 @@ fun resolveEffectiveBranding(panelBranding: PanelBranding?, override: PanelBrand
             fontPreconnect = base.fontPreconnect,
             primaryColor = nonBlank(override.primaryColor) ?: base.primaryColor,
             accentColor = nonBlank(override.accentColor) ?: base.accentColor,
+            panelPrimary = nonBlank(override.primaryColor)?.let { hexOrNull(it) } ?: base.panelPrimary,
+            panelAccent = nonBlank(override.accentColor)?.let { hexOrNull(it) } ?: base.panelAccent,
+            panelDarkPrimary = nonBlank(override.darkPrimaryColor)?.let { hexOrNull(it) } ?: base.panelDarkPrimary,
+            panelDarkAccent = nonBlank(override.darkAccentColor)?.let { hexOrNull(it) } ?: base.panelDarkAccent,
         ),
     )
 }
@@ -264,6 +299,8 @@ private fun hasOverrideContent(override: PanelBranding): Boolean {
     if (nonBlank(override.copyright) != null) return true
     if (nonBlank(override.primaryColor) != null) return true
     if (nonBlank(override.accentColor) != null) return true
+    if (nonBlank(override.darkPrimaryColor) != null) return true
+    if (nonBlank(override.darkAccentColor) != null) return true
     return false
 }
 
@@ -425,6 +462,87 @@ fun resolveThemeColor(raw: String, fallback: String): String {
     val parsed = normalizeHexColor(raw)
     if (parsed == null) return fallback
     return parsed
+}
+
+/** A trimmed hex color, or null when [raw] is blank or not a hex color. */
+internal fun hexOrNull(raw: String?): String? {
+    if (raw.isNullOrBlank()) return null
+    return normalizeHexColor(raw)
+}
+
+/**
+ * Panel light color that should drive the dark shade.
+ * [explicit] is the normalized color the panel set, including a color that matches the default.
+ * When [explicit] is null, a [resolved] color that differs from [defaultColor] still counts as set
+ * (a [FireflyBranding] built with a custom `primaryColor`). The stock default does not.
+ */
+internal fun panelSuppliedColor(explicit: String?, resolved: String, defaultColor: String): String? {
+    if (explicit != null) return hexOrNull(explicit)
+    val hex = hexOrNull(resolved) ?: return null
+    val fallback = hexOrNull(defaultColor) ?: return hex
+    if (hex == fallback) return null
+    return hex
+}
+
+/**
+ * Dark brand color.
+ * Panel explicit dark, then the theme hook, then a shade of [panelLight], then [fallback].
+ */
+internal fun resolveDarkBrandColor(
+    panelDark: String?,
+    themeDark: String?,
+    panelLight: String?,
+    fallback: String,
+): String {
+    val chosen = explicitOrDerivedDark(panelDark, themeDark, panelLight)
+    if (chosen != null) return chosen
+    return fallback
+}
+
+/**
+ * Panel explicit dark, then the theme hook, then a shade of [panelLight].
+ * Null means the light color should stay as it is.
+ */
+internal fun explicitOrDerivedDark(panelDark: String?, themeDark: String?, panelLight: String?): String? {
+    val panel = hexOrNull(panelDark)
+    if (panel != null) return panel
+    val theme = hexOrNull(themeDark)
+    if (theme != null) return theme
+    if (panelLight != null) return deriveDarkColor(panelLight)
+    return null
+}
+
+/** Theme hook color, or [fallback] when the hook is null, blank, or not hex. */
+internal fun themeDarkOrFallback(raw: String?, fallback: String): String {
+    val hex = hexOrNull(raw)
+    if (hex == null) return fallback
+    return hex
+}
+
+/**
+ * Dark-mode shade of a normalized `#rrggbb` color. The hue stays.
+ * A light color (relative luminance at least 0.5) is `color-mix` of 70% color and 30% black.
+ * Any other color is `color-mix` of 72% color and 28% white, so it stays readable on a dark surface.
+ * `#ff2a00` mixes toward white and becomes `#ff6647`.
+ */
+internal fun deriveDarkColor(hex: String): String {
+    val red = hex.substring(1, 3).toInt(16)
+    val green = hex.substring(3, 5).toInt(16)
+    val blue = hex.substring(5, 7).toInt(16)
+    val light = relativeLuminance(red, green, blue) >= 0.5
+    val keep = if (light) 0.70 else 0.72
+    val other = if (light) 0 else 255
+    fun channel(value: Int): Int = kotlin.math.round(value * keep + other * (1.0 - keep)).toInt()
+    return "#%02x%02x%02x".format(channel(red), channel(green), channel(blue))
+}
+
+private fun relativeLuminance(red: Int, green: Int, blue: Int): Double {
+    fun linear(channel: Int): Double {
+        val encoded = channel / 255.0
+        if (encoded <= 0.04045) return encoded / 12.92
+        return Math.pow((encoded + 0.055) / 1.055, 2.4)
+    }
+    return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
 }
 
 private fun escapeAttr(value: String): String = buildString {

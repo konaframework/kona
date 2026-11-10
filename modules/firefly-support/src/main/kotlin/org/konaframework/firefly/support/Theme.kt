@@ -1,5 +1,11 @@
 package org.konaframework.firefly.support
 
+/**
+ * Palette for a theme.
+ * [darkPrimary], [darkSurface], and [darkHeading] are the dark values used when the panel
+ * did not set that light color. They do not replace a primary or accent the panel set.
+ * Override [FireflyTheme.darkPrimary] (and the matching hooks) to force a dark color.
+ */
 class ThemeTokens(
     val primary: String,
     val accent: String,
@@ -41,6 +47,34 @@ open class FireflyTheme {
 
     /** Color, type, and size tokens. The default is the shipped Kona palette. */
     open fun tokens(): ThemeTokens = KonaTheme().tokens()
+
+    /**
+     * Explicit dark primary, or null to follow the panel.
+     * Null derives a shade of the panel primary when the panel set one.
+     * When the panel set no primary, the dark block uses [tokens] `darkPrimary`
+     * (Kona's `#C9A57B` on [KonaTheme]). That token is the fallback, not an override:
+     * a theme that only fills `tokens().darkPrimary` does not replace a panel primary.
+     */
+    open fun darkPrimary(): String? = null
+
+    /**
+     * Explicit dark accent, or null to follow the panel.
+     * Null derives a shade of the panel accent when the panel set one, and otherwise
+     * leaves the light accent in place for dark mode too.
+     */
+    open fun darkAccent(): String? = null
+
+    /**
+     * Explicit dark surface, or null to use [tokens] `darkSurface`.
+     * The panel cannot set a surface, so this hook is the theme override.
+     */
+    open fun darkSurface(): String? = null
+
+    /**
+     * Explicit dark heading, or null to use [tokens] `darkHeading`.
+     * The panel cannot set a heading, so this hook is the theme override.
+     */
+    open fun darkHeading(): String? = null
 
     /** Replacement HTML for a chrome slot, or null to keep the built-in partial. */
     open fun partial(slot: String): String? = null
@@ -93,8 +127,20 @@ open class FireflyTheme {
     /** Extra classes for `.ff-nav-item`. */
     open fun navigationItem(): String = ""
 
+    /**
+     * Extra classes for the active leaf `.ff-nav-item` (the open page).
+     * A group cluster that contains the page already has `ff-active` and does not get this class.
+     */
+    open fun navigationItemActive(): String = ""
+
     /** Extra classes for `.ff-nav-group`. */
     open fun navigationGroup(): String = ""
+
+    /**
+     * Extra classes for a group that contains the open page.
+     * That is a cluster with `ff-active`, or a group marked `ff-nav-group-active`.
+     */
+    open fun navigationGroupActive(): String = ""
 
     /** Extra classes for `main.ff-body`. */
     open fun content(): String = ""
@@ -139,31 +185,57 @@ class KonaTheme : FireflyTheme() {
         topbarHeight = "3.75rem",
         bodyBackground = "#FAF6F0",
         /* Dark chrome matches Shamar calm dark (gray shell / near-white headings).
-         * Primary stays latte so brand accents remain coffee-toned on gray surfaces. */
+         * darkPrimary is the fallback when the panel sets no primary. A panel primary
+         * keeps its own hue in dark mode instead of this latte. */
         darkPrimary = "#C9A57B",
         darkSurface = "#1F2937",
         darkHeading = "#F3F4F6",
     )
 }
 
+/** One chrome hook: markers match any token, [required] must all be present, [excluded] must be absent. */
+internal class ThemeClassRule(
+    val markers: Set<String>,
+    val classes: String,
+    val required: Set<String>,
+    val excluded: Set<String>,
+)
+
+private val NO_THEME_TOKENS: Set<String> = emptySet()
+
+private fun rule(markers: Set<String>, classes: String): ThemeClassRule =
+    ThemeClassRule(markers, classes, NO_THEME_TOKENS, NO_THEME_TOKENS)
+
+private fun activeRule(
+    markers: Set<String>,
+    classes: String,
+    required: Set<String>,
+    excluded: Set<String>,
+): ThemeClassRule = ThemeClassRule(markers, classes, required, excluded)
+
 /** Stable class token → extra classes from the matching [FireflyTheme] hook. */
-internal fun FireflyTheme.chromeClasses(): List<Pair<Set<String>, String>> = listOf(
-    setOf("ff-panel") to panel(),
-    setOf("ff-sidebar") to sidebar(),
-    setOf("ff-topbar") to topbar(),
-    setOf("ff-sidebar-brand", "ff-topbar-brand", "ff-auth-brand") to brand(),
-    setOf("ff-nav") to navigation(),
-    setOf("ff-nav-item") to navigationItem(),
-    setOf("ff-nav-group") to navigationGroup(),
-    setOf("ff-body") to content(),
-    setOf("ff-page-header") to pageHeader(),
-    setOf("ff-footer") to footer(),
-    setOf("ff-sidebar-foot") to sidebarFoot(),
-    setOf("ff-user-menu") to userMenu(),
-    setOf("ff-column") to column(),
-    setOf("ff-scroll") to scroll(),
-    setOf("ff-auth") to auth(),
-    setOf("ff-auth-panel") to authCard(),
+internal fun FireflyTheme.chromeClasses(): List<ThemeClassRule> = listOf(
+    rule(setOf("ff-panel"), panel()),
+    rule(setOf("ff-sidebar"), sidebar()),
+    rule(setOf("ff-topbar"), topbar()),
+    rule(setOf("ff-sidebar-brand", "ff-topbar-brand", "ff-auth-brand"), brand()),
+    rule(setOf("ff-nav"), navigation()),
+    rule(setOf("ff-nav-item"), navigationItem()),
+    // Open page only. Group clusters also carry ff-active and stay off this hook.
+    activeRule(setOf("ff-nav-item"), navigationItemActive(), setOf("ff-active"), setOf("ff-cluster")),
+    rule(setOf("ff-nav-group"), navigationGroup()),
+    // Sidebar and drawer groups. Top-bar and app/inverse groups are clusters with ff-active.
+    rule(setOf("ff-nav-group-active"), navigationGroupActive()),
+    activeRule(setOf("ff-cluster"), navigationGroupActive(), setOf("ff-active"), NO_THEME_TOKENS),
+    rule(setOf("ff-body"), content()),
+    rule(setOf("ff-page-header"), pageHeader()),
+    rule(setOf("ff-footer"), footer()),
+    rule(setOf("ff-sidebar-foot"), sidebarFoot()),
+    rule(setOf("ff-user-menu"), userMenu()),
+    rule(setOf("ff-column"), column()),
+    rule(setOf("ff-scroll"), scroll()),
+    rule(setOf("ff-auth"), auth()),
+    rule(setOf("ff-auth-panel"), authCard()),
 )
 
 private const val THEME_CLASS_EXTRA = "_-:./#%[](),&!"
@@ -193,12 +265,25 @@ private val CLASS_ATTRIBUTE = Regex("""class="([^"]*)"""")
  * Appends [extra] (already sanitized) to every `class` attribute that contains
  * one of [markers] as a whole token. `ff-nav` does not match `ff-nav-item`.
  */
-internal fun appendThemeClasses(html: String, markers: Set<String>, extra: String): String {
+internal fun appendThemeClasses(html: String, markers: Set<String>, extra: String): String =
+    appendThemeClasses(html, markers, extra, NO_THEME_TOKENS, NO_THEME_TOKENS)
+
+/**
+ * Appends [extra] when a class attribute has any [markers] token, every [required]
+ * token, and none of [excluded]. Whole tokens only.
+ */
+internal fun appendThemeClasses(
+    html: String,
+    markers: Set<String>,
+    extra: String,
+    required: Set<String>,
+    excluded: Set<String>,
+): String {
     val adding = extra.split(' ')
     return CLASS_ATTRIBUTE.replace(html) { match ->
         val existing = match.groupValues[1]
         val tokens = existing.split(Regex("\\s+")).filter { it.isNotEmpty() }
-        if (markers.none { it in tokens }) {
+        if (!themeClassHit(tokens, markers, required, excluded)) {
             match.value
         } else {
             val fresh = adding.filter { it !in tokens }
@@ -211,13 +296,25 @@ internal fun appendThemeClasses(html: String, markers: Set<String>, extra: Strin
     }
 }
 
+private fun themeClassHit(
+    tokens: List<String>,
+    markers: Set<String>,
+    required: Set<String>,
+    excluded: Set<String>,
+): Boolean {
+    if (markers.none { it in tokens }) return false
+    if (required.any { it !in tokens }) return false
+    if (excluded.any { it in tokens }) return false
+    return true
+}
+
 /** Applies every hook. Blank hooks leave the HTML unchanged. */
 internal fun applyThemeClasses(html: String, theme: FireflyTheme): String {
     var result = html
-    for ((markers, raw) in theme.chromeClasses()) {
-        val extra = sanitizeThemeClasses(raw)
+    for (rule in theme.chromeClasses()) {
+        val extra = sanitizeThemeClasses(rule.classes)
         if (extra.isEmpty()) continue
-        result = appendThemeClasses(result, markers, extra)
+        result = appendThemeClasses(result, rule.markers, extra, rule.required, rule.excluded)
     }
     return result
 }
