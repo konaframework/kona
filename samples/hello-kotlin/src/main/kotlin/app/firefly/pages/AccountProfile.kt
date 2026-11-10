@@ -12,6 +12,8 @@ class AccountProfile : ProfilePage() {
             TextInput.make("name").label("Name").required(),
             TextInput.make("email").label("Email").email().required(),
             TextInput.make("phone").label("Phone"),
+            TextInput.make("current_password").label("Current password").password()
+                .helperText("Required to set a new password."),
             TextInput.make("password").label("New password").password()
                 .helperText("Leave blank to keep the current password."),
             TextInput.make("password_confirmation").label("Confirm password").password(),
