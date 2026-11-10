@@ -1109,6 +1109,60 @@ class FireflyPanelTest {
         assertNull(adapter.email())
     }
 
+    @Test
+    fun brandLogoSizeRendersInChrome() {
+        val heightRouter = Router()
+        Panel().path("mark")
+            .authenticate(false)
+            .navigation(NavigationType.INVERSE)
+            .brand("Ngeteti")
+            .logo("/branding/ngeteti-icon.svg")
+            .brandLogoHeight("40px")
+            .brandLogoAndName()
+            .page(ListPage("home"))
+            .mount(heightRouter)
+        val heightHtml = send(heightRouter, "GET", "/mark/home").body
+        assertTrue(heightHtml.contains("ff-sidebar-brand--logo"))
+        assertTrue(heightHtml.contains("ff-brand-logo--light"))
+        assertTrue(heightHtml.contains("/branding/ngeteti-icon.svg"))
+        assertTrue(heightHtml.contains("--ff-logo-height: 40px"))
+        assertTrue(heightHtml.contains("--ff-logo-width: auto"))
+        val sidebarBrand = heightHtml.substringAfter(".ff-panel .ff-sidebar-brand {").substringBefore("}")
+        assertTrue(sidebarBrand.contains("padding-block: 0"), sidebarBrand)
+        assertTrue(sidebarBrand.contains("padding-inline: 1.1rem"), sidebarBrand)
+        val login = send(heightRouter, "GET", "/mark/login").body
+        assertTrue(login.contains("ff-auth-brand"))
+        assertTrue(login.contains("--ff-logo-height: 40px"))
+        assertTrue(login.contains("--ff-logo-width: auto"))
+        val authBrand = login.substringAfter(".ff-auth-brand {").substringBefore("}")
+        assertTrue(authBrand.contains("padding-block: 0"), authBrand)
+
+        val widthRouter = Router()
+        Panel().path("wide")
+            .authenticate(false)
+            .logo("/branding/mark.svg")
+            .brandLogoWidth("8rem")
+            .page(ListPage("home"))
+            .mount(widthRouter)
+        val widthHtml = send(widthRouter, "GET", "/wide/home").body
+        assertTrue(widthHtml.contains("--ff-logo-height: auto"))
+        assertTrue(widthHtml.contains("--ff-logo-width: 8rem"))
+
+        val bothRouter = Router()
+        Panel().path("both")
+            .authenticate(false)
+            .logo("/branding/mark.svg")
+            .brandLogoHeight("32px")
+            .brandLogoWidth("32px")
+            .page(ListPage("home"))
+            .mount(bothRouter)
+        val bothHtml = send(bothRouter, "GET", "/both/home").body
+        assertTrue(bothHtml.contains("--ff-logo-height: 32px"))
+        assertTrue(bothHtml.contains("--ff-logo-width: 32px"))
+        val topbarBrand = bothHtml.substringAfter(".ff-panel .ff-topbar-brand {").substringBefore("}")
+        assertTrue(topbarBrand.contains("padding-block: 0"), topbarBrand)
+    }
+
     private fun renderPanel(guard: PanelGuard, authenticate: Boolean = true): String {
         val router = Router()
         Panel().path("x").navigation(NavigationType.SIDE).authenticate(authenticate)

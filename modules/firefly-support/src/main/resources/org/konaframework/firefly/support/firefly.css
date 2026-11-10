@@ -181,9 +181,13 @@ body.ff-body-root {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  flex: 0 0 var(--ff-topbar-height);
+  /* Grow with a taller mark. min-height keeps the strip lined up with the top bar. */
+  flex: 0 0 auto;
   min-height: var(--ff-topbar-height);
-  padding: 0 1.1rem;
+  height: auto;
+  padding-block: 0;
+  padding-inline: 1.1rem;
+  overflow: visible;
   background: var(--ff-card);
   border-bottom: 1px solid var(--ff-card-border);
   box-shadow: 0 1px 0 color-mix(in srgb, #0f172a 4%, transparent);
@@ -218,9 +222,10 @@ body.ff-body-root {
 .ff-auth .ff-brand-logo {
   display: none;
   height: var(--ff-logo-height, 2rem);
-  width: auto;
-  max-width: 9rem;
+  width: var(--ff-logo-width, auto);
+  max-width: none;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .ff-panel:not(.ff-dark) .ff-brand-logo--light,
@@ -424,10 +429,11 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  flex: 0 0 var(--ff-topbar-height);
-  height: var(--ff-topbar-height);
+  flex: 0 0 auto;
+  height: auto;
   min-height: var(--ff-topbar-height);
-  padding: 0 1.1rem;
+  padding-block: 0;
+  padding-inline: 1.1rem;
   background: var(--ff-card);
   border-bottom: 1px solid var(--ff-card-border);
   box-shadow: 0 1px 0 color-mix(in srgb, #0f172a 4%, transparent);
@@ -478,6 +484,7 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   display: none;
   align-items: center;
   min-width: 0;
+  padding-block: 0;
 }
 
 /* One row of triggers. Children sit in a dropdown, not a second flex row (#505). */
@@ -4338,6 +4345,7 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   align-items: center;
   gap: 0.7rem;
   text-align: center;
+  padding-block: 0;
 }
 
 .ff-auth-brand .ff-brand-mark {
@@ -4356,8 +4364,9 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 }
 
 .ff-auth-brand .ff-brand-logo {
-  max-width: 12rem;
-  height: var(--ff-logo-height, 2.5rem);
+  height: var(--ff-logo-height, 2rem);
+  width: var(--ff-logo-width, auto);
+  max-width: none;
 }
 
 .ff-auth-main {

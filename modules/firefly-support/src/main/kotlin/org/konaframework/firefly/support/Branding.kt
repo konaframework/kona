@@ -21,6 +21,7 @@ data class PanelBranding(
     val logo: String? = null,
     val logoDark: String? = null,
     val logoHeight: Any? = null,
+    val logoWidth: Any? = null,
     val brandDisplay: BrandDisplay? = null,
     val copyright: String? = null,
     val googleFont: Any? = null,
@@ -44,6 +45,7 @@ data class PanelBranding(
         private var logo: String? = null
         private var logoDark: String? = null
         private var logoHeight: Any? = null
+        private var logoWidth: Any? = null
         private var brandDisplay: BrandDisplay? = null
         private var copyright: String? = null
         private var googleFont: Any? = null
@@ -56,6 +58,7 @@ data class PanelBranding(
         fun logo(value: String?) = apply { logo = value }
         fun logoDark(value: String?) = apply { logoDark = value }
         fun logoHeight(value: Any?) = apply { logoHeight = value }
+        fun logoWidth(value: Any?) = apply { logoWidth = value }
         fun brandDisplay(value: BrandDisplay?) = apply { brandDisplay = value }
         fun copyright(value: String?) = apply { copyright = value }
         fun googleFont(value: Any?) = apply { googleFont = value }
@@ -70,6 +73,7 @@ data class PanelBranding(
                 logo,
                 logoDark,
                 logoHeight,
+                logoWidth,
                 brandDisplay,
                 copyright,
                 googleFont,
@@ -97,6 +101,7 @@ data class FireflyBranding(
     val logoUrl: String? = null,
     val logoDarkUrl: String? = null,
     val logoHeight: String = DEFAULT.logoHeight,
+    val logoWidth: String = "auto",
     val brandDisplay: BrandDisplay = BrandDisplay.BOTH,
     val showLogo: Boolean = false,
     val showBrandName: Boolean = true,
@@ -112,6 +117,7 @@ data class FireflyBranding(
         val DEFAULT = FireflyBranding(
             brandName = "Firefly",
             logoHeight = "2rem",
+            logoWidth = "auto",
             brandDisplay = BrandDisplay.BOTH,
             showLogo = false,
             showBrandName = true,
@@ -144,6 +150,7 @@ fun mergePanelBranding(base: PanelBranding?, override: PanelBranding?): PanelBra
         logo = nonBlank(override.logo) ?: nonBlank(base.logo),
         logoDark = nonBlank(override.logoDark) ?: nonBlank(base.logoDark),
         logoHeight = override.logoHeight ?: base.logoHeight,
+        logoWidth = override.logoWidth ?: base.logoWidth,
         brandDisplay = override.brandDisplay ?: base.brandDisplay,
         copyright = nonBlank(override.copyright) ?: nonBlank(base.copyright),
         googleFont = override.googleFont ?: base.googleFont,
@@ -170,6 +177,7 @@ fun mergeBranding(base: FireflyBranding, override: FireflyBranding?): FireflyBra
             logoUrl = chooseNullable(override.logoUrl, base.logoUrl),
             logoDarkUrl = chooseNullable(override.logoDarkUrl, base.logoDarkUrl),
             logoHeight = choose(override.logoHeight, base.logoHeight),
+            logoWidth = choose(override.logoWidth, base.logoWidth),
             brandDisplay = override.brandDisplay,
             copyrightText = chooseNullable(override.copyrightText, base.copyrightText),
             fontFamily = choose(override.fontFamily, base.fontFamily),
@@ -193,12 +201,7 @@ fun resolveBranding(config: PanelBranding?): FireflyBranding {
             if (fontUrl == null) fontUrl = resolved.second
         }
     }
-    val height =
-        if (hasLogoHeight(config.logoHeight)) {
-            normalizeLogoHeight(config.logoHeight)
-        } else {
-            FireflyBranding.DEFAULT.logoHeight
-        }
+    val (height, width) = resolveLogoBox(config.logoHeight, config.logoWidth)
     val preconnect =
         fontUrl != null &&
             (fontUrl.contains("fonts.googleapis.com") || fontUrl.contains("fonts.gstatic.com"))
@@ -211,6 +214,7 @@ fun resolveBranding(config: PanelBranding?): FireflyBranding {
             logoUrl = nonBlank(config.logo),
             logoDarkUrl = nonBlank(config.logoDark),
             logoHeight = height,
+            logoWidth = width,
             brandDisplay = normalizeBrandDisplay(config.brandDisplay),
             copyrightText = nonBlank(config.copyright),
             fontFamily = if (fontFamily == null) FireflyBranding.DEFAULT.fontFamily else fontFamily,
@@ -226,18 +230,14 @@ fun resolveEffectiveBranding(panelBranding: PanelBranding?, override: PanelBrand
     val base = resolveBranding(panelBranding)
     if (override == null) return base
     if (!hasOverrideContent(override)) return base
-    val height =
-        if (hasLogoHeight(override.logoHeight)) {
-            normalizeLogoHeight(override.logoHeight)
-        } else {
-            base.logoHeight
-        }
+    val (height, width) = effectiveLogoBox(panelBranding, override, base)
     return withBrandVisibility(
         FireflyBranding(
             brandName = nonBlank(override.name) ?: base.brandName,
             logoUrl = nonBlank(override.logo) ?: base.logoUrl,
             logoDarkUrl = nonBlank(override.logoDark) ?: base.logoDarkUrl,
             logoHeight = height,
+            logoWidth = width,
             brandDisplay = override.brandDisplay ?: base.brandDisplay,
             copyrightText = nonBlank(override.copyright) ?: base.copyrightText,
             fontFamily = base.fontFamily,
@@ -249,7 +249,7 @@ fun resolveEffectiveBranding(panelBranding: PanelBranding?, override: PanelBrand
     )
 }
 
-private fun hasLogoHeight(value: Any?): Boolean {
+private fun hasLogoSize(value: Any?): Boolean {
     if (value == null) return false
     return value.toString().isNotBlank()
 }
@@ -258,7 +258,8 @@ private fun hasOverrideContent(override: PanelBranding): Boolean {
     if (nonBlank(override.name) != null) return true
     if (nonBlank(override.logo) != null) return true
     if (nonBlank(override.logoDark) != null) return true
-    if (hasLogoHeight(override.logoHeight)) return true
+    if (hasLogoSize(override.logoHeight)) return true
+    if (hasLogoSize(override.logoWidth)) return true
     if (override.brandDisplay != null) return true
     if (nonBlank(override.copyright) != null) return true
     if (nonBlank(override.primaryColor) != null) return true
@@ -268,19 +269,69 @@ private fun hasOverrideContent(override: PanelBranding): Boolean {
 
 fun normalizeBrandDisplay(value: BrandDisplay?): BrandDisplay = value ?: BrandDisplay.BOTH
 
-fun normalizeLogoHeight(value: Any?): String {
-    if (value == null) return FireflyBranding.DEFAULT.logoHeight
+/**
+ * CSS length for a logo dimension, or null when unset / not a usable length.
+ * Bare numbers are pixels. `px` and `rem` (and any other CSS length) pass through.
+ */
+internal fun parseCssLength(value: Any?): String? {
+    if (value == null) return null
     if (value is Number) {
         val n = value.toDouble()
-        if (n <= 0) return FireflyBranding.DEFAULT.logoHeight
-        if (!n.isFinite()) return FireflyBranding.DEFAULT.logoHeight
+        if (n <= 0) return null
+        if (!n.isFinite()) return null
         if (n == kotlin.math.floor(n)) return "${n.toInt()}px"
         return "${n}px"
     }
     val raw = value.toString().trim()
-    if (raw.isEmpty()) return FireflyBranding.DEFAULT.logoHeight
+    if (raw.isEmpty()) return null
     if (raw.matches(Regex("""^\d+(\.\d+)?$"""))) return "${raw}px"
     return raw
+}
+
+fun normalizeLogoHeight(value: Any?): String =
+    parseCssLength(value) ?: FireflyBranding.DEFAULT.logoHeight
+
+fun normalizeLogoWidth(value: Any?): String = parseCssLength(value) ?: "auto"
+
+/**
+ * One configured dimension stays `auto` on the other axis so the SVG keeps its aspect ratio.
+ * Both apply when both are set. Neither falls back to a modest height.
+ */
+internal fun resolveLogoBox(heightRaw: Any?, widthRaw: Any?): Pair<String, String> {
+    val height = parseCssLength(heightRaw)
+    val width = parseCssLength(widthRaw)
+    if (height != null && width != null) return height to width
+    if (height != null) return height to "auto"
+    if (width != null) return "auto" to width
+    return FireflyBranding.DEFAULT.logoHeight to "auto"
+}
+
+/**
+ * An override that sets only one dimension does not keep a default height (or width) from the
+ * panel, which would squash the mark. A dimension the panel actually configured is kept.
+ */
+private fun effectiveLogoBox(
+    panel: PanelBranding?,
+    override: PanelBranding,
+    base: FireflyBranding,
+): Pair<String, String> {
+    val overrideHeight = parseCssLength(override.logoHeight)
+    val overrideWidth = parseCssLength(override.logoWidth)
+    val panelHeight = parseCssLength(panel?.logoHeight)
+    val panelWidth = parseCssLength(panel?.logoWidth)
+    val height =
+        when {
+            overrideHeight != null -> overrideHeight
+            overrideWidth != null && panelHeight == null -> "auto"
+            else -> base.logoHeight
+        }
+    val width =
+        when {
+            overrideWidth != null -> overrideWidth
+            overrideHeight != null && panelWidth == null -> "auto"
+            else -> base.logoWidth
+        }
+    return height to width
 }
 
 fun resolveGoogleFont(input: Any): Pair<String, String> {
@@ -326,6 +377,7 @@ fun buildBrandingCss(branding: FireflyBranding): String {
   --ff-primary: $primary;
   --ff-accent: $accent;
   --ff-logo-height: ${branding.logoHeight};
+  --ff-logo-width: ${branding.logoWidth};
   --ff-font: ${branding.fontFamily};
   --ff-brand-soft: color-mix(in srgb, $primary 28%, white);
 }
@@ -344,10 +396,10 @@ fun brandMarkHtml(branding: FireflyBranding, extraClass: String = ""): String {
     if (branding.showLogo && logo != null) {
         val dark = nonBlank(branding.logoDarkUrl) ?: logo
         parts.append(
-            """<img class="ff-brand-logo ff-brand-logo--light" src="${escapeAttr(logo)}" alt="" height="${escapeAttr(branding.logoHeight)}" />""",
+            """<img class="ff-brand-logo ff-brand-logo--light" src="${escapeAttr(logo)}" alt="" />""",
         )
         parts.append(
-            """<img class="ff-brand-logo ff-brand-logo--dark" src="${escapeAttr(dark)}" alt="" height="${escapeAttr(branding.logoHeight)}" />""",
+            """<img class="ff-brand-logo ff-brand-logo--dark" src="${escapeAttr(dark)}" alt="" />""",
         )
     }
     if (branding.showBrandName) {

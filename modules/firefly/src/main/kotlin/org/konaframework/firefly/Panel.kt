@@ -206,6 +206,18 @@ open class Panel {
     fun logoHeight(value: Any): Panel = branding(PanelBranding(logoHeight = value))
 
     /**
+     * CSS height of the brand logo in the sidebar, top bar, and auth mark.
+     * Width stays `auto` unless [brandLogoWidth] is also set, so the SVG keeps its aspect ratio.
+     */
+    fun brandLogoHeight(value: String): Panel = branding(PanelBranding(logoHeight = value))
+
+    /**
+     * CSS width of the brand logo in the sidebar, top bar, and auth mark.
+     * Height stays `auto` unless [brandLogoHeight] or [logoHeight] is also set.
+     */
+    fun brandLogoWidth(value: String): Panel = branding(PanelBranding(logoWidth = value))
+
+    /**
      * Runtime branding overrides (DB settings, company logo, etc.).
      * Merged over [branding] when rendering shell and auth.
      */
