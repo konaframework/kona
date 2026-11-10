@@ -119,7 +119,7 @@ Firefly does not scan the classpath for pages, resources, or widgets. Register t
 
 `brandLogoHeight` and `brandLogoWidth` set the logo in the sidebar, the top bar, and on auth. A CSS length (`32px`, `2rem`) is enough. Set one and the other axis stays `auto`, so the SVG keeps its aspect ratio. Set both when you want both. `logoHeight` is the same height control and also accepts a bare pixel number. The sidebar brand strip, top-bar brand, and auth brand use no vertical padding, so a taller icon is not clipped. Horizontal padding stays so the mark sits off the screen edge.
 
-Each chrome and auth render builds an effective `FireflyBranding`: panel defaults, then `resolveBrandingOverrides` when you set one. Overrides may change name, logos, height, display mode, copyright, and colors — not fonts (`googleFont` / `fontFamily` / `fontUrl` stay on the panel). Logo-only mode falls back to the name when no logo URL is set. When `copyright` is set, it appears in the sidebar footer and on auth screens.
+Each chrome and auth render builds an effective `FireflyBranding`: panel defaults, then `resolveBrandingOverrides` when you set one. Overrides may change name, logos, height, display mode, copyright, and colors — not fonts (`googleFont` / `fontFamily` / `fontUrl` stay on the panel). Logo-only mode falls back to the name when no logo URL is set. When `copyright` is set, it is centered in the main-column footer (`.ff-footer`) and on auth screens. The sidebar footer keeps the signed-in line.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
