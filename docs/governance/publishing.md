@@ -12,7 +12,7 @@ Generated apps resolve `org.konaframework:…` from Maven Central. The curl inst
 
 ## `main` vs Central
 
-`kona.version` on `main` is **`0.5.0`**. After the tag and Portal **Publish**, **`curl …/scripts/install.sh | bash` installs the latest Maven Central release (git tag `vX.Y.Z`).** Until Central indexes `0.5.0`, the curl path may still resolve the previous train. Use `./scripts/install.sh --local` or `--dev` / `KONA_REF=main` for unreleased trees.
+`kona.version` is **`0.5.1`**. That train is **not tagged** and **not** on Maven Central until an explicit release cut. **`curl …/scripts/install.sh | bash` installs the latest Maven Central release (git tag `vX.Y.Z`).** The uploaded cut is `0.5.0`; until Central indexes it, the curl path may still resolve the previous train. Use `./scripts/install.sh --local` or `--dev` / `KONA_REF=main` for unreleased trees.
 
 ### When ready to ship the next train
 
@@ -156,9 +156,9 @@ Do **not** commit tokens, GPG private keys, or `gradle.properties` with secrets.
 
 | Kind | Version shape | Notes |
 |------|---------------|--------|
-| Local / CI / `--local` | `0.5.0` | Overwritable in `~/.m2` |
-| Curl installer default | latest Central `kona-cli` | Tag `vX.Y.Z` after Portal Publish |
-| Public release (this cut) | `0.5.0` | Tagged `v0.5.0`; Portal Publish required |
+| Local / CI / `--local` | `0.5.1` | Overwritable in `~/.m2`; not tagged yet |
+| Curl installer default | latest Central `kona-cli` | Tag `vX.Y.Z` after Portal Publish; last upload `0.5.0` |
+| Public release (last cut) | `0.5.0` | Tagged `v0.5.0`; Portal Publish required |
 | Prior cuts | `0.3.0`, `0.2.1`, `0.2.0`, `0.1.1`, `0.1.0` | `0.1.0` predates in-tree brew/inertia |
 
 ### C. Module publish order
@@ -174,10 +174,10 @@ cd /path/to/kona
 ```bash
 cd ~/kona && ./gradlew publishToMavenLocal -x test
 
-ls ~/.m2/repository/org/konaframework/kona-core/0.5.0/
-ls ~/.m2/repository/org/konaframework/kona-bom/0.5.0/
-ls ~/.m2/repository/org/konaframework/kona-wire/0.5.0/
-ls ~/.m2/repository/org/konaframework/kona-inertia/0.5.0/
+ls ~/.m2/repository/org/konaframework/kona-core/0.5.1/
+ls ~/.m2/repository/org/konaframework/kona-bom/0.5.1/
+ls ~/.m2/repository/org/konaframework/kona-wire/0.5.1/
+ls ~/.m2/repository/org/konaframework/kona-inertia/0.5.1/
 ```
 
 ### E. Real remote publish
@@ -188,7 +188,7 @@ cd ~/kona
 ./gradlew publishToMavenCentral --no-configuration-cache -x test
 ```
 
-Or push a new version tag (e.g. `v0.5.0`) and let `.github/workflows/release.yml` run.
+Or push a new version tag (e.g. `v0.5.1` when ready) and let `.github/workflows/release.yml` run.
 
 **Do not run a public Central publish** until:
 
@@ -203,7 +203,7 @@ Or push a new version tag (e.g. `v0.5.0`) and let `.github/workflows/release.yml
 2. Portal token + GPG secrets on Environment **`maven-central`** (done for `0.1.0` upload; keep current).
 3. ~~Release PR `0.1.1` → tag → upload → Portal Publish~~ — **done** (`v0.1.1` on Central).
 4. Confirm artifacts stay visible on Central search / Portal deployments UI.
-5. **`v0.5.0` release cut** — tag → `release.yml` → Portal **Publish**; then confirm Central search.
+5. **`v0.5.0` release cut** — tag → `release.yml` → Portal **Publish**; then confirm Central search. **`kona.version=0.5.1` is the next train and is not tagged.**
 6. Watch File Count / Usage Center; request a higher limit if needed before grace ends (2026-11-17).
 7. When Sonatype ships Trusted Publishing / OIDC for Central and vanniktech supports it: rewire `release.yml` and drop long-lived Portal passwords.
 8. Later: Gradle 9 + vanniktech ≥0.37 for default signature-checksum exclusion (file-count reduction).
