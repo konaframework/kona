@@ -79,8 +79,14 @@ public class DialogJavaTest {
         assertTrue(auth.contains("ff-auth-shell"));
         assertTrue(auth.contains("JavaAuth"));
 
-        PanelBranding branding = PanelBranding.builder().name("JavaBrand").build();
+        PanelBranding branding = PanelBranding.builder().name("JavaBrand").darkPrimaryColor("#112233").build();
         assertEquals("JavaBrand", branding.getName());
+        assertEquals("#112233", branding.getDarkPrimaryColor());
+        PanelBranding positional = new PanelBranding(
+            null, null, null, null, null, null, null, null, null, null, "#FF2A00", "#286291", "#abcdef"
+        );
+        assertEquals("#abcdef", positional.getDarkPrimaryColor());
+        assertEquals(null, positional.getDarkAccentColor());
         String css = Stylesheet.render(new KonaTheme());
         assertTrue(css.contains("--ff-primary"));
         assertTrue(Stylesheet.render(new KonaTheme(), FireflyBranding.DEFAULT).contains("--ff-logo-height"));

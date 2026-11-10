@@ -217,6 +217,21 @@ open class Panel {
      */
     fun brandLogoWidth(value: String): Panel = branding(PanelBranding(logoWidth = value))
 
+    /** Brand primary. Dark mode uses a shade of this color unless [darkPrimary] is set. */
+    fun primary(color: String): Panel = branding(PanelBranding(primaryColor = color))
+
+    /** Brand accent. Dark mode uses a shade of this color unless [darkAccent] is set. */
+    fun accent(color: String): Panel = branding(PanelBranding(accentColor = color))
+
+    /**
+     * Dark-mode primary. Wins over the shade derived from [primary].
+     * Leave it unset to follow the panel primary, or the Kona dark primary when the panel sets none.
+     */
+    fun darkPrimary(color: String): Panel = branding(PanelBranding(darkPrimaryColor = color))
+
+    /** Dark-mode accent. Wins over the shade derived from [accent]. */
+    fun darkAccent(color: String): Panel = branding(PanelBranding(darkAccentColor = color))
+
     /**
      * Runtime branding overrides (DB settings, company logo, etc.).
      * Merged over [branding] when rendering shell and auth.
