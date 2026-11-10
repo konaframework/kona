@@ -64,7 +64,7 @@ Depend on `org.konaframework:kona-firefly`. That coordinate brings the other Fir
 
 Pass a plugin to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts. Inside those methods you call the same panel methods the app calls: a brand, a hook, a page. Keep the class in the app when the behavior belongs to that app. Read [Plugins](/docs/firefly/plugins/).
 
-The shipped look is `KonaTheme`. `Stylesheet.render` writes the colors and type as CSS custom properties on `.ff-panel`. Component rules match only inside that class. To change the look, implement `FireflyTheme` and pass it to `theme(...)`. `extraCss()` is wrapped in `.ff-panel { ... }`, so your rules stay inside the panel. The hello sample uses the shipped theme. Read [Themes and CSS](/docs/firefly/themes/).
+The shipped look is `KonaTheme`. The hello sample leaves it in place. To change the look, run `./grind make:firefly-theme` and pass the class to `theme(...)`. Each hook returns extra classes for one region of the panel that is already there, and `stylesheet()` can link a CSS file. A hook that returns an empty string leaves that region on the stock look. Read [Themes and CSS](/docs/firefly/themes/).
 
 `Firefly.test` reads HTML you already rendered. It lives in `org.konaframework.firefly.testing`.
 

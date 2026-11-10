@@ -87,7 +87,7 @@ public class DialogJavaTest {
     }
 }
 
-final class HarborTheme implements FireflyTheme {
+final class HarborTheme extends FireflyTheme {
     @Override public String id() { return "harbor"; }
 
     @Override public ThemeTokens tokens() {

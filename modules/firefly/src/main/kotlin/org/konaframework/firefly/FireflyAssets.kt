@@ -1,6 +1,7 @@
 package org.konaframework.firefly
 
 import org.konaframework.firefly.support.FireflyFonts
+import org.konaframework.firefly.support.FireflyTailwind
 import org.konaframework.firefly.widgets.WidgetScripts
 import org.konaframework.http.Handler
 import org.konaframework.http.Response
@@ -16,6 +17,9 @@ object FireflyAssets {
 
     @JvmStatic
     fun register(router: Router) {
+        router.get(FireflyTailwind.SCRIPT, Handler { _ ->
+            tailwindResponse()
+        })
         router.get("${FireflyFonts.PREFIX}/{file}", Handler { request ->
             val file = request.route("file") ?: return@Handler Response.text("Not Found", 404)
             fontResponse(file)
@@ -40,6 +44,18 @@ object FireflyAssets {
     }
 
     private val RICH_EDITOR_FILES = setOf("simple.js", "icons.js")
+
+    internal fun tailwindResponse(): Response {
+        val bytes = FireflyTailwind.bytes() ?: return Response.text("Not Found", 404)
+        return Response(
+            200,
+            "",
+            linkedMapOf(
+                "Content-Type" to "application/javascript; charset=utf-8",
+                "Cache-Control" to CACHE,
+            ),
+        ).withBodyBytes(bytes)
+    }
 
     internal fun fontResponse(file: String): Response {
         if (!FireflyFonts.allowed(file)) {

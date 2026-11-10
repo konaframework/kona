@@ -7,7 +7,7 @@ import org.konaframework.firefly.support.ThemeTokens
  * Sample theme a panel can select with `theme(HarborTheme())`.
  * Tokens change the caramel defaults. The sidebar partial keeps the hook markers.
  */
-class HarborTheme : FireflyTheme {
+class HarborTheme : FireflyTheme() {
     override fun id(): String = "harbor"
 
     override fun tokens(): ThemeTokens = ThemeTokens(

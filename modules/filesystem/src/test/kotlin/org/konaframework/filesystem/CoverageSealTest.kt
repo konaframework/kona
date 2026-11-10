@@ -123,4 +123,29 @@ class CoverageSealTest {
         )
         assertEquals("/storage/x", pub.disk("public").url("x"))
     }
+
+    @Test
+    fun sealS3ListingBranches() {
+        val mem = MemoryS3Client()
+        val plain = S3Adapter(MemoryS3ClientAdapter(mem), "bucket")
+        plain.put("dir/sub/a.txt", "nested")
+        plain.put("dir/b.txt", "file")
+        plain.makeDirectory("")
+        plain.makeDirectory("kept")
+        mem.put("dir/", byteArrayOf(0))
+        mem.put("dir/sub/nested.txt", byteArrayOf(1))
+        assertEquals(listOf("b.txt"), plain.files("dir"))
+
+        val underDir = plain.allDirectories("dir")
+        assertTrue(underDir.contains("dir/sub"))
+        val fromRoot = plain.allDirectories("")
+        assertTrue(fromRoot.contains("kept"))
+        assertTrue(fromRoot.contains("dir"))
+
+        val prefixed = S3Adapter(MemoryS3ClientAdapter(), "bucket", "", "root")
+        prefixed.put("keep/file.txt", "k")
+        prefixed.makeDirectory("keep")
+        assertEquals(emptyList<String>(), prefixed.allDirectories("other"))
+        assertTrue(prefixed.allDirectories("keep").any { it.contains("keep") })
+    }
 }

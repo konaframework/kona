@@ -2,6 +2,7 @@ package org.konaframework.filesystem;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.konaframework.core.Config;
@@ -55,5 +56,19 @@ public class JavaFilesystemApiTest {
         String stored = local.putFileAs("uploads", upload, "up.bin");
         assertEquals("uploads/up.bin", stored);
         assertFalse(Visibility.PUBLIC.isEmpty());
+    }
+
+    @Test
+    void jvmOverloadsCoverDefaultParameters(@TempDir Path base) {
+        FilesystemManager manager = new FilesystemManager(new Config(), base);
+        String signed = manager.temporaryUrl("photo.png", 5L, (url, exp) -> url + "|" + exp);
+        assertTrue(signed.contains("|5"));
+
+        FilesystemAdapter faked = manager.fake();
+        faked.put("fake.txt", "ok");
+        assertEquals("ok", faked.getString("fake.txt"));
+
+        HttpS3Client regionClient = new HttpS3Client("http://127.0.0.1:9", "bucket", "k", "s", "eu-west-1");
+        assertThrows(IllegalStateException.class, () -> regionClient.getObject("missing"));
     }
 }

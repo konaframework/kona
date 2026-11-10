@@ -277,6 +277,22 @@ class FireflyRegistryTest {
         org.konaframework.firefly.support.FireflyFonts.resourceDirectory =
             "/org/konaframework/firefly/support/fonts/"
         org.konaframework.firefly.support.FireflyFonts.resetCache()
+
+        val twUri = org.konaframework.firefly.support.FireflyTailwind.SCRIPT
+        assertNotNull(router.find("GET", twUri))
+        val twMatch = router.resolve("GET", twUri)
+        val twOk = twMatch.route.action.handle(org.konaframework.http.Request("GET", twUri))
+        assertEquals(200, twOk.status)
+        assertTrue(twOk.headers["Content-Type"]!!.contains("javascript"))
+        assertTrue(twOk.headers["Cache-Control"]!!.contains("immutable"))
+        assertTrue(String(twOk.bodyBytes()).contains("tailwindcss"))
+        val savedTailwind = org.konaframework.firefly.support.FireflyTailwind.resourcePath
+        try {
+            org.konaframework.firefly.support.FireflyTailwind.resourcePath = "/missing-tailwind.js"
+            assertEquals(404, FireflyAssets.tailwindResponse().status)
+        } finally {
+            org.konaframework.firefly.support.FireflyTailwind.resourcePath = savedTailwind
+        }
     }
 
     /**

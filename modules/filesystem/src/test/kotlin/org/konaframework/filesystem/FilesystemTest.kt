@@ -12,12 +12,27 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.net.Authenticator
+import java.net.CookieHandler
 import java.net.InetSocketAddress
+import java.net.ProxySelector
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpHeaders
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
+import java.util.Optional
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLParameters
+import javax.net.ssl.SSLSession
 
 class FilesystemTest {
     @Test
@@ -300,4 +315,87 @@ class FilesystemTest {
             assertTrue(it.delete("k"))
         })
     }
+
+    @Test
+    fun httpS3StatusBelowSuccessAndDeleteNotFound() {
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/") { exchange ->
+            exchange.sendResponseHeaders(404, -1)
+            exchange.close()
+        }
+        server.executor = Executors.newCachedThreadPool()
+        server.start()
+        try {
+            val client = HttpS3Client("http://127.0.0.1:${server.address.port}", "bucket", "k", "s", "us-east-1")
+            assertTrue(client.deleteObject("gone"))
+        } finally {
+            server.stop(0)
+        }
+
+        for (endpoint in listOf("http://127.0.0.1", "http://127.0.0.1:80", "https://127.0.0.1:443")) {
+            val client = HttpS3Client(endpoint, "bucket", "k", "s", "us-east-1", FixedStatusHttpClient(199))
+            val put = assertThrows(IllegalStateException::class.java) { client.putObject("a", byteArrayOf(1)) }
+            assertTrue(put.message!!.contains("199"))
+        }
+        val below = HttpS3Client("http://127.0.0.1", "bucket", "k", "s", "us-east-1", FixedStatusHttpClient(199))
+        val listed = assertThrows(IllegalStateException::class.java) { below.listKeys("pre") }
+        assertTrue(listed.message!!.contains("199"))
+        assertFalse(below.deleteObject("a"))
+    }
+}
+
+/** HttpClient that returns a fixed status so sub-200 S3 responses can be exercised without a socket. */
+private class FixedStatusHttpClient(private val status: Int) : HttpClient() {
+    override fun cookieHandler(): Optional<CookieHandler> = Optional.empty()
+
+    override fun connectTimeout(): Optional<Duration> = Optional.empty()
+
+    override fun followRedirects(): Redirect = Redirect.NEVER
+
+    override fun proxy(): Optional<ProxySelector> = Optional.empty()
+
+    override fun sslContext(): SSLContext = SSLContext.getDefault()
+
+    override fun sslParameters(): SSLParameters = SSLParameters()
+
+    override fun authenticator(): Optional<Authenticator> = Optional.empty()
+
+    override fun version(): Version = Version.HTTP_1_1
+
+    override fun executor(): Optional<Executor> = Optional.empty()
+
+    override fun <T> send(request: HttpRequest, handler: HttpResponse.BodyHandler<T>): HttpResponse<T> =
+        FixedStatusResponse(request, status)
+
+    override fun <T> sendAsync(
+        request: HttpRequest,
+        handler: HttpResponse.BodyHandler<T>,
+    ): CompletableFuture<HttpResponse<T>> = throw UnsupportedOperationException()
+
+    override fun <T> sendAsync(
+        request: HttpRequest,
+        handler: HttpResponse.BodyHandler<T>,
+        pushPromiseHandler: HttpResponse.PushPromiseHandler<T>,
+    ): CompletableFuture<HttpResponse<T>> = throw UnsupportedOperationException()
+}
+
+private class FixedStatusResponse<T>(
+    private val req: HttpRequest,
+    private val code: Int,
+) : HttpResponse<T> {
+    override fun statusCode(): Int = code
+
+    override fun request(): HttpRequest = req
+
+    override fun previousResponse(): Optional<HttpResponse<T>> = Optional.empty()
+
+    override fun headers(): HttpHeaders = HttpHeaders.of(emptyMap<String, List<String>>()) { _, _ -> true }
+
+    override fun body(): T = throw IllegalStateException("unused")
+
+    override fun sslSession(): Optional<SSLSession> = Optional.empty()
+
+    override fun uri(): URI = req.uri()
+
+    override fun version(): HttpClient.Version = HttpClient.Version.HTTP_1_1
 }
