@@ -23,6 +23,8 @@ dependencies {
     api(project(":kona-firefly-widgets"))
     api(project(":kona-firefly-notifications"))
     api(project(":kona-queue"))
+    // .xls / .xlsx for Import Action. Apps get this on the runtime classpath through kona-firefly.
+    implementation(libs.poi.ooxml)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.h2)
     testRuntimeOnly(libs.junit.platform.launcher)
