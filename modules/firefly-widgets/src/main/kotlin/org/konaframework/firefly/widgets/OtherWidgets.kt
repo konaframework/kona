@@ -310,7 +310,16 @@ open class NavigationCardsWidget protected constructor(name: String) : Widget(na
     }
 }
 
-/** Resolve Shamar short names and heroicon ids for navigation. */
+/**
+ * Resolve a navigation icon id.
+ *
+ * A name that starts with a registered kona-icons prefix is kept
+ * (`heroicon-o-funnel`, `heroicon-s-home`). Any other name is short and becomes
+ * `heroicon-o-{name}` (`home`, `cog`). Register another stack with [Icons.add]
+ * (prefix `fas` makes `fas-home` resolve to that set) instead of extending a
+ * hardcoded prefix list. A missing icon is left for the caller, which keeps the
+ * default glyph and does not fail the panel.
+ */
 object NavIcons {
     const val DEFAULT = "heroicon-o-squares-2x2"
     const val HOME = "heroicon-o-home"
@@ -319,7 +328,7 @@ object NavIcons {
     fun resolve(name: String?): String {
         if (name.isNullOrBlank()) return DEFAULT
         val trimmed = name.trim()
-        if (trimmed.startsWith("heroicon-")) return trimmed
+        if (Icons.usesRegisteredPrefix(trimmed)) return trimmed
         return "heroicon-o-$trimmed"
     }
 
