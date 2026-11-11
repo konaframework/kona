@@ -704,7 +704,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             *custom.toTypedArray(),
             manageViewButton(),
             manageEditButton(csrf),
-            TableButton.make("delete").label("Delete").visible(rowDelete()).confirmPost("delete", csrf),
+            TableButton.make("delete").label("Delete").visible(rowDelete()).confirmPost("delete", csrf).withBuiltinIcon(),
         )
         defaultBulkActions(built)
         bindRecordActions(built, state, csrf)
@@ -726,7 +726,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         TableButton.make("view").label("View").visible(rowView()).modal().body { cell ->
             val markup = prepareInfolist(liveSchema(mapOf("record" to cell.get("key").toString()), "view")).render()
             """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button><button type="button" class="ff-action-submit" data-ff-dialog-switch="edit">Edit</button></div>"""
-        }
+        }.withBuiltinIcon()
 
     /** Row Edit: dialog with the filled form for that record (native POST). */
     private fun manageEditButton(csrf: String): TableButton =
@@ -734,7 +734,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             val key = cell.get("key").toString()
             val markup = prepareForm(liveSchema(mapOf("record" to key), "edit")).render()
             """<form method="post" action="edit" class="ff-action-form">$csrf<input type="hidden" name="id" value="${escapeHtml(key)}" /><div class="ff-action-schema">$markup</div><div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button><button type="submit" class="ff-action-submit">Save</button></div></form>"""
-        }
+        }.withBuiltinIcon()
 
     /** Bulk delete in a "Bulk actions" dropdown unless [table] already configured bulk actions. */
     private fun defaultBulkActions(built: Table<*, *>) {
@@ -756,15 +756,15 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         val custom = built.configuredRowButtons()
         built.rowButtons(
             *custom.toTypedArray(),
-            TableButton.make("view").label("View").visible(rowView()).url(rowRecordUrl("view")),
-            TableButton.make("edit").label("Edit").visible(rowEdit()).url(rowRecordUrl("edit")),
-            TableButton.make("delete").label("Delete").visible(rowDelete()).confirmPost("delete", csrf),
+            TableButton.make("view").label("View").visible(rowView()).url(rowRecordUrl("view")).withBuiltinIcon(),
+            TableButton.make("edit").label("Edit").visible(rowEdit()).url(rowRecordUrl("edit")).withBuiltinIcon(),
+            TableButton.make("delete").label("Delete").visible(rowDelete()).confirmPost("delete", csrf).withBuiltinIcon(),
         )
         defaultBulkActions(built)
         bindRecordActions(built, state, csrf)
         page.table(built)
         // Full-resource create is a header link — dialogs belong on simple/manage and delete.
-        page.headerActions(Action.make("create").label("New").url("create"))
+        page.headerActions(Action.make("create").label("New").url("create").withBuiltinIcon())
     }
 
     private fun applyCreate(page: CreatePage, state: Map<String, Any?>) {
@@ -801,7 +801,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             state,
             listOf(
                 Action.make("save").label("Save").submitForm("ff-form"),
-                Action.make("view").label("View").url(viewUrl).outlined(),
+                Action.make("view").label("View").url(viewUrl).outlined().withBuiltinIcon(),
                 Action.make("cancel").label("Cancel").url("list").outlined(),
                 deleteAction(state),
             ),
@@ -843,7 +843,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             schema,
             state,
             listOf(
-                Action.make("edit").label("Edit").url(editUrl),
+                Action.make("edit").label("Edit").url(editUrl).withBuiltinIcon(),
                 Action.make("back").label("Back to list").url("list").outlined(),
                 deleteAction(state),
             ),
@@ -913,7 +913,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     }
 
     private fun operation(name: String, heading: String, form: Schema): Action {
-        val action = Action.make(name).label(heading).modal().modalHeading(heading)
+        val action = Action.make(name).label(heading).modal().modalHeading(heading).withBuiltinIcon()
         if (form.components().isNotEmpty()) action.schema(form)
         return action
     }
@@ -939,6 +939,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             .modalDescription("Delete this record permanently?")
             .modalSubmitActionLabel("Delete")
             .postForm("delete", extras)
+            .withBuiltinIcon()
     }
 
     /**

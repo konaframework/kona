@@ -266,12 +266,7 @@ internal fun renderItem(
     val cluster = if (item.isCluster()) " ff-cluster" else ""
     val navigate = if (spa && url.isNotEmpty()) " wire:navigate" else ""
     val href = if (url.isEmpty()) "" else " href=\"${escapeHtml(url)}\""
-    val iconName = item.iconName(get)
-    val iconHtml = try {
-        Icons.svg(iconName).className("ff-nav-icon").attr("aria-hidden", "true").toHtml()
-    } catch (_: Exception) {
-        Icons.svg(NavIcons.DEFAULT).className("ff-nav-icon").attr("aria-hidden", "true").toHtml()
-    }
+    val iconHtml = navIconMarkup(item.iconName(get))
     val badge = item.badgeFor(get)
     val badgeHtml = if (badge == null) {
         ""
@@ -301,4 +296,18 @@ internal fun renderItem(
     if (childHtml.isNotEmpty()) out.append(childHtml)
     out.append("</li>")
     return out.toString()
+}
+
+/** 16×16 markup matching `.ff-nav-icon`, so a 24 viewBox lands on whole pixels. */
+internal fun navIconMarkup(name: String): String {
+    val svg = try {
+        Icons.svg(name)
+    } catch (_: Exception) {
+        Icons.svg(NavIcons.DEFAULT)
+    }
+    return svg.className("ff-nav-icon")
+        .attr("width", "16")
+        .attr("height", "16")
+        .attr("aria-hidden", "true")
+        .toHtml()
 }

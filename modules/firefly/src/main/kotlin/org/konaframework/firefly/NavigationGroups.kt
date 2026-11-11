@@ -3,7 +3,6 @@ package org.konaframework.firefly
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.widgets.NavIcons
-import org.konaframework.icons.Icons
 import java.util.function.Supplier
 
 /**
@@ -59,13 +58,7 @@ class NavigationGroup private constructor(val label: String) {
     internal fun iconHtml(): String {
         val raw = iconLiteral
         if (raw.isNullOrBlank()) return ""
-        val name = NavIcons.resolve(raw)
-        val svg = try {
-            Icons.svg(name)
-        } catch (_: Exception) {
-            Icons.svg(NavIcons.DEFAULT)
-        }
-        return """<span class="ff-nav-icon-wrap">${svg.className("ff-nav-icon").attr("aria-hidden", "true").toHtml()}</span>"""
+        return """<span class="ff-nav-icon-wrap">${navIconMarkup(NavIcons.resolve(raw))}</span>"""
     }
 
     companion object {

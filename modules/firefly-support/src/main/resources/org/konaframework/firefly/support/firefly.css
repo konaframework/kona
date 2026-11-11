@@ -273,8 +273,8 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 }
 
 .ff-panel .ff-sidebar-close svg.ff-icon {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 16px;
+  height: 16px;
 }
 
 .ff-panel .ff-nav-side {
@@ -364,12 +364,20 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   gap: 0.1rem;
 }
 
-.ff-panel .ff-nav-item > a {
+/* Nav item, group heading, and dropdown trigger share one vertical box. */
+.ff-panel .ff-nav-item > a,
+.ff-panel .ff-nav-group-label,
+.ff-panel .ff-nav-dropdown-trigger {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  box-sizing: border-box;
   min-height: 2.15rem;
   padding: 0.4rem 0.7rem;
+  line-height: 1.2;
+}
+
+.ff-panel .ff-nav-item > a {
+  gap: 0.65rem;
   color: var(--ff-body-text);
   font-size: 0.875rem;
   font-weight: 500;
@@ -386,18 +394,22 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 .ff-panel .ff-nav-icon-wrap {
   display: inline-flex;
-  flex: 0 0 1rem;
-  width: 1rem;
-  height: 1rem;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
   align-items: center;
   justify-content: center;
   color: inherit;
+  flex-shrink: 0;
 }
 
+/* 16px on a 24 viewBox keeps a 1.5 stroke on a whole pixel. */
 .ff-panel .ff-nav-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 16px;
+  height: 16px;
   display: block;
+  flex-shrink: 0;
+  transform: none;
 }
 
 .ff-panel .ff-nav-label {
@@ -413,9 +425,6 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  min-height: 1.75rem;
-  padding-top: 0.65rem;
-  padding-bottom: 0.25rem;
   cursor: default;
 }
 
@@ -731,17 +740,19 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   color: var(--ff-heading);
 }
 
-/* SVG glyph marks only — never size layout roots that happen to use "icon" in a class. */
+/* SVG glyph marks only — never size layout roots that happen to use "icon" in a class.
+   16px matches the nav icon so button glyphs stay on the pixel grid. */
 .ff-panel svg.ff-icon {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   display: block;
+  transform: none;
 }
 
 .ff-panel .ff-icon-btn svg.ff-icon {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 16px;
+  height: 16px;
 }
 
 /* Shamar .shamar-boolean toggle pill (IconColumn.boolean / IconEntry.boolean) */
@@ -909,7 +920,9 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 .ff-panel .ff-menu-link,
 .ff-panel .ff-menu-form > button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   width: 100%;
   text-align: left;
   padding: 0.5rem 0.65rem;
@@ -966,11 +979,14 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 .ff-panel .ff-row-action-menu .ff-menu-link,
 .ff-panel .ff-row-action-menu .ff-table-button-mount {
-  display: block;
   width: 100%;
 }
 
+.ff-panel .ff-row-action-menu .ff-menu-link,
 .ff-panel .ff-row-action-menu .ff-table-button-mount > .ff-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   width: 100%;
   text-align: left;
 }
@@ -985,7 +1001,9 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 .ff-panel .ff-row-action-menu .ff-action-trigger,
 .ff-panel .ff-row-action-menu .ff-action-trigger.ff-action-button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   width: 100%;
   min-height: 0;
   padding: 0.5rem 0.65rem;
@@ -2464,8 +2482,8 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 }
 
 .ff-panel .ff-option-check svg.ff-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 16px;
+  height: 16px;
 }
 
 .ff-panel .ff-option[data-ff-enabled="false"] {
@@ -4122,8 +4140,8 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 .ff-panel .ff-dialog-expand svg.ff-icon,
 .ff-panel .ff-dialog-close svg.ff-icon {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 16px;
+  height: 16px;
 }
 
 .ff-panel .ff-dialog-window {
@@ -4265,8 +4283,8 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 }
 
 .ff-panel .ff-action-close svg.ff-icon {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 16px;
+  height: 16px;
 }
 
 .ff-panel .ff-action-schema {
@@ -4789,8 +4807,8 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 }
 
 .ff-panel .ff-notification-icon svg.ff-icon {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 16px;
+  height: 16px;
 }
 
 .ff-panel .ff-notification-main {
@@ -4846,8 +4864,8 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 }
 
 .ff-panel .ff-notification-dismiss svg.ff-icon {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 16px;
+  height: 16px;
 }
 
 .ff-panel .ff-notification-progress {
@@ -4953,8 +4971,8 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 .ff-panel .ff-bulk-trigger .ff-icon,
 .ff-panel .ff-bulk-action .ff-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
 }
 
@@ -5128,11 +5146,8 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 }
 
 .ff-panel .ff-nav-group-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
   margin: 0;
-  padding: 0.25rem 0.7rem;
   color: var(--ff-body-subtle);
   font-size: 0.7rem;
   font-weight: 700;

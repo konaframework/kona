@@ -35,6 +35,35 @@ class FireflyTablesTest {
     }
 
     @Test
+    fun builtinRowActionsShowIconsBesideTheLabel() {
+        val cell = Cell { null }
+        val view = TableButton.make("view").label("View").url("view?id=1").withBuiltinIcon().render(cell, false)
+        assertTrue(view.contains("M2.036 12.322"), view)
+        assertTrue(view.contains("""<span class="ff-action-label">View</span>"""), view)
+        assertTrue(view.contains("""width="16""""), view)
+        assertTrue(view.contains("""height="16""""), view)
+        val edit = TableButton.make("edit").label("Edit").url("edit?id=1").withBuiltinIcon()
+            .render(cell, false, menuItem = true)
+        assertTrue(edit.contains("ff-menu-link"), edit)
+        assertTrue(edit.contains("m16.862 4.487"), edit)
+        val delete = TableButton.make("delete").label("Delete").confirmPost("delete", "").withBuiltinIcon()
+            .render(cell, false)
+        assertTrue(delete.contains("m14.74 9-.346 9"), delete)
+        val create = TableButton.make("create").label("New").modal().body { "form" }.withBuiltinIcon().render(cell, false)
+        assertTrue(create.contains("M12 4.5v15m7.5-7.5h-15"), create)
+        val custom = TableButton.make("edit").icon("home").withBuiltinIcon().url("edit").render(cell, false)
+        assertTrue(custom.contains("m2.25 12 8.954-8.955"), custom)
+        assertFalse(custom.contains("m16.862 4.487"), custom)
+        val plain = TableButton.make("export").label("Export").withBuiltinIcon().url("export").render(cell, false)
+        assertFalse(plain.contains("ff-icon"), plain)
+        assertTrue(plain.contains(">Export</a>"), plain)
+        TableButton.configureUsing { it.icon("user") }
+        val configured = TableButton.make("delete").withBuiltinIcon().url("delete").render(cell, false)
+        assertTrue(configured.contains("M15.75 6a3.75"), configured)
+        assertFalse(configured.contains("m14.74 9"), configured)
+    }
+
+    @Test
     fun memoryQueryDoesNotPretendToBeSql() {
         assertTrue(MemoryQuery::class.java.methods.none { it.name == "toSql" || it.name == "join" || it.name == "whereHas" })
         val rows = listOf(

@@ -179,6 +179,38 @@ class FireflyActionsTest {
     }
 
     @Test
+    fun builtinActionsUseDefaultIconsAndLeaveCustomIconsAlone() {
+        assertEquals("plus", Action.builtinIcon("create"))
+        assertEquals("pencil-square", Action.builtinIcon("edit"))
+        assertEquals("eye", Action.builtinIcon("view"))
+        assertEquals("trash", Action.builtinIcon("delete"))
+        assertNull(Action.builtinIcon("export"))
+        val create = page(Action.make("create").label("New").withBuiltinIcon())
+        assertTrue(create.contains("M12 4.5v15m7.5-7.5h-15"))
+        assertTrue(create.contains("""width="16""""))
+        assertTrue(create.contains("""height="16""""))
+        assertTrue(create.contains("""stroke-width="1.5""""))
+        assertTrue(page(Action.make("edit").label("Edit").withBuiltinIcon()).contains("m16.862 4.487"))
+        assertTrue(page(Action.make("view").label("View").withBuiltinIcon()).contains("M2.036 12.322"))
+        assertTrue(page(Action.make("delete").label("Delete").withBuiltinIcon()).contains("m14.74 9-.346 9"))
+        val custom = page(Action.make("edit").icon("home").withBuiltinIcon())
+        assertTrue(custom.contains("m2.25 12 8.954-8.955"))
+        assertFalse(custom.contains("m16.862 4.487"))
+        val closure = page(Action.make("delete").icon { "home" }.withBuiltinIcon())
+        assertTrue(closure.contains("m2.25 12 8.954-8.955"))
+        assertFalse(closure.contains("m14.74 9-.346 9"))
+        val empty = page(Action.make("export").label("Export").withBuiltinIcon())
+        assertFalse(empty.contains("ff-icon"))
+        assertTrue(empty.contains(">Export</span>"))
+        val untouched = page(Action.make("create").label("New"))
+        assertFalse(untouched.contains("ff-icon"))
+        Action.configureUsing { it.icon("user") }
+        val configured = page(Action.make("view").withBuiltinIcon())
+        assertTrue(configured.contains("M15.75 6a3.75"))
+        assertFalse(configured.contains("M2.036 12.322"))
+    }
+
+    @Test
     fun urlAndNewTab() {
         val link = Action.make("docs").url { _ -> "https://example.test/a?b=1" }.openUrlInNewTab(true)
         val html = page(link)

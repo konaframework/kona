@@ -21,7 +21,8 @@ public final class Icon {
     }
 
     public String svg() {
-        return Icons.svg(resolvedName).className("ff-icon").toHtml();
+        // Width and height match the 16px CSS box so the 24 viewBox is not scaled off the pixel grid.
+        return Icons.svg(resolvedName).className("ff-icon").attr("width", "16").attr("height", "16").toHtml();
     }
 
     public static final Icon HOME = new Icon("heroicon-o-home");

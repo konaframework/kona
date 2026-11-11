@@ -11,6 +11,7 @@ import org.konaframework.cadence.Cadence
 import org.konaframework.cadence.ConnectionConfig
 import org.konaframework.cadence.Database
 import org.konaframework.cadence.ModelBuilder
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.forms.Checkbox
 import org.konaframework.firefly.forms.CodeEditor
 import org.konaframework.firefly.forms.ColorPicker
@@ -329,6 +330,36 @@ class FireflyResourceTest {
     }
 
     @Test
+    fun replacedHeaderActionKeepsItsOwnIcon() {
+        val resource = object : Resource("widgets") {
+            override fun getPages(): Map<String, Page> = mapOf(
+                "edit" to object : EditPage("edit") {
+                    override fun getHeaderActions(): List<Action> = listOf(
+                        Action.make("view").label("Peek"),
+                        Action.make("pin").label("Pin").icon("home"),
+                        Action.make("export").label("Export"),
+                    )
+                },
+            )
+
+            override fun form(schema: Schema): Schema = schema.components(TextInput.make("name"))
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to "1", "name" to "A")).columns(TextColumn.make("name"))
+        }
+        val html = resource.pages().single().render(mapOf("record" to "1"))
+        val peek = html.substringAfter("""data-ff-action="view"""").substringBefore("ff-action-label")
+        assertFalse(peek.contains("<svg"), peek)
+        assertFalse(peek.contains("M2.036"), peek)
+        val pin = html.substringAfter("""data-ff-action="pin"""").substringBefore("ff-action-label")
+        assertTrue(pin.contains("m2.25 12 8.954-8.955"), pin)
+        val export = html.substringAfter("""data-ff-action="export"""").substringBefore("ff-action-label")
+        assertFalse(export.contains("<svg"), export)
+        assertTrue(html.contains(">Export</span>"))
+        assertTrue(html.contains("m14.74 9-.346 9"))
+    }
+
+    @Test
     fun simpleResourceKeepsCreateEditViewAndDeleteInDialogs() {
         val notes = notes()
         assertTrue(notes.form(Schema.make()).components().isNotEmpty())
@@ -351,6 +382,10 @@ class FireflyResourceTest {
         assertFalse(html.contains("ff-resource-form"))
         val headerActions = html.substringAfter("""class="ff-page-header-actions"""").substringBefore("</div>")
         assertTrue(headerActions.contains("""data-ff-action="create""""))
+        assertTrue(headerActions.contains("M12 4.5v15m7.5-7.5h-15"), headerActions)
+        assertTrue(html.contains("M2.036 12.322"))
+        assertTrue(html.contains("m16.862 4.487"))
+        assertTrue(html.contains("m14.74 9-.346 9"))
         assertFalse(headerActions.contains("""data-ff-action="edit""""))
         assertFalse(headerActions.contains("""data-ff-action="view""""))
         assertFalse(headerActions.contains("""data-ff-action="delete""""))
@@ -441,6 +476,14 @@ class FireflyResourceTest {
         val headerActions = listSection.substringAfter("""class="ff-page-header-actions"""").substringBefore("</div>")
         assertTrue(headerActions.contains("""href="create""""))
         assertTrue(headerActions.contains("New"))
+        assertTrue(headerActions.contains("M12 4.5v15m7.5-7.5h-15"), headerActions)
+        assertTrue(list.contains("M2.036 12.322"))
+        assertTrue(list.contains("m16.862 4.487"))
+        assertTrue(list.contains("m14.74 9-.346 9"))
+        assertTrue(edit.contains("M2.036 12.322"))
+        assertTrue(edit.contains("m14.74 9-.346 9"))
+        assertTrue(view.contains("m16.862 4.487"))
+        assertTrue(view.contains("m14.74 9-.346 9"))
         assertFalse(headerActions.contains("ff-dialog"))
         assertFalse(headerActions.contains("ff-action-dialog"))
         // Row delete mounts a dialog; it must stay closed so the list stays clickable.

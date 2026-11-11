@@ -1,8 +1,10 @@
 package org.konaframework.firefly.tables
 
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.Dialog
+import org.konaframework.firefly.support.Icon
 import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Predicate
@@ -32,6 +34,7 @@ open class TableButton(val name: String) {
     private var confirmDescription: String = ""
     private var bodyHtml: Function<Cell, String>? = null
     private var ungroupedFlag = false
+    private var iconLiteral: String? = null
 
     fun label(value: String): TableButton = apply { labelValue.set(value) }
 
@@ -58,6 +61,18 @@ open class TableButton(val name: String) {
     fun url(value: String): TableButton = apply { urlValue.set(value) }
 
     fun url(value: Function<Cell, String>): TableButton = apply { urlValue.set(value) }
+
+    /** Icon beside the label. Short names resolve through [Icon] (`plus` → heroicon outline). */
+    fun icon(value: String): TableButton = apply { iconLiteral = value }
+
+    /**
+     * Adds the built-in glyph for create, edit, view, and delete when this button has no icon yet.
+     * A custom icon stays as it is. Other names stay empty.
+     */
+    fun withBuiltinIcon(): TableButton = apply {
+        if (iconLiteral != null) return@apply
+        iconLiteral = Action.builtinIcon(name)
+    }
 
     /**
      * Stay beside the ⋯ menu instead of inside it (#514).
@@ -145,9 +160,10 @@ open class TableButton(val name: String) {
         }
         val disabledAttr = (if (disabled) """ disabled""" else "") + selectionAttrs
         val triggerClass = if (menuItem) "ff-menu-link" else "ff-table-button"
+        val inner = triggerInner(label)
         if (href.isNotEmpty()) {
             // data-ff-action lets row clicks target this link by name (#377).
-            return """<a class="$triggerClass" href="${escapeHtml(href)}" data-ff-action="${escapeHtml(name)}"$disabledAttr>${escapeHtml(label)}</a>"""
+            return """<a class="$triggerClass" href="${escapeHtml(href)}" data-ff-action="${escapeHtml(name)}"$disabledAttr>$inner</a>"""
         }
         val dialog = Dialog.make(confirmHeading ?: label)
         when (mode) {
@@ -190,10 +206,16 @@ open class TableButton(val name: String) {
         // data-ff-dialog-*: chrome script opens/closes without Alpine.
         return """
             <div class="ff-table-button-mount" data-ff-dialog-mount x-data="{ open: false }">
-              <button type="button" class="$triggerClass" data-ff-action="${escapeHtml(name)}" data-ff-dialog-open @click="open = true" x-on:click="${'$'}wire.${'$'}call('${escapeHtml(name)}')"$disabledAttr>${escapeHtml(label)}</button>
+              <button type="button" class="$triggerClass" data-ff-action="${escapeHtml(name)}" data-ff-dialog-open @click="open = true" x-on:click="${'$'}wire.${'$'}call('${escapeHtml(name)}')"$disabledAttr>$inner</button>
               <div class="ff-table-button-dialog" data-ff-dialog-panel x-show="open" x-cloak style="display:none" hidden aria-hidden="true" data-ff-action-boot="ffAction('${escapeHtml(name)}')">${dialog.render(open = true)}</div>
             </div>
         """.trimIndent()
+    }
+
+    private fun triggerInner(label: String): String {
+        val text = escapeHtml(label)
+        val icon = iconLiteral ?: return text
+        return Icon.fromName(icon).svg() + """<span class="ff-action-label">$text</span>"""
     }
 
     companion object {
