@@ -495,6 +495,7 @@ open class RelationManager(private val name: String) {
                 .modalHeading(action.heading(modelLabel()))
                 .body { _ -> headerBody(runtime, action, flash) }
             if (action.isSlideOver()) button.slideOver() else button.modal()
+            button.withBuiltinIcon()
         }
     }
 
@@ -510,7 +511,7 @@ open class RelationManager(private val name: String) {
                 else -> button.confirmPost(runtime.url(operation), runtime.csrf, action.heading(label), action.description())
             }
             if (action.isSlideOver()) button.slideOver()
-            button
+            button.withBuiltinIcon()
         }
     }
 

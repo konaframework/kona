@@ -122,6 +122,16 @@ open class Action protected constructor(name: String) : Component(name) {
 
     fun icon(value: Function<Get, String>): Action = apply { iconSetting.setUsing(value) }
 
+    /**
+     * Adds the built-in glyph for create, edit, view, and delete when this action has no icon yet.
+     * A custom icon, including one set by [configureUsing], stays as it is. Other names stay empty.
+     */
+    fun withBuiltinIcon(): Action = apply {
+        if (iconSetting.isSet()) return@apply
+        val icon = builtinIcon(name) ?: return@apply
+        icon(icon)
+    }
+
     fun color(value: String): Action = apply { colorSetting.setLiteral(value) }
 
     fun color(value: Function<Get, String>): Action = apply { colorSetting.setUsing(value) }
@@ -757,6 +767,14 @@ open class Action protected constructor(name: String) : Component(name) {
 
     companion object {
         private val boundPost = ThreadLocal<PostTarget?>()
+
+        /** Short icon name for a built-in action, or null when [name] is not one of them. */
+        fun builtinIcon(name: String): String? =
+            if (name == "create") "plus"
+            else if (name == "edit") "pencil-square"
+            else if (name == "view") "eye"
+            else if (name == "delete") "trash"
+            else null
         private val WIDTHS = setOf("sm", "md", "lg", "xl", "screen")
         private val SIZES = setOf("xs", "sm", "md", "lg", "xl")
         private val ATTRIBUTE = Regex("^[A-Za-z_:][A-Za-z0-9_.:-]*$")
