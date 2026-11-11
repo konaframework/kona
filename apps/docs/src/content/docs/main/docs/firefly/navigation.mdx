@@ -10,7 +10,11 @@ Decide where the links sit, then either let `mount` build the tree or write it y
 
 <FireflyShot file="section-navigation.png" description="Panel sidebar navigation." />
 
-Every nav link shows an icon from [kona-icons](/docs/icons/) (`Icons.svg`). Set `icon("folder")` or `icon("heroicon-o-folder")` on a `NavigationItem`, `PanelPage`, or `Resource`. Short names resolve to `heroicon-o-{name}`. When unset, the dashboard home uses `heroicon-o-home` and every other item uses `heroicon-o-squares-2x2`.
+Every nav link shows an icon from [kona-icons](/docs/icons/) (`Icons.svg`). Set `icon("folder")`, `icon("heroicon-o-funnel")`, or `icon("heroicon-s-home")` on a `NavigationItem`, `PanelPage`, or `Resource`. A full id keeps its registered stack prefix (`heroicon` outline `o`, solid `s`, or a set you add later such as `fas`). A short name such as `home` or `cog` still resolves to `heroicon-o-{name}`. When unset, the dashboard home uses `heroicon-o-home` and every other item uses `heroicon-o-squares-2x2`. A missing icon keeps that default glyph.
+
+`NavigationGroup.navigationSort(n)` uses the same sort as a link. Links and groups share one list, lowest sort first, then definition order. Unset sorts match, so existing panels stay put until a group sets a sort.
+
+`Panel.sideNavMode(SideNavMode.STATIC)` is the SIDE default: nested groups indent under a tree line, and the branch that contains the current page colors that line instead of highlighting the parent. `SideNavMode.ACCORDION` (also `navigationAccordion()`) collapses the other groups and may highlight the open parent. APP, INVERSE, and TOP ignore the mode.
 
 On the hello samples that means a link for Desk, plus one sidebar entry each for Notes and Orders. Page labels come from the slug, so you may see `desk` until you set a label. Resource entries use `Resource.pluralLabel()` (from `label()` / `pluralLabel()`), so those links read `Notes` and `Orders` and point at the resource index (list or manage). Create, edit, and view are **page header and row actions**, not extra sidebar links.
 

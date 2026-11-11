@@ -130,7 +130,7 @@ Icons.setFallback("heroicon-o-question-mark-circle")
 
 ## Firefly short names
 
-Firefly’s `org.konaframework.firefly.support.Icon` remains a thin facade for panel chrome. Short names such as `home`, `bars`, `check`, and `trash` map to outline Heroicons and render with the `ff-icon` CSS class. New application code and Crema views should call `Icons` / `icon()` directly.
+Firefly’s `Icon.fromName` and navigation `NavIcons.resolve` accept a full id or a short name. `home` and `cog` resolve to `heroicon-o-home` and `heroicon-o-cog`. `heroicon-o-funnel` and `heroicon-s-home` keep that style (outline and solid both ship in kona-icons). The first segment is a registered stack prefix, not a closed list: `Icons.add("fontawesome", IconSetOptions(prefix = "fas", classpath = "..."))` makes `fas-home` resolve to that set. Until the prefix is registered, a short name still falls back to outline Heroicons. A missing navigation icon keeps the default glyph instead of failing the panel. Unknown names passed to `Icon.fromName` still throw. New application code and Crema views should call `Icons` / `icon()` directly.
 
 ## Packaging your own set
 

@@ -17,6 +17,25 @@ class IconsTest {
     }
 
     @Test
+    fun registeredPrefixDetectsStackIdsAndIgnoresShortNames() {
+        assertFalse(Icons.usesRegisteredPrefix(""))
+        assertFalse(Icons.usesRegisteredPrefix("   "))
+        assertFalse(Icons.usesRegisteredPrefix("home"))
+        assertFalse(Icons.usesRegisteredPrefix("cog"))
+        assertFalse(Icons.usesRegisteredPrefix("heroicon"))
+        assertFalse(Icons.usesRegisteredPrefix("squares-2x2"))
+        assertFalse(Icons.usesRegisteredPrefix("heroicons-home"))
+        assertFalse(Icons.usesRegisteredPrefix("fas-home"))
+        assertTrue(Icons.usesRegisteredPrefix("heroicon-o-home"))
+        assertTrue(Icons.usesRegisteredPrefix(" heroicon-o-funnel "))
+        assertTrue(Icons.usesRegisteredPrefix("heroicon-s-home"))
+        Icons.add("fontawesome", IconSetOptions(prefix = "fas", classpath = "icons/custom"))
+        assertTrue(Icons.usesRegisteredPrefix("fas-home"))
+        assertTrue(Icons.usesRegisteredPrefix("heroicon-s-home"))
+        assertFalse(Icons.usesRegisteredPrefix("home"))
+    }
+
+    @Test
     fun heroiconsResolveByPrefixAndStyle() {
         val outline = Icons.svg("heroicon-o-home")
         assertTrue(outline.toHtml().contains("viewBox=\"0 0 24 24\""))

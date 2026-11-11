@@ -26,6 +26,19 @@ enum class NavigationType {
 }
 
 /**
+ * How [NavigationType.SIDE] draws navigation groups.
+ *
+ * [STATIC] is the default: groups stay open headings. The branch that contains the current
+ * page colors its tree line; the parent heading is not given the active highlight.
+ * [ACCORDION] collapses every group that does not contain the current page and may highlight
+ * that parent. APP, INVERSE, and TOP ignore this mode.
+ */
+enum class SideNavMode {
+    STATIC,
+    ACCORDION,
+}
+
+/**
  * One node in a panel navigation tree. Level 1 is the root. Level 4 fails when the node is added.
  */
 class NavigationItem(val name: String) {
@@ -229,13 +242,14 @@ internal fun renderItems(
     nested: Boolean,
     menu: Boolean = false,
     menuRole: Boolean = false,
+    listClass: String = "ff-nav-list",
 ): String {
     val ordered = orderItems(items, get)
     if (ordered.isEmpty()) return ""
     val out = StringBuilder()
     for (item in ordered) out.append(renderItem(item, path, spa, get, nested, menu))
     val role = if (menuRole) """ role="menu"""" else ""
-    return """<ul class="ff-nav-list"$role>$out</ul>"""
+    return """<ul class="$listClass"$role>$out</ul>"""
 }
 
 internal fun renderItem(

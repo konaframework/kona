@@ -22,9 +22,19 @@ class NavigationGroup private constructor(val label: String) {
     private var iconLiteral: String? = null
     private var collapsibleFlag: Boolean = false
     private var collapsedFlag: Boolean = false
+    private var sortValue: Int? = null
 
-    /** kona-icons name (short or `heroicon-o-…`) drawn beside the heading. */
+    /** kona-icons name (short or `heroicon-o-…` / `heroicon-s-…`) drawn beside the heading. */
     fun icon(name: String): NavigationGroup = apply { iconLiteral = name }
+
+    /**
+     * Orders this group among top-level links and other groups, lowest first.
+     * Unset matches an item with no [NavigationItem.sort] (both sort last). Ties keep
+     * definition order, so a panel that sets no sort does not jump.
+     */
+    fun navigationSort(value: Int): NavigationGroup = apply { sortValue = value }
+
+    fun navigationSort(): Int? = sortValue
 
     /**
      * Lets the user fold the group. Rendered as `<details>`, so it needs no script. Groups stay
@@ -102,13 +112,40 @@ internal class NavigationSettings {
 
 private fun sortKey(item: NavigationItem): Int = item.sortValue() ?: Int.MAX_VALUE
 
+/** Same default as [sortKey]: an unset group sort ties with an unset item sort. */
+private fun groupSortKey(group: NavigationGroup): Int = group.navigationSort() ?: Int.MAX_VALUE
+
 /** Visible items by `sort` (unset last), then by label. */
 internal fun orderItems(items: List<NavigationItem>, get: Get): List<NavigationItem> =
     items.filter { it.isVisible(get) }.sortedWith(compareBy<NavigationItem>({ sortKey(it) }, { it.labelText(get) }))
 
 private class GroupBucket(val group: NavigationGroup, val items: List<NavigationItem>)
 
-/** Ungrouped items first, then groups: declared ones in order, the rest as first met. Empty groups drop out. */
+private sealed class NavBlock {
+    class Loose(val item: NavigationItem) : NavBlock()
+    class Grouped(val bucket: GroupBucket) : NavBlock()
+}
+
+/**
+ * One list of loose items and groups. Sorted by navigation sort (unset is [Int.MAX_VALUE], the
+ * same as an item with no sort), then by definition order. Definition order is the previous
+ * sidebar sequence: loose items (already by sort, then label), then declared groups, then
+ * undeclared groups. A stable sort keeps that sequence on ties, so existing panels do not jump
+ * until a group sets a sort.
+ */
+private fun orderedBlocks(
+    items: List<NavigationItem>,
+    declared: List<NavigationGroup>,
+    get: Get,
+): List<NavBlock> {
+    val (loose, buckets) = bucketGroups(items, declared, get)
+    val sequenced = ArrayList<Pair<Int, NavBlock>>(loose.size + buckets.size)
+    for (item in loose) sequenced.add(sortKey(item) to NavBlock.Loose(item))
+    for (bucket in buckets) sequenced.add(groupSortKey(bucket.group) to NavBlock.Grouped(bucket))
+    return sequenced.sortedBy { it.first }.map { it.second }
+}
+
+/** Splits visible items into loose links and groups. Declared groups lead; the rest follow as first met. Empty groups drop out. */
 private fun bucketGroups(
     items: List<NavigationItem>,
     declared: List<NavigationGroup>,
@@ -132,9 +169,10 @@ private fun bucketGroups(
 
 /**
  * Level-1 roots for [NavigationType.APP] and [NavigationType.INVERSE]: ungrouped items stay as
- * roots; each navigation group becomes a cluster whose members are children. APP shows the roots
- * in the sidebar and the active root’s children in the top bar. INVERSE swaps those two slots.
- * SIDE keeps [renderGrouped] headings instead.
+ * roots; each navigation group becomes a cluster whose members are children. Roots follow
+ * [orderedBlocks], so a group sort can place the cluster before a loose item. APP shows the
+ * roots in the sidebar and the active root’s children in the top bar. INVERSE swaps those two
+ * slots. SIDE keeps [renderGrouped] headings instead.
  */
 internal fun appLevelOnes(
     items: List<NavigationItem>,
@@ -142,18 +180,22 @@ internal fun appLevelOnes(
     get: Get,
 ): List<NavigationItem> {
     if (items.none { it.groupName() != null }) return orderItems(items, get)
-    val (loose, buckets) = bucketGroups(items, declared, get)
-    val roots = ArrayList<NavigationItem>(loose.size + buckets.size)
-    roots.addAll(loose)
-    for (bucket in buckets) {
-        val root = NavigationItem(bucket.group.label).label(bucket.group.label).cluster(true)
-        val icon = bucket.group.navigationIcon()
-        if (!icon.isNullOrBlank()) root.icon(icon)
-        // Buckets only exist when they have members.
-        val firstUrl = bucket.items.first().urlText(get)
-        if (firstUrl.isNotEmpty()) root.url(firstUrl)
-        for (member in bucket.items) root.child(member)
-        roots.add(root)
+    val roots = ArrayList<NavigationItem>()
+    for (block in orderedBlocks(items, declared, get)) {
+        when (block) {
+            is NavBlock.Loose -> roots.add(block.item)
+            is NavBlock.Grouped -> {
+                val bucket = block.bucket
+                val root = NavigationItem(bucket.group.label).label(bucket.group.label).cluster(true)
+                val icon = bucket.group.navigationIcon()
+                if (!icon.isNullOrBlank()) root.icon(icon)
+                // Buckets only exist when they have members.
+                val firstUrl = bucket.items.first().urlText(get)
+                if (firstUrl.isNotEmpty()) root.url(firstUrl)
+                for (member in bucket.items) root.child(member)
+                roots.add(root)
+            }
+        }
     }
     return roots
 }
@@ -171,58 +213,116 @@ internal fun renderGrouped(
     nested: Boolean,
     inline: Boolean,
     drawer: Boolean = false,
+    sideMode: SideNavMode = SideNavMode.STATIC,
 ): String {
     // Top bar (`inline`) turns each group into a dropdown trigger. The mobile drawer forces
     // every group into a collapsible accordion, whatever the desktop heading style is.
+    // SIDE [SideNavMode.ACCORDION] does the same on the desktop tree. STATIC keeps headings.
     if (items.none { it.groupName() != null }) {
         // Inline top bar: nested links are dropdowns. Drawer and sidebar: nested lists.
         return renderItems(items, path, spa, get, nested, menu = inline)
     }
-    val (loose, buckets) = bucketGroups(items, groups, get)
-    val out = StringBuilder()
+    val blocks = orderedBlocks(items, groups, get)
     if (inline) {
         val rows = StringBuilder()
-        for (item in loose) rows.append(renderItem(item, path, spa, get, nested, true))
-        for (bucket in buckets) {
-            val inner = StringBuilder()
-            for (item in bucket.items) inner.append(renderItem(item, path, spa, get, nested, true))
-            val holdsActive = bucket.items.any { itemOrDescendantActive(it, path, get) }
-            val active = if (holdsActive) " ff-active" else ""
-            val label = escapeHtml(bucket.group.label)
-            rows.append(
-                """<li class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown$active">""" +
-                    """<button type="button" class="ff-nav-dropdown-trigger" aria-haspopup="menu" aria-expanded="false">""" +
-                    """${bucket.group.iconHtml()}<span class="ff-nav-label">$label</span></button>""" +
-                    """<ul class="ff-nav-list" role="menu">$inner</ul></li>""",
-            )
+        for (block in blocks) {
+            when (block) {
+                is NavBlock.Loose -> rows.append(renderItem(block.item, path, spa, get, nested, true))
+                is NavBlock.Grouped -> rows.append(inlineGroup(block.bucket, path, spa, get, nested))
+            }
         }
         return """<ul class="ff-nav-list">$rows</ul>"""
     }
-    out.append(renderItems(loose, path, spa, get, nested))
-    for (bucket in buckets) {
-        val list = renderItems(bucket.items, path, spa, get, nested)
-        val heading = bucket.group.iconHtml() + """<span class="ff-nav-label">${escapeHtml(bucket.group.label)}</span>"""
-        val name = escapeHtml(bucket.group.label)
-        val holdsActive = bucket.items.any { itemOrDescendantActive(it, path, get) }
-        val activeClass = if (holdsActive) " ff-nav-group-active" else ""
-        if (bucket.group.isCollapsible() || drawer) {
-            val open = if (drawer) {
-                if (holdsActive) " open" else ""
-            } else if (!bucket.group.isCollapsed() || holdsActive) {
-                " open"
-            } else {
-                ""
+    // Drawer keeps its own accordion. SIDE accordion collapses groups that miss the current page.
+    val accordion = !drawer && sideMode == SideNavMode.ACCORDION
+    val tree = !drawer
+    return renderStacked(blocks, path, spa, get, nested, drawer, accordion, tree)
+}
+
+private fun inlineGroup(
+    bucket: GroupBucket,
+    path: String,
+    spa: Boolean,
+    get: Get,
+    nested: Boolean,
+): String {
+    val inner = StringBuilder()
+    for (item in bucket.items) inner.append(renderItem(item, path, spa, get, nested, true))
+    val holdsActive = bucket.items.any { itemOrDescendantActive(it, path, get) }
+    val active = if (holdsActive) " ff-active" else ""
+    val label = escapeHtml(bucket.group.label)
+    return """<li class="ff-nav-item ff-cluster ff-nav-group ff-nav-dropdown$active">""" +
+        """<button type="button" class="ff-nav-dropdown-trigger" aria-haspopup="menu" aria-expanded="false">""" +
+        """${bucket.group.iconHtml()}<span class="ff-nav-label">$label</span></button>""" +
+        """<ul class="ff-nav-list" role="menu">$inner</ul></li>"""
+}
+
+private fun renderStacked(
+    blocks: List<NavBlock>,
+    path: String,
+    spa: Boolean,
+    get: Get,
+    nested: Boolean,
+    drawer: Boolean,
+    accordion: Boolean,
+    tree: Boolean,
+): String {
+    val out = StringBuilder()
+    val pending = ArrayList<NavigationItem>()
+    fun flush() {
+        if (pending.isEmpty()) return
+        out.append(renderItems(pending, path, spa, get, nested))
+        pending.clear()
+    }
+    for (block in blocks) {
+        when (block) {
+            is NavBlock.Loose -> pending.add(block.item)
+            is NavBlock.Grouped -> {
+                flush()
+                out.append(renderStackGroup(block.bucket, path, spa, get, nested, drawer, accordion, tree))
             }
-            out.append(
-                """<details class="ff-nav-group ff-nav-group-collapsible$activeClass" data-ff-nav-group="$name"$open><summary class="ff-nav-group-label">$heading</summary>$list</details>""",
-            )
-        } else {
-            out.append(
-                """<section class="ff-nav-group$activeClass" data-ff-nav-group="$name"><h3 class="ff-nav-group-label">$heading</h3>$list</section>""",
-            )
         }
     }
+    flush()
     return out.toString()
+}
+
+private fun renderStackGroup(
+    bucket: GroupBucket,
+    path: String,
+    spa: Boolean,
+    get: Get,
+    nested: Boolean,
+    drawer: Boolean,
+    accordion: Boolean,
+    tree: Boolean,
+): String {
+    val holdsActive = bucket.items.any { itemOrDescendantActive(it, path, get) }
+    // Static SIDE colors the tree line only. Accordion and the drawer may highlight the parent.
+    val highlightParent = holdsActive && (accordion || drawer)
+    val activeClass = if (highlightParent) " ff-nav-group-active" else ""
+    val listClass = if (!tree) {
+        "ff-nav-list"
+    } else if (holdsActive) {
+        "ff-nav-list ff-nav-tree ff-nav-tree-active"
+    } else {
+        "ff-nav-list ff-nav-tree"
+    }
+    val list = renderItems(bucket.items, path, spa, get, nested, listClass = listClass)
+    val heading = bucket.group.iconHtml() + """<span class="ff-nav-label">${escapeHtml(bucket.group.label)}</span>"""
+    val name = escapeHtml(bucket.group.label)
+    val details = drawer || accordion || bucket.group.isCollapsible()
+    if (details) {
+        val open = if (drawer || accordion) {
+            if (holdsActive) " open" else ""
+        } else if (!bucket.group.isCollapsed() || holdsActive) {
+            " open"
+        } else {
+            ""
+        }
+        return """<details class="ff-nav-group ff-nav-group-collapsible$activeClass" data-ff-nav-group="$name"$open><summary class="ff-nav-group-label">$heading</summary>$list</details>"""
+    }
+    return """<section class="ff-nav-group$activeClass" data-ff-nav-group="$name"><h3 class="ff-nav-group-label">$heading</h3>$list</section>"""
 }
 
 internal fun itemOrDescendantActive(item: NavigationItem, path: String, get: Get): Boolean {

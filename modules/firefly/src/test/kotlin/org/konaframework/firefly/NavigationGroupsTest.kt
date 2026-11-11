@@ -53,10 +53,12 @@ class NavigationGroupsTest {
         assertFalse(group.isCollapsible())
         assertFalse(group.isCollapsed())
         assertNull(group.navigationIcon())
+        assertNull(group.navigationSort())
         assertEquals("", group.iconHtml())
-        group.icon("shopping-bag").collapsible()
+        group.icon("shopping-bag").collapsible().navigationSort(1)
         assertTrue(group.isCollapsible())
         assertEquals("shopping-bag", group.navigationIcon())
+        assertEquals(1, group.navigationSort())
         assertTrue(group.iconHtml().contains("ff-nav-icon"))
         assertTrue(NavigationGroup.make("Folded").collapsed().isCollapsed())
         assertTrue(NavigationGroup.make("Folded").collapsed().isCollapsible())
@@ -202,7 +204,7 @@ class NavigationGroupsTest {
     }
 
     @Test
-    fun activeParentGroupMarkedWhenHoldingCurrentPage() {
+    fun staticSideColorsTheTreeLineAndDoesNotHighlightTheParent() {
         fun build() =
             panel()
                 .navigationGroups(
@@ -211,20 +213,104 @@ class NavigationGroupsTest {
                 )
                 .resource(listed("orders").navigationGroup("Sales"))
                 .resource(listed("invoices").navigationGroup("Accounting"))
+        assertEquals(SideNavMode.STATIC, build().sideNavMode())
         val idle = sidebar(body(build(), "/admin"))
         assertFalse(idle.contains("ff-nav-group-active"))
+        assertFalse(idle.contains("ff-nav-tree-active"))
+        assertTrue(idle.contains("ff-nav-tree"))
+        val onOrders = sidebar(body(build(), "/admin/orders/list"))
+        assertTrue(
+            onOrders.contains(
+                """<details class="ff-nav-group ff-nav-group-collapsible" data-ff-nav-group="Sales" open>""",
+            ),
+        )
+        assertFalse(onOrders.contains("ff-nav-group-active"))
+        val sales = onOrders.substringAfter("""data-ff-nav-group="Sales"""").substringBefore("""data-ff-nav-group="Accounting"""")
+        assertTrue(sales.contains("""class="ff-nav-list ff-nav-tree ff-nav-tree-active""""))
+        assertTrue(sales.contains("ff-active"))
+        assertTrue(onOrders.contains("""<section class="ff-nav-group" data-ff-nav-group="Accounting">"""))
+        val accounting = onOrders.substringAfter("""data-ff-nav-group="Accounting"""")
+        assertTrue(accounting.contains("""class="ff-nav-list ff-nav-tree""""))
+        assertFalse(accounting.contains("ff-nav-tree-active"))
+        val onInvoices = sidebar(body(build(), "/admin/invoices/list"))
+        assertTrue(onInvoices.contains("""<section class="ff-nav-group" data-ff-nav-group="Accounting">"""))
+        assertTrue(
+            onInvoices.substringAfter("""data-ff-nav-group="Accounting"""")
+                .contains("""class="ff-nav-list ff-nav-tree ff-nav-tree-active""""),
+        )
+        assertFalse(onInvoices.contains("ff-nav-group-active"))
+    }
+
+    @Test
+    fun accordionSideOpensTheCurrentGroupAndMayHighlightTheParent() {
+        fun build() =
+            panel()
+                .sideNavMode(SideNavMode.ACCORDION)
+                .navigationGroups(
+                    NavigationGroup.make("Sales"),
+                    NavigationGroup.make("Accounting"),
+                )
+                .resource(listed("orders").navigationGroup("Sales"))
+                .resource(listed("invoices").navigationGroup("Accounting"))
+        assertEquals(SideNavMode.ACCORDION, build().sideNavMode())
+        assertEquals(SideNavMode.ACCORDION, panel().navigationAccordion().sideNavMode())
+        assertEquals(SideNavMode.STATIC, panel().navigationAccordion(false).sideNavMode())
+        assertEquals(SideNavMode.STATIC, panel().sideNavMode(SideNavMode.ACCORDION).sideNavMode(SideNavMode.STATIC).sideNavMode())
+        assertTrue(body(build()).contains("""<nav class="ff-nav ff-nav-side" data-ff-nav-accordion>"""))
         val onOrders = sidebar(body(build(), "/admin/orders/list"))
         assertTrue(
             onOrders.contains(
                 """<details class="ff-nav-group ff-nav-group-collapsible ff-nav-group-active" data-ff-nav-group="Sales" open>""",
             ),
         )
-        assertTrue(onOrders.contains("""<section class="ff-nav-group" data-ff-nav-group="Accounting">"""))
-        val onInvoices = sidebar(body(build(), "/admin/invoices/list"))
-        assertTrue(
-            onInvoices.contains("""<section class="ff-nav-group ff-nav-group-active" data-ff-nav-group="Accounting">"""),
-        )
-        assertFalse(onInvoices.contains("ff-nav-group-collapsible ff-nav-group-active"))
+        val sales = onOrders.substringAfter("""data-ff-nav-group="Sales"""").substringBefore("""data-ff-nav-group="Accounting"""")
+        assertTrue(sales.contains("""class="ff-nav-list ff-nav-tree ff-nav-tree-active""""))
+        assertTrue(sales.contains("ff-active"))
+        assertTrue(onOrders.contains("""data-ff-nav-group="Accounting""""))
+        assertFalse(onOrders.contains("""data-ff-nav-group="Accounting" open"""))
+        val accounting = onOrders.substringAfter("""data-ff-nav-group="Accounting"""")
+        assertTrue(accounting.contains("ff-nav-tree"))
+        assertFalse(accounting.contains("ff-nav-tree-active"))
+        assertFalse(accounting.contains("ff-nav-group-active"))
+    }
+
+    @Test
+    fun groupSortInterleavesWithItemsAndDefaultsDoNotJump() {
+        val sorted = panel()
+            .navigationGroups(NavigationGroup.make("Billing").navigationSort(1))
+            .item(NavigationItem("late").label("Late").url("/admin/late").sort(10))
+            .item(NavigationItem("bills").label("Bills").url("/admin/bills").group("Billing"))
+        val html = sidebar(body(sorted))
+        val billing = html.indexOf("""data-ff-nav-group="Billing"""")
+        val late = html.indexOf("""href="/admin/late"""")
+        assertTrue(billing >= 0 && late > billing, html)
+        val tied = panel()
+            .navigationGroups(NavigationGroup.make("Tools").navigationSort(5))
+            .item(NavigationItem("plain").label("Plain").url("/admin/plain").sort(5))
+            .item(NavigationItem("wrench").label("Wrench").url("/admin/wrench").group("Tools"))
+        val tiedHtml = sidebar(body(tied))
+        assertTrue(tiedHtml.indexOf("Plain") < tiedHtml.indexOf("""data-ff-nav-group="Tools""""))
+        val untouched = panel()
+            .navigationGroups(NavigationGroup.make("Tools"))
+            .item(NavigationItem("plain").label("Plain").url("/admin/plain"))
+            .item(NavigationItem("wrench").label("Wrench").url("/admin/wrench").group("Tools"))
+        val untouchedHtml = sidebar(body(untouched))
+        assertTrue(untouchedHtml.indexOf("Plain") < untouchedHtml.indexOf("""data-ff-nav-group="Tools""""))
+    }
+
+    @Test
+    fun stackIconsResolveAndAMissingStackDoesNotFailThePage() {
+        val panel = panel()
+            .item(NavigationItem("home").label("Home").url("/admin/home").icon("home"))
+            .item(NavigationItem("cog").label("Cog").url("/admin/cog").icon("cog"))
+            .item(NavigationItem("funnel").label("Funnel").url("/admin/funnel").icon("heroicon-o-funnel"))
+            .item(NavigationItem("solid").label("Solid").url("/admin/solid").icon("heroicon-s-home"))
+            .item(NavigationItem("foreign").label("Foreign").url("/admin/foreign").icon("fas-home"))
+        val html = sidebar(body(panel))
+        assertTrue(html.contains("stroke=\"currentColor\""))
+        assertTrue(html.contains("fill=\"currentColor\""))
+        assertTrue(html.contains("ff-nav-icon"))
+        assertTrue(html.contains("""href="/admin/foreign""""))
     }
 
     @Test

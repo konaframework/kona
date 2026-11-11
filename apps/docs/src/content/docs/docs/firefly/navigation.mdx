@@ -10,7 +10,7 @@ Decide where the links sit, then either let `mount` build the tree or write it y
 
 <FireflyShot file="section-navigation.png" description="Panel sidebar navigation." />
 
-Every nav link shows an icon from [kona-icons](/docs/icons/) (`Icons.svg`). Set `icon("folder")` or `icon("heroicon-o-folder")` on a `NavigationItem`, `PanelPage`, or `Resource`. Short names resolve to `heroicon-o-{name}`. When unset, the dashboard home uses `heroicon-o-home` and every other item uses `heroicon-o-squares-2x2`.
+Every nav link shows an icon from [kona-icons](/docs/icons/) (`Icons.svg`). Set `icon("folder")`, `icon("heroicon-o-funnel")`, or `icon("heroicon-s-home")` on a `NavigationItem`, `PanelPage`, or `Resource`. A full id keeps its registered stack prefix (`heroicon` outline `o`, solid `s`, or a set you add later such as `fas`). A short name such as `home` or `cog` still resolves to `heroicon-o-{name}`. When unset, the dashboard home uses `heroicon-o-home` and every other item uses `heroicon-o-squares-2x2`. A missing icon keeps that default glyph.
 
 On the hello samples that means a link for Desk, plus one sidebar entry each for Notes and Orders. Page labels come from the slug, so you may see `desk` until you set a label. Resource entries use `Resource.pluralLabel()` (from `label()` / `pluralLabel()`), so those links read `Notes` and `Orders` and point at the resource index (list or manage). Create, edit, and view are **page header and row actions**, not extra sidebar links.
 
@@ -112,7 +112,7 @@ panel.navigationGroups(
 | Method | What you get |
 |--------|----------------|
 | `navigationGroup(name)` | The sidebar heading the link sits under. Unset links stay above the groups |
-| `navigationSort(n)` | Order among siblings, lowest first. Links without a sort follow, by label |
+| `navigationSort(n)` | Order among siblings, lowest first. Links without a sort follow, by label. A group uses the same setter so it can sit among those links |
 | `navigationLabel(text)` | The link text. A resource defaults to `pluralLabel()`, a page to its slug (`Dashboard` for home) |
 | `navigationBadge { value }` | Text at the end of the link, evaluated on every render. `null` or blank hides it. A `0` shows |
 | `navigationBadge(color) { value }` / `navigationBadgeColor(color)` | `primary` (the default), `success`, `warning`, `danger`, `info` or `gray` |
@@ -124,15 +124,20 @@ A blank group, label or color throws `FireflyException`.
 
 | Method | What you get |
 |--------|----------------|
-| `icon(name)` | A [kona-icons](/docs/icons/) icon beside the heading |
+| `icon(name)` | A [kona-icons](/docs/icons/) icon beside the heading. Short names and `heroicon-o-` / `heroicon-s-` ids both work |
+| `navigationSort(n)` | Order of this group among top-level links and groups, lowest first. Unset matches a link with no sort (both sort last). Ties keep definition order, so a panel that sets no sort does not jump. `navigationSort(1)` renders the group before a link with sort `10` |
 | `collapsible()` | The heading folds its links. It renders as a `<details>` element, so it needs no script |
 | `collapsed()` | Starts folded (and collapsible). A group that holds the current page stays open |
 
-By default every collapsible group opens and closes on its own. For **SIDE** chrome only, call `Panel.navigationAccordion(true)` so opening one collapsible group closes the others (exclusive accordion) — including on live click, not only after reload. The attribute `data-ff-nav-accordion` marks the sidebar nav; a small chrome script binds each collapsible `<details>` and re-arms after soft navigations. APP, INVERSE, and TOP ignore the flag.
+By default every collapsible group opens and closes on its own. **SIDE** chooses a group mode with `Panel.sideNavMode(SideNavMode.STATIC)` (the default) or `SideNavMode.ACCORDION`. `navigationAccordion()` selects accordion; `navigationAccordion(false)` returns to static. APP, INVERSE, and TOP ignore the mode.
+
+Static groups stay open headings. Child links are indented under a tree line (`ff-nav-tree`). The branch that contains the current page colors that line (`ff-nav-tree-active`) with the primary token. The parent heading is not highlighted; the active child keeps the normal active style.
+
+Accordion groups are `<details>`. Groups that do not contain the current page start collapsed; the group that contains it stays open and may use the active-parent highlight. The same tree line and indent apply. `data-ff-nav-accordion` marks the sidebar nav so opening one group closes the others, including on live click.
 
 `Panel.navigationGroups(...)` takes the groups in display order and fails when a label repeats. A group that no item names is not drawn. A group some item names but nobody declared is drawn as a plain heading after the declared ones.
 
-The order in the sidebar is: links with no group, then each declared group, then undeclared groups in the order their first link appears.
+Top-level links and groups are one list ordered by `navigationSort`, then by definition order for ties. Unset sorts match, so links with no group still lead declared groups, then undeclared groups, until you set a sort.
 
 ### Hidden items and empty groups
 
