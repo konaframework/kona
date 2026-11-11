@@ -5134,6 +5134,17 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   color: var(--ff-heading);
 }
 
+/* SIDE group children: indent under a tree line. The active branch colors the line. */
+.ff-panel .ff-nav-side .ff-nav-tree {
+  margin: 0.15rem 0 0.35rem 0.45rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--ff-card-border);
+}
+
+.ff-panel .ff-nav-side .ff-nav-tree.ff-nav-tree-active {
+  border-left-color: color-mix(in srgb, var(--ff-primary) 72%, transparent);
+}
+
 .ff-panel .ff-nav-group-label {
   gap: 0.65rem;
   margin: 0;

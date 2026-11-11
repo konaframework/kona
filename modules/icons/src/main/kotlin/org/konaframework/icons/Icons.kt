@@ -144,6 +144,32 @@ object Icons {
         }
     }
 
+    /**
+     * True when [name] begins with a registered set prefix and a hyphen
+     * (`heroicon-o-funnel`, `heroicon-s-home`, or `fas-home` after [add] with prefix `fas`).
+     *
+     * Callers use this to tell a stack id from a short name. A future stack is registered
+     * with [add]; it is not added to a hardcoded prefix list. An unregistered prefix does
+     * not match, so the caller can fall back without throwing here.
+     */
+    @JvmStatic
+    fun usesRegisteredPrefix(name: String): Boolean {
+        ensureDefaults()
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) {
+            return false
+        }
+        for (prefix in prefixIndex.keys) {
+            if (trimmed.length > prefix.length &&
+                trimmed.startsWith(prefix) &&
+                trimmed[prefix.length] == '-'
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+
     /** True when [name] resolves without throwing. */
     @JvmStatic
     fun has(name: String): Boolean {

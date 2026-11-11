@@ -83,8 +83,11 @@ open class Panel {
     private var domainUsing: Function<Get, String>? = null
     private var navigationLiteral: NavigationType = NavigationType.APP
     private var navigationUsing: Function<Get, NavigationType>? = null
-    /** SIDE only: opening one collapsible group closes the others (#494). */
-    private var navigationAccordionFlag: Boolean = false
+    /**
+     * SIDE group chrome. Static is the default (open headings, tree line, no active parent).
+     * Accordion collapses groups that do not contain the current page.
+     */
+    private var sideNavModeKind: SideNavMode = SideNavMode.STATIC
     private var theme: FireflyTheme = KonaTheme()
     private var layout: PanelLayout = DefaultLayout()
     private val hooks = ArrayList<Pair<Hook, String>>()
@@ -265,12 +268,23 @@ open class Panel {
     fun topNavigation(): Panel = navigation(NavigationType.TOP)
 
     /**
-     * When true (SIDE chrome), only one collapsible navigation group stays open at a time —
-     * opening a group closes its siblings. Non-collapsible groups are unchanged. APP, INVERSE, and
-     * TOP ignore this flag. Requires chrome script (`data-ff-nav-accordion` on the sidebar nav).
+     * How SIDE groups render. [SideNavMode.STATIC] (the default) keeps headings open and marks the
+     * active branch with a tree line, not a highlighted parent. [SideNavMode.ACCORDION] collapses
+     * groups that do not contain the current page and may highlight that parent. APP, INVERSE,
+     * and TOP ignore the mode. Accordion also sets `data-ff-nav-accordion` so opening one group
+     * closes its siblings.
+     */
+    fun sideNavMode(mode: SideNavMode): Panel = apply { sideNavModeKind = mode }
+
+    fun sideNavMode(): SideNavMode = sideNavModeKind
+
+    /**
+     * Selects [SideNavMode.ACCORDION] when [on] is true, otherwise [SideNavMode.STATIC].
+     * SIDE only. APP, INVERSE, and TOP ignore it.
      */
     @JvmOverloads
-    fun navigationAccordion(on: Boolean = true): Panel = apply { navigationAccordionFlag = on }
+    fun navigationAccordion(on: Boolean = true): Panel =
+        sideNavMode(if (on) SideNavMode.ACCORDION else SideNavMode.STATIC)
 
     fun theme(theme: FireflyTheme): Panel = apply { this.theme = theme }
 
@@ -350,9 +364,11 @@ open class Panel {
     fun item(item: NavigationItem): Panel = apply { items.add(item) }
 
     /**
-     * Declares sidebar groups in display order, with icon and collapsibility. Items join a group by
-     * name (`Resource.navigationGroup`, `PanelPage.navigationGroup`, `NavigationItem.group`); groups
-     * left undeclared follow these, and a group with no visible item is not drawn.
+     * Declares sidebar groups, with icon, collapsibility, and [NavigationGroup.navigationSort].
+     * Items join a group by name (`Resource.navigationGroup`, `PanelPage.navigationGroup`,
+     * `NavigationItem.group`). Top-level links and groups share one list ordered by that sort
+     * (unset matches an unset item sort), then by definition order. A group with no visible item
+     * is not drawn. Groups left undeclared follow the declared ones.
      */
     fun navigationGroups(vararg groups: NavigationGroup): Panel = apply {
         val seen = HashSet<String>()
@@ -1946,8 +1962,8 @@ open class Panel {
                 }
             }
             NavigationType.SIDE -> {
-                val accordion = if (navigationAccordionFlag) " data-ff-nav-accordion" else ""
-                """<nav class="ff-nav ff-nav-side"$accordion>${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
+                val accordion = if (sideNavModeKind == SideNavMode.ACCORDION) " data-ff-nav-accordion" else ""
+                """<nav class="ff-nav ff-nav-side"$accordion>${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false, sideMode = sideNavModeKind)}</nav>"""
             }
         }
         return offcanvas + brandBlock + nav + drawerNav(path, get) + sidebarFootHtml(user)

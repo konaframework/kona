@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.konaframework.crema.CremaEngine
+import org.konaframework.icons.IconSetOptions
+import org.konaframework.icons.Icons
 import org.konaframework.crema.MapViewFinder
 import org.konaframework.crema.ViewNotFoundException
 import java.net.URLClassLoader
@@ -204,8 +206,19 @@ class FireflySupportTest {
         assertEquals(Icon.ARROWS_POINTING_IN, Icon.fromName("arrows-pointing-in"))
         assertEquals(Icon.ARROWS_POINTING_IN, Icon.fromName("arrows_pointing_in"))
         assertEquals("heroicon-o-bell", Icon.fromName("heroicon-o-bell").name())
+        assertEquals("heroicon-s-home", Icon.fromName("heroicon-s-home").name())
+        assertTrue(Icon.fromName("heroicon-s-home").svg().contains("fill=\"currentColor\""))
+        assertTrue(Icon.fromName("heroicon-o-funnel").svg().contains("stroke=\"currentColor\""))
         assertEquals("heroicon-o-academic-cap", Icon.fromName("academic-cap").name())
+        assertEquals("heroicon-o-home", Icon.fromName("home").name())
         assertThrows(FireflyException::class.java) { Icon.fromName("nope-not-an-icon-zzz") }
+        assertThrows(FireflyException::class.java) { Icon.fromName("fas-home") }
+        Icons.add("fontawesome", IconSetOptions(prefix = "fas", classpath = "icons/custom"))
+        try {
+            assertEquals("fas-star", Icon.fromName("fas-star").name())
+        } finally {
+            Icons.reset()
+        }
     }
 
     @Test
@@ -447,8 +460,12 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-sidebar:focus-within .ff-nav-side"))
         assertTrue(css.contains(".ff-panel .ff-nav-side::-webkit-scrollbar"))
         assertTrue(css.contains(".ff-panel .ff-nav-side::-webkit-scrollbar-thumb"))
-        // SIDE active parent group: subtle left border (#498).
+        // SIDE active parent group: subtle left border (#498). Accordion may still use it.
         assertTrue(css.contains(".ff-panel .ff-nav-side .ff-nav-group.ff-nav-group-active"))
+        // SIDE static/accordion children: indented tree line, primary color on the active branch.
+        assertTrue(css.contains(".ff-panel .ff-nav-side .ff-nav-tree"))
+        assertTrue(css.contains(".ff-panel .ff-nav-side .ff-nav-tree.ff-nav-tree-active"))
+        assertTrue(css.contains("padding-left: 0.75rem"))
         assertTrue(css.contains("border-left: 2px solid transparent"))
         assertTrue(css.contains(".ff-panel .ff-nav-item"))
         assertTrue(css.contains(":where(.ff-panel .ff-nav-item > a)"))

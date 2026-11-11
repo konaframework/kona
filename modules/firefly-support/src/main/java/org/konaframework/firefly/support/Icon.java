@@ -4,7 +4,9 @@ import org.konaframework.icons.Icons;
 
 /**
  * Firefly icon facade over {@link Icons} (Heroicons). Prefer {@link Icons} directly in new code.
- * Short names resolve to outline Heroicons; full {@code heroicon-*} names pass through.
+ * A short name such as {@code home} resolves to outline Heroicons ({@code heroicon-o-home}).
+ * A registered stack prefix passes through ({@code heroicon-o-funnel}, {@code heroicon-s-home},
+ * or {@code fas-home} after {@code Icons.add} with prefix {@code fas}). Unknown names still throw.
  */
 public final class Icon {
     private final String resolvedName;
@@ -34,7 +36,7 @@ public final class Icon {
 
     public static Icon fromName(String name) {
         String key = name.trim().toLowerCase(java.util.Locale.ROOT).replace('_', '-');
-        if (key.startsWith("heroicon-")) {
+        if (Icons.usesRegisteredPrefix(key)) {
             return new Icon(key);
         }
         return switch (key) {

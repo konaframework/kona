@@ -7,6 +7,8 @@ import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.schemas.Text
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.icons.IconSetOptions
+import org.konaframework.icons.Icons
 import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TextColumn
 import org.konaframework.firefly.widgets.discovered.BoomWidget
@@ -464,8 +466,25 @@ class FireflyWidgetsTest {
         assertEquals(3, autoStatsOverviewColumns(2))
         assertEquals(4, autoStatsOverviewColumns(4))
         assertEquals("heroicon-o-home", NavIcons.resolve("home"))
+        assertEquals("heroicon-o-cog", NavIcons.resolve("cog"))
+        assertEquals("heroicon-o-home", NavIcons.resolve(" home "))
+        assertEquals("heroicon-o-funnel", NavIcons.resolve("heroicon-o-funnel"))
+        assertEquals("heroicon-s-home", NavIcons.resolve("heroicon-s-home"))
+        assertEquals("heroicon-o-squares-2x2", NavIcons.resolve("squares-2x2"))
+        assertEquals("heroicon-o-heroicons-home", NavIcons.resolve("heroicons-home"))
+        assertEquals("heroicon-o-fas-home", NavIcons.resolve("fas-home"))
+        assertTrue(Icons.svg(NavIcons.resolve("home")).toHtml().contains("stroke=\"currentColor\""))
+        assertTrue(Icons.svg(NavIcons.resolve("heroicon-o-funnel")).toHtml().contains("stroke=\"currentColor\""))
+        assertTrue(Icons.svg(NavIcons.resolve("heroicon-s-home")).toHtml().contains("fill=\"currentColor\""))
         assertEquals(NavIcons.DEFAULT, NavIcons.resolve(null))
+        assertEquals(NavIcons.DEFAULT, NavIcons.resolve("  "))
         assertEquals(NavIcons.HOME, NavIcons.defaultForDashboard(true))
+        Icons.add("fontawesome", IconSetOptions(prefix = "fas", classpath = "icons/custom"))
+        try {
+            assertEquals("fas-star", NavIcons.resolve("fas-star"))
+        } finally {
+            Icons.reset()
+        }
 
         val list = ListWidget.make("recent").apply {
             sort(40)
