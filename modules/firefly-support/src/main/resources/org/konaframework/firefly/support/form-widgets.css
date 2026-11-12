@@ -852,6 +852,28 @@
   text-align: right;
 }
 
+/* Compound inputs fill the field slot (#555).
+   .ff-control is a flex row, so a child without flex-grow shrinks to its content.
+   Text inputs, pickers, and comboboxes already grow; these siblings must too.
+   Checkboxes, toggles, radios, grouped toggle buttons, placeholders, and avatar
+   uploads stay content-sized. */
+.ff-panel .ff-control > .ff-repeater,
+.ff-panel .ff-control > .ff-builder,
+.ff-panel .ff-control > .ff-key-value,
+.ff-panel .ff-control > .ff-code-editor,
+.ff-panel .ff-control > .ff-markdown,
+.ff-panel .ff-control > .ff-rich,
+.ff-panel .ff-control > .ff-checkbox-list,
+.ff-panel .ff-control > .ff-color,
+.ff-panel .ff-control > .ff-tags,
+.ff-panel .ff-control > .ff-slider-wrap,
+.ff-panel .ff-control > .ff-filepond:not([data-ff-avatar="true"]) {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
+}
+
 /* ——— Key-value ——— */
 .ff-panel .ff-key-value {
   display: flex;

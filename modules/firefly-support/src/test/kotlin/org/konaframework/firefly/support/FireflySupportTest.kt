@@ -1901,6 +1901,57 @@ class FireflySupportTest {
         assertFalse(Files.exists(app.resolve("public/css/app.css")))
     }
 
+    @Test
+    fun compoundFieldsFillTheControlWidth() {
+        val css = Stylesheet.render(KonaTheme())
+        val marker = "Compound inputs fill the field slot (#555)."
+        val start = css.indexOf(marker)
+        assertTrue(start >= 0, "missing compound width rule")
+        val block = css.substring(start, css.indexOf('}', start) + 1)
+        val selectors = listOf(
+            ".ff-panel .ff-control > .ff-repeater",
+            ".ff-panel .ff-control > .ff-builder",
+            ".ff-panel .ff-control > .ff-key-value",
+            ".ff-panel .ff-control > .ff-code-editor",
+            ".ff-panel .ff-control > .ff-markdown",
+            ".ff-panel .ff-control > .ff-rich",
+            ".ff-panel .ff-control > .ff-checkbox-list",
+            ".ff-panel .ff-control > .ff-color",
+            ".ff-panel .ff-control > .ff-tags",
+            ".ff-panel .ff-control > .ff-slider-wrap",
+            """.ff-panel .ff-control > .ff-filepond:not([data-ff-avatar="true"])""",
+        )
+        for (selector in selectors) {
+            assertTrue(block.contains(selector), selector)
+        }
+        assertTrue(block.contains("flex: 1 1 auto"))
+        assertTrue(block.contains("min-width: 0"))
+        assertTrue(block.contains("width: auto"))
+        assertTrue(block.contains("max-width: 100%"))
+        // Same grow contract as a text input in .ff-control. Old CSS omitted these selectors.
+        val textInput = css.indexOf(".ff-panel .ff-control > .ff-input,")
+        assertTrue(textInput >= 0)
+        val textBlock = css.substring(textInput, css.indexOf('}', textInput) + 1)
+        assertTrue(textBlock.contains("flex: 1 1 auto"))
+        assertTrue(textBlock.contains("width: auto"))
+        val selectorLines = block.lineSequence().map { it.trim().trimEnd(',') }.toList()
+        for (leftAlone in listOf(
+            ".ff-panel .ff-control > .ff-checkbox",
+            ".ff-panel .ff-control > .ff-toggle-wrap",
+            ".ff-panel .ff-control > .ff-radio",
+            ".ff-panel .ff-control > .ff-toggle-buttons",
+            ".ff-panel .ff-control > .ff-placeholder",
+            """.ff-panel .ff-control > .ff-filepond""",
+        )) {
+            assertFalse(selectorLines.contains(leftAlone), leftAlone)
+        }
+        assertTrue(css.contains(".ff-panel .ff-filepond[data-ff-avatar=\"true\"] {\n  width: 8rem;"))
+        assertTrue(css.contains(".ff-panel div.ff-toggle-buttons[data-ff-grouped=\"true\"]"))
+        val grouped = css.indexOf(".ff-panel div.ff-toggle-buttons[data-ff-grouped=\"true\"]")
+        val groupedBlock = css.substring(grouped, css.indexOf('}', grouped) + 1)
+        assertTrue(groupedBlock.contains("width: fit-content"))
+    }
+
     private fun authPage(theme: FireflyTheme): String =
         Panel().theme(theme).mode(ChromeMode.AUTH).layout(AuthLayout())
             .overridePartial(

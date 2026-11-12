@@ -171,6 +171,32 @@ class FireflyFormsWidgetMarkupTest {
     }
 
     @Test
+    fun compoundFieldsAreDirectChildrenOfTheControl() {
+        val fields = listOf(
+            Repeater.make("rows").simple(TextInput.make("name")) to "ff-repeater",
+            Builder.make("blocks").blocks(BuilderBlock("note", "Note", listOf(TextInput.make("body")))) to "ff-builder",
+            KeyValue.make("meta") to "ff-key-value",
+            CodeEditor.make("script") to "ff-code-editor",
+            MarkdownEditor.make("copy") to "ff-markdown",
+            RichEditor.make("body") to "ff-rich",
+            CheckboxList.make("roles").options(mapOf("a" to "A")) to "ff-checkbox-list",
+            ColorPicker.make("ink") to "ff-color",
+            TagsInput.make("labels") to "ff-tags",
+            Slider.make("score") to "ff-slider-wrap",
+            FileUpload.make("photo") to "ff-filepond",
+        )
+        for ((field, root) in fields) {
+            val rendered = html(field)
+            val direct = Regex("""class="ff-control"><span class="ff-entangle"[^>]*></span><div class="$root[\s"]""")
+            assertTrue(direct.containsMatchIn(rendered), root)
+        }
+        val avatar = html(FileUpload.make("photo").avatar())
+        assertTrue(avatar.contains("""class="ff-filepond" """) && avatar.contains("""data-ff-avatar="true""""))
+        val text = html(TextInput.make("title"))
+        assertTrue(Regex("""class="ff-control"><span class="ff-entangle"[^>]*></span><input class="ff-input"""").containsMatchIn(text))
+    }
+
+    @Test
     fun itemHelpersKeepOnlyStringKeys() {
         assertEquals(mapOf("a" to 1), stringKeys(mapOf("a" to 1, 2 to "b")))
         val flags = ItemFlags(reorder = false, clone = false, delete = false, collapse = false, collapsed = false)
