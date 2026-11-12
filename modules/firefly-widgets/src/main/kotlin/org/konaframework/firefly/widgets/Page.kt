@@ -133,8 +133,10 @@ open class Page {
     fun mountedForm(): Schema? = formSchema
 
     /**
-     * Cap this page's content column (`xs`…`7xl`, `full`, `screen`, `prose`).
-     * Overrides the panel default. Emits `data-ff-max-width` on the page section.
+     * Cap this page's content column.
+     * `xs`…`7xl`, `full`, `screen`, and `prose` emit `data-ff-max-width` on the section.
+     * `Prose`, the screen names, `container`, and a bracketed length such as `[900px]` add a class.
+     * Overrides the panel default.
      */
     open fun maxWidth(width: String): Page = apply {
         maxWidthValue = MaxWidth.requireKnown(width)
@@ -172,12 +174,17 @@ open class Page {
             """<span class="ff-page-mode" data-ff-mode="${escapeHtml(mode)}">${escapeHtml(mode)}</span>"""
         }
         val crumbs = renderBreadcrumbs()
+        val width = maxWidthValue
+        val utility = if (width == null) null else MaxWidth.utilityClass(width)
+        val classes = if (utility == null) sectionClass() else sectionClass() + " " + utility
         val widthAttr =
-            if (maxWidthValue == null) {
-                ""
+            if (width != null && utility == null) {
+                """ data-ff-max-width="${escapeHtml(width)}""""
             } else {
-                """ data-ff-max-width="${escapeHtml(maxWidthValue!!)}""""
+                ""
             }
+        val styleValue = if (width == null) null else MaxWidth.arbitraryStyle(width)
+        val styleAttr = if (styleValue == null) "" else """ style="${escapeHtml(styleValue)}""""
         val columnsAttr = if (emitDashboardColumns()) {
             """ data-ff-dashboard-columns="$dashboardColumns""""
         } else {
@@ -207,7 +214,7 @@ open class Page {
                 """<div class="ff-page-widgets">$widgetsHtml</div>"""
             }
         // Crumbs on their own top row; heading + mode chip share the next row with actions (#359).
-        return """<section class="${sectionClass()}"$widthAttr$columnsAttr><header class="ff-page-header">$crumbs<div class="ff-page-toolbar"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></div></header>$contentHtml$filtersHtml$widgetsBlock<footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+        return """<section class="$classes"$styleAttr$widthAttr$columnsAttr><header class="ff-page-header">$crumbs<div class="ff-page-toolbar"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></div></header>$contentHtml$filtersHtml$widgetsBlock<footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
     }
 
     private fun renderFiltersForm(state: Map<String, Any?>): String {

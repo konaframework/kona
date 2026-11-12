@@ -555,7 +555,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     open fun tenantOwnershipRelationshipName(): String? = ownershipName
 
     /**
-     * Default content max-width for this resource's pages (`xs`…`7xl`, `full`, `screen`, `prose`).
+     * Default content max-width for this resource's pages.
+     * Same values as the panel, including `Prose`, the screen names, `container`, and `[900px]`.
      * Applied when each page renders unless the page already called [Page.maxWidth].
      * Overrides the panel default for those pages.
      */

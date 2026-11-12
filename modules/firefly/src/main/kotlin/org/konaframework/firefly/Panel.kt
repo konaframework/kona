@@ -292,7 +292,10 @@ open class Panel {
     fun layout(layout: PanelLayout): Panel = apply { this.layout = layout }
 
     /**
-     * Default content max-width for pages and resources (`xs`…`7xl`, `full`, `screen`, `prose`).
+     * Default content max-width for pages and resources.
+     * `xs`…`7xl`, `full`, `screen`, and `prose` set `data-ff-max-width`.
+     * `Prose`, `ScreenSmall`, `ScreenMedium`, `ScreenLarge`, `ScreenExtraLarge`,
+     * `ScreenTwoExtraLarge`, `container`, and a bracketed length such as `[900px]` add a class.
      * Pages and resources can narrow further with their own [org.konaframework.firefly.widgets.Page.maxWidth].
      * Tables fill that column; only a page/resource max width shrinks them.
      * Alias of Filament-style `maxContentWidth`.

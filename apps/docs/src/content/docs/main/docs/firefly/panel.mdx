@@ -98,7 +98,7 @@ Firefly does not scan the classpath for pages, resources, or widgets. Register t
 | `navigation` / `topNavigation()` | `NavigationType` (`APP`, `INVERSE`, `SIDE`, `TOP`). Default `APP`. See [Navigation](/docs/firefly/navigation/) |
 | `theme(FireflyTheme)` | Tokens, partials, and chrome classes. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | Replaces the shell arrangement |
-| `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources (`xs`…`7xl`, `full`, `screen`, `prose`). Default is `7xl` (80rem). Pages and resources can override. Tables fill that column |
+| `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources (`xs`…`7xl`, `full`, `screen`, `prose`, plus `Prose`, `ScreenSmall`, `ScreenMedium`, `ScreenLarge`, `ScreenExtraLarge`, `ScreenTwoExtraLarge`, `container`, or `[900px]`). Default is `7xl` (80rem). Pages and resources can override. Tables fill that column. See [Content max width](#content-max-width) |
 | `hook(Hook, html)` | Appends HTML into a chrome hook |
 | `spa(true)` | Adds `wire:navigate` on links that have a URL |
 | `authenticate(false)` | Pages skip the login redirect. The hello samples do this |
@@ -187,7 +187,36 @@ new Panel()
     .page(new ListPage("orders").maxWidth("5xl"));
 ```
 
-Tokens: `xs`…`7xl`, `full`, `screen`, `prose`. An unknown token throws `FireflyException`. The panel emits `data-ff-max-width` on `.ff-panel`; a page or resource emits it on the page `<section>`. See [Pages](/docs/firefly/pages/) and [Resources](/docs/firefly/resources/).
+`xs` through `7xl`, `full`, `screen`, and `prose` set `data-ff-max-width` on `.ff-panel`. A page or resource sets that attribute on the page `<section>`. `prose` is that attribute (65ch). `Prose` adds the class `max-w-prose`.
+
+These values add a class on the panel or on the page section:
+
+| Value | Class |
+| --- | --- |
+| `Prose` | `max-w-prose` |
+| `ScreenSmall` | `max-w-screen-sm` |
+| `ScreenMedium` | `max-w-screen-md` |
+| `ScreenLarge` | `max-w-screen-lg` |
+| `ScreenExtraLarge` | `max-w-screen-xl` |
+| `ScreenTwoExtraLarge` | `max-w-screen-2xl` |
+| `container` or `Container` | `container` |
+| `[900px]`, `[48rem]`, `[80ch]` | `max-w-[900px]` (the brackets stay; any one CSS length works the same way) |
+
+`container` sizes the content column with the viewport, then caps it at 40rem, 48rem, 64rem, 80rem, and 96rem as the viewport grows. A bracketed value sets the column to that exact length. Any other string throws `FireflyException` (`Unknown max width […]`). The same strings are `MaxWidth.PROSE`, `MaxWidth.SCREEN_SMALL`, `MaxWidth.SCREEN_MEDIUM`, `MaxWidth.SCREEN_LARGE`, `MaxWidth.SCREEN_EXTRA_LARGE`, `MaxWidth.SCREEN_TWO_EXTRA_LARGE`, and `MaxWidth.CONTAINER`.
+
+```kotlin
+Panel().id("admin").maxContentWidth("[900px]")
+Panel().id("admin").maxContentWidth("container")
+Panel().id("admin").maxContentWidth("ScreenLarge")
+```
+
+```java
+new Panel().id("admin").maxContentWidth("[900px]");
+new Panel().id("admin").maxContentWidth("container");
+new Panel().id("admin").maxContentWidth("ScreenLarge");
+```
+
+See [Pages](/docs/firefly/pages/) and [Resources](/docs/firefly/resources/).
 
 ## Pick a theme and a hook
 

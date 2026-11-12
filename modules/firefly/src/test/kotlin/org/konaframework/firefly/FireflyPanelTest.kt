@@ -1436,6 +1436,8 @@ class FireflyPanelTest {
         val packaged = SpaNavigate.markup()
         assertTrue(packaged.startsWith("<script data-ff-panel-spa>"))
         assertTrue(packaged.contains("X-Brew-Navigate"))
+        assertTrue(packaged.contains("--ff-arbitrary-max"))
+        assertTrue(packaged.contains("max-w-"))
         assertThrows<FireflyException> { SpaNavigate.read("/org/konaframework/firefly/missing-spa.js") }
 
         val fullRouter = Router()
@@ -1445,6 +1447,26 @@ class FireflyPanelTest {
         assertFalse(off.contains(" wire:navigate"))
         assertTrue(off.contains("""<a href="/admin/orders">"""))
         assertTrue(off.contains("window.location.assign"))
+    }
+
+    @Test
+    fun maxContentWidthRendersUtilityClasses() {
+        val custom = Router()
+        Panel().path("wide").authenticate(false).maxContentWidth("[900px]").page(ListPage("one")).mount(custom)
+        val customHtml = send(custom, "GET", "/wide/one").body
+        assertTrue(customHtml.contains("""class="ff-panel max-w-[900px]""""))
+        assertTrue(customHtml.contains("""style="--ff-arbitrary-max: 900px""""))
+        val box = Router()
+        Panel().path("box").authenticate(false).maxContentWidth("container").page(ListPage("one")).mount(box)
+        val boxTag = send(box, "GET", "/box/one").body.substringAfter("<div class=\"").substringBefore("\"")
+        assertEquals("ff-panel container", boxTag)
+        assertFalse(boxTag.contains("max-w-"))
+        val screen = Router()
+        Panel().path("screen").authenticate(false).maxContentWidth("ScreenTwoExtraLarge").page(ListPage("one").maxWidth("ScreenSmall")).mount(screen)
+        val screenHtml = send(screen, "GET", "/screen/one").body
+        assertTrue(screenHtml.contains("""class="ff-panel max-w-screen-2xl""""))
+        assertTrue(screenHtml.contains("""class="ff-page ff-list max-w-screen-sm""""))
+        assertThrows<FireflyException> { Panel().maxContentWidth("[nope]") }
     }
 
     private fun renderPanel(guard: PanelGuard, authenticate: Boolean = true): String {

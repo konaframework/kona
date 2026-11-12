@@ -16,7 +16,7 @@ class ChromeContext @JvmOverloads constructor(
     val documentTitle: String = "Firefly",
     val brandName: String = "Firefly",
     val mode: ChromeMode = ChromeMode.PANEL,
-    /** Panel default content max-width token (`xs`…`7xl`, `full`, `screen`, `prose`). */
+    /** Panel default content max-width (`xs`…`7xl`, `full`, `screen`, `prose`, screen names, `container`, or `[900px]`). */
     val maxWidth: String? = null,
     /** Resolved panel branding (logos, colors, display mode). */
     val branding: FireflyBranding = FireflyBranding.DEFAULT,
@@ -53,6 +53,9 @@ class DefaultLayout(
         val csrf = context.csrfToken?.takeUnless { it.isBlank() }
         val title = context.documentTitle.ifBlank { "Firefly" }
         val maxWidth = context.maxWidth?.takeUnless { it.isBlank() }
+        val widthClass = maxWidth?.let { MaxWidth.utilityClass(it) }
+        val widthToken = if (widthClass == null) maxWidth else null
+        val widthStyle = maxWidth?.let { MaxWidth.arbitraryStyle(it) }
         return crema.render(
             FireflyCrema.PANEL,
             mapOf(
@@ -68,7 +71,9 @@ class DefaultLayout(
                 "chromeScript" to chromeScript() + FILTERS_SCRIPT + WIDGETS_SCRIPT + NAV_ACCORDION_SCRIPT + NAV_DROPDOWN_SCRIPT,
                 "bodyBackground" to tokens.bodyBackground,
                 "bodyColor" to tokens.heading,
-                "maxWidth" to maxWidth,
+                "maxWidth" to widthToken,
+                "maxWidthClass" to widthClass,
+                "maxWidthStyle" to widthStyle,
             ),
         )
     }
@@ -865,8 +870,9 @@ class Panel {
     fun includeSidebar(on: Boolean): Panel = apply { includeSidebarFlag = on }
 
     /**
-     * Default content max-width for pages and resources in this chrome
-     * (`xs`…`7xl`, `full`, `screen`, `prose`). Emits `data-ff-max-width` on `.ff-panel`.
+     * Default content max-width for pages and resources in this chrome.
+     * `xs`…`7xl`, `full`, `screen`, and `prose` emit `data-ff-max-width` on `.ff-panel`.
+     * `Prose`, the screen names, `container`, and a bracketed length such as `[900px]` add a class.
      */
     fun maxWidth(width: String): Panel = apply {
         this.maxWidth = MaxWidth.requireKnown(width)

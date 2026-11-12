@@ -186,7 +186,7 @@ The hello samples mount a desk panel at `/admin` with a custom page, a widget, a
 
 ## Content max width
 
-`Resource.maxWidth(token)` sets the default content column for every page of that resource (`xs`…`7xl`, `full`, `screen`, `prose`). It overrides the panel default when the page renders. A page that already called `maxWidth` keeps its own value. List and manage tables fill that column.
+`Resource.maxWidth(token)` sets the default content column for every page of that resource. It accepts the same widths as the panel, including `Prose`, `ScreenSmall`, `ScreenMedium`, `ScreenLarge`, `ScreenExtraLarge`, `ScreenTwoExtraLarge`, `container`, and a bracketed length such as `[900px]`. It overrides the panel default when the page renders. A page that already called `maxWidth` keeps its own value. List and manage tables fill that column. See [Content max width](/docs/firefly/panel/#content-max-width).
 
 ```kotlin
 Resource("orders").model(Order::class.java).maxWidth("full")

@@ -75,6 +75,17 @@
       var width = nextPanel.getAttribute("data-ff-max-width");
       if (width) curPanel.setAttribute("data-ff-max-width", width);
       else curPanel.removeAttribute("data-ff-max-width");
+      var kept = [];
+      curPanel.className.split(/\s+/).forEach(function (name) {
+        if (name && name !== "container" && name.indexOf("max-w-") !== 0) kept.push(name);
+      });
+      nextPanel.className.split(/\s+/).forEach(function (name) {
+        if (name === "container" || name.indexOf("max-w-") === 0) kept.push(name);
+      });
+      curPanel.className = kept.join(" ");
+      var arbitrary = nextPanel.style.getPropertyValue("--ff-arbitrary-max");
+      if (arbitrary) curPanel.style.setProperty("--ff-arbitrary-max", arbitrary);
+      else curPanel.style.removeProperty("--ff-arbitrary-max");
     }
     return swapped;
   }

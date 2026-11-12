@@ -1952,6 +1952,75 @@ class FireflySupportTest {
         assertTrue(groupedBlock.contains("width: fit-content"))
     }
 
+    @Test
+    fun maxWidthAcceptsClassesContainerAndBracketedLengths() {
+        for (token in MaxWidth.TOKENS) {
+            assertEquals(token, MaxWidth.requireKnown(token))
+            assertEquals(null, MaxWidth.utilityClass(token))
+            assertEquals(null, MaxWidth.arbitraryStyle(token))
+        }
+        assertEquals("7xl", MaxWidth.DEFAULT)
+        val classes = linkedMapOf(
+            MaxWidth.PROSE to "max-w-prose",
+            MaxWidth.SCREEN_SMALL to "max-w-screen-sm",
+            MaxWidth.SCREEN_MEDIUM to "max-w-screen-md",
+            MaxWidth.SCREEN_LARGE to "max-w-screen-lg",
+            MaxWidth.SCREEN_EXTRA_LARGE to "max-w-screen-xl",
+            MaxWidth.SCREEN_TWO_EXTRA_LARGE to "max-w-screen-2xl",
+            MaxWidth.CONTAINER to "container",
+            "Container" to "container",
+        )
+        for ((token, cssClass) in classes) {
+            assertEquals(token, MaxWidth.requireKnown(token))
+            assertEquals(cssClass, MaxWidth.utilityClass(token))
+            assertEquals(null, MaxWidth.arbitraryStyle(token))
+            val html = Panel().maxWidth(token).render()
+            val tag = html.substringAfter("<div class=\"").substringBefore("\"")
+            assertTrue(tag == "ff-panel $cssClass", tag)
+            assertFalse(html.contains("data-ff-max-width=\"$token\""))
+        }
+        val lengths = listOf("[900px]", "[48rem]", "[80ch]", "[100%]", "[0]", "[0.5rem]", "[.5em]", "[900PX]")
+        for (length in lengths) {
+            assertEquals(length, MaxWidth.requireKnown(length))
+            assertEquals("max-w-$length", MaxWidth.utilityClass(length))
+            val style = MaxWidth.arbitraryStyle(length)
+            assertTrue(style!!.startsWith("--ff-arbitrary-max: "))
+            val html = Panel().maxWidth(length).render()
+            val open = html.substringAfter("<div class=\"").substringBefore(">")
+            assertTrue(open.startsWith("ff-panel max-w-$length\""), open)
+            assertTrue(open.contains("""style="$style""""), open)
+            assertFalse(open.contains("data-ff-max-width"), open)
+        }
+        for (rejected in listOf("huge", "[900]", "[]", "[900px] extra", "max-w-[900px]", "[900px][48rem]", "CONTAINER")) {
+            val error = assertThrows(FireflyException::class.java) { MaxWidth.requireKnown(rejected) }
+            assertTrue(error.message!!.contains("Unknown max width [$rejected]"))
+            assertThrows(FireflyException::class.java) { Panel().maxWidth(rejected) }
+        }
+        val css = Stylesheet.render(KonaTheme())
+        assertTrue(css.contains(".ff-panel.max-w-prose"))
+        assertTrue(css.contains(".ff-panel.max-w-screen-sm"))
+        assertTrue(css.contains(".ff-panel.max-w-screen-md"))
+        assertTrue(css.contains(".ff-panel.max-w-screen-lg"))
+        assertTrue(css.contains(".ff-panel.max-w-screen-xl"))
+        assertTrue(css.contains(".ff-panel.max-w-screen-2xl"))
+        assertTrue(css.contains(".ff-panel.container .ff-page"))
+        assertTrue(css.contains("max-width: 40rem"))
+        assertTrue(css.contains("max-width: 48rem"))
+        assertTrue(css.contains("max-width: 64rem"))
+        assertTrue(css.contains("max-width: 80rem"))
+        assertTrue(css.contains("max-width: 96rem"))
+        assertTrue(css.contains("--ff-content-max-width: var(--ff-arbitrary-max)"))
+        assertFalse(css.contains("max-w-container"))
+        val box = Panel().maxWidth("container").render()
+        val tag = box.substringAfter("<div class=\"").substringBefore("\"")
+        assertEquals("ff-panel container", tag)
+        assertFalse(tag.contains("max-w-"))
+        assertTrue(Panel().maxWidth("xl").render().contains("""class="ff-panel" data-ff-max-width="xl""""))
+        val proseHtml = Panel().maxWidth("prose").render()
+        assertEquals("ff-panel", proseHtml.substringAfter("<div class=\"").substringBefore("\""))
+        assertTrue(proseHtml.contains("""data-ff-max-width="prose""""))
+    }
+
     private fun authPage(theme: FireflyTheme): String =
         Panel().theme(theme).mode(ChromeMode.AUTH).layout(AuthLayout())
             .overridePartial(
