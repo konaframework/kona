@@ -6,13 +6,13 @@ How maintainers publish Kona framework jars (including Wire and Inertia) for con
 
 Generated apps resolve `org.konaframework:…` from Maven Central. The curl installer (`scripts/install.sh`) checks out the latest Central `kona-cli` release tag, not `main`.
 
-## Last published release — `0.6.0`
+## Last published release — `0.6.0` (untrimmed)
 
-**Status:** cut via tag `v0.6.0` / `release.yml` after this PR merges. Complete Portal **Publish** when the deployment is `VALIDATED`, then confirm [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework+AND+v:0.6.0). Prior cuts: `0.5.0` (uploaded via `release.yml`; Portal **Publish** may still be pending), `0.4.0` (Firefly panel), `0.3.0` (Wire rename), `0.2.1`, `0.2.0`, `0.1.1`, `0.1.0`. **Do not** re-tag or republish a prior version. The unpublished `0.5.1` train is folded into `0.6.0`; do not tag `v0.5.1`. Sister repos remain archived.
+**Status:** `v0.6.0` is on Maven Central. `repo1.maven.org` lists all 38 coordinates (`kona-core` `maven-metadata.xml` `latest`/`release` = `0.6.0`, directory timestamps 2026-11-12). The deployment is **untrimmed: 1,870 files**, including `sha256`, `sha512`, and checksums of `.asc`. **Do not** re-tag or republish `0.6.0`. Prior cuts: `0.5.0`, `0.4.0` (Firefly panel), `0.3.0` (Wire rename), `0.2.1`, `0.2.0`, `0.1.1`, `0.1.0`. The unpublished `0.5.1` train is folded into `0.6.0`; do not tag `v0.5.1`. Sister repos remain archived.
 
-## `main` vs Central
+## Next train — `0.6.1` (first trimmed deployment)
 
-`kona.version` on `main` is **`0.6.0`**. After the tag and Portal **Publish**, **`curl …/scripts/install.sh | bash` installs the latest Maven Central release (git tag `vX.Y.Z`).** Until Central indexes `0.6.0`, the curl path may still resolve the previous train. Use `./scripts/install.sh --local` or `--dev` / `KONA_REF=main` for unreleased trees.
+`kona.version` is **`0.6.1`**. This cut keeps the same 38 coordinates and drops redundant checksums before the Portal zip, so one deployment is **748 files, about 10 MB**. Samples (`hello-*`, `wire-sample-*`, `inertia-sample-*`) are **not** published. **Do not** tag until this change is on `main`. A human tags `v0.6.1` and completes Portal **Publish**. **`curl …/scripts/install.sh | bash` installs the latest Central release** (today `v0.6.0`) until `0.6.1` is published. Use `./scripts/install.sh --local` or `--dev` / `KONA_REF=main` for this tree.
 
 ### When ready to ship the next train
 
@@ -26,10 +26,26 @@ Generated apps resolve `org.konaframework:…` from Maven Central. The curl inst
 1. Confirm artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (`kona-core`, `kona-bom`, `kona-cli`, `kona-wire`, `kona-inertia`, …).
 2. **Usage / File Count** — org hit Central **File Count** monthly limit (grace through **2026-11-17**). Check [Usage Center](https://central.sonatype.com/); if still tight, email `central-support@sonatype.com` for a higher limit. See [Reducing Publishing Usage](https://central.sonatype.org/publish/reducing-publishing-usage/).
 
-### File-count mitigations (this stack)
+### File count (one deployment)
 
-- Required per module: jar + pom + sources + javadoc + `.asc` signatures (keep).
-- Optional reduction (Sonatype / vanniktech): skip checksums of `.asc` and drop unused `sha256`/`sha512` checksums. That lands in **vanniktech `0.37+`**, which needs **Gradle 9** — this repo is still Gradle **8.14** / plugin **0.34.0**, so those defaults are **not** enabled yet. Prefer Usage Center + limit increase for `0.1.1`; schedule Gradle 9 + plugin bump later.
+Counted on Central `0.6.0` (all 38 coordinates). Gradle 8.14 writes four checksums for every file **and** for every `.asc`. `0.6.0` includes those files. The checksum filter in root `build.gradle.kts` was not in that tag.
+
+| Publication | Payloads kept | `0.6.0` (shipped) | `0.6.1` (trimmed) |
+|-------------|---------------|-------------------|-------------------|
+| 37 libraries | jar, sources, javadoc, pom, `.module` | 50 each (1,850) | 20 each (740) |
+| `:bom` | pom, `.module` | 20 | 8 |
+| **One deployment** | | **1,870** | **748** (~10 MB) |
+
+`0.4.0`, `0.5.0`, and `0.6.0` are each 1,870 files. The monthly cap is 1,000, so each unfiltered deployment already exceeds it.
+
+What `0.6.1` drops, in `build.gradle.kts`, before the Portal zip is built:
+
+- `sha256` and `sha512` (Central and Gradle resolution do not read them)
+- checksums of `.asc` files (Sonatype: not required)
+
+Still uploaded, per payload: the file, `.md5`, `.sha1`, and `.asc`. Jars, POMs, sources, Javadoc, Gradle module metadata, and signatures stay. That is the same set as vanniktech `0.37+` (`mavenCentralChecksums=md5,sha1`, signature checksums excluded) without a Gradle 9 upgrade. `publishToMavenLocal` is unchanged. Samples are not in the zip.
+
+748 is one trimmed deployment. Two trimmed releases in the same calendar month are about 1,496 files and still need a higher monthly limit. `0.6.0` already counted 1,870 this month.
 
 ## Namespace verified — first Central cut (`0.1.0`)
 
@@ -70,7 +86,7 @@ Prerequisites (still required for every release):
 
 - **GroupId:** `org.konaframework` (root `build.gradle.kts` `allprojects`).
 - **Version train:** one `kona.version` for every artifact (including brew/inertia). **Monorepo only** — no sister-repo tags.
-- **Not published:** samples (`hello-*`, `brew-sample-*`, `inertia-sample-*`), docs apps, `js/wire`.
+- **Not published:** samples (`hello-*`, `wire-sample-*`, `inertia-sample-*`), docs apps, `js/wire`. They are Gradle projects for CI smoke tests and do not apply `com.vanniktech.maven.publish`.
 - Archived sister repos `kona-wire` / `kona-inertia` are no longer publish sources.
 
 ## What is configured today
@@ -99,7 +115,7 @@ Root `build.gradle.kts` applies [`com.vanniktech.maven.publish` 0.34.0](https://
 
 | Workflow | Behavior |
 |----------|----------|
-| `.github/workflows/ci.yml` | `publishToMavenLocal` (all `kona-*` including brew/inertia) → Kover on every production module → sample smokes (`hello-*`, `brew-sample-*`, `inertia-sample-*`) + Wire JS Vitest job |
+| `.github/workflows/ci.yml` | `publishToMavenLocal` (all `kona-*` including brew/inertia) → Kover on every production module → sample smokes (`hello-*`, `wire-sample-*`, `inertia-sample-*`) + Wire JS Vitest job |
 | `.github/workflows/release.yml` | On `v*` tags: `environment: maven-central`; refuse SNAPSHOT; `publishToMavenCentral` for the **whole** train (one Gradle invocation) |
 
 ### Installer / day-to-day path
@@ -156,10 +172,11 @@ Do **not** commit tokens, GPG private keys, or `gradle.properties` with secrets.
 
 | Kind | Version shape | Notes |
 |------|---------------|--------|
-| Local / CI / `--local` | `0.6.0` | Overwritable in `~/.m2` |
-| Curl installer default | latest Central `kona-cli` | Tag `vX.Y.Z` after Portal Publish |
-| Public release (this cut) | `0.6.0` | Tagged `v0.6.0`; Portal Publish required |
-| Prior cuts | `0.5.0`, `0.4.0`, `0.3.0`, `0.2.1`, `0.2.0`, `0.1.1`, `0.1.0` | `0.5.0` uploaded; `0.1.0` predates in-tree brew/inertia |
+| Local / CI / `--local` | `0.6.1` | Overwritable in `~/.m2` |
+| Curl installer default | latest Central `kona-cli` | Today `v0.6.0` until `0.6.1` is Portal-published |
+| Public release (this cut) | `0.6.1` | Not tagged. Tag `v0.6.1` only after merge, then Portal Publish |
+| Shipped untrimmed | `0.6.0` | On Central, 1,870 files. Do not re-tag |
+| Prior cuts | `0.5.0`, `0.4.0`, `0.3.0`, `0.2.1`, `0.2.0`, `0.1.1`, `0.1.0` | Same untrimmed checksum shape as `0.6.0` |
 
 ### C. Module publish order
 
@@ -174,10 +191,10 @@ cd /path/to/kona
 ```bash
 cd ~/kona && ./gradlew publishToMavenLocal -x test
 
-ls ~/.m2/repository/org/konaframework/kona-core/0.6.0/
-ls ~/.m2/repository/org/konaframework/kona-bom/0.6.0/
-ls ~/.m2/repository/org/konaframework/kona-wire/0.6.0/
-ls ~/.m2/repository/org/konaframework/kona-inertia/0.6.0/
+ls ~/.m2/repository/org/konaframework/kona-core/0.6.1/
+ls ~/.m2/repository/org/konaframework/kona-bom/0.6.1/
+ls ~/.m2/repository/org/konaframework/kona-wire/0.6.1/
+ls ~/.m2/repository/org/konaframework/kona-inertia/0.6.1/
 ```
 
 ### E. Real remote publish
@@ -188,7 +205,7 @@ cd ~/kona
 ./gradlew publishToMavenCentral --no-configuration-cache -x test
 ```
 
-Or push a new version tag (e.g. `v0.6.0`) and let `.github/workflows/release.yml` run.
+Or push a new version tag (e.g. `v0.6.1`) and let `.github/workflows/release.yml` run. Do not re-tag `v0.6.0`.
 
 **Do not run a public Central publish** until:
 
@@ -203,10 +220,10 @@ Or push a new version tag (e.g. `v0.6.0`) and let `.github/workflows/release.yml
 2. Portal token + GPG secrets on Environment **`maven-central`** (done for `0.1.0` upload; keep current).
 3. ~~Release PR `0.1.1` → tag → upload → Portal Publish~~ — **done** (`v0.1.1` on Central).
 4. Confirm artifacts stay visible on Central search / Portal deployments UI.
-5. **`v0.6.0` release cut** — tag → `release.yml` → Portal **Publish**; then confirm Central search. Do not tag `v0.5.1`; that train was never published and is folded into `0.6.0`.
-6. Watch File Count / Usage Center; request a higher limit if needed before grace ends (2026-11-17).
+5. **`v0.6.0` shipped untrimmed** — on Central, 1,870 files. Do not re-tag. Do not tag `v0.5.1`; that train was never published and is folded into `0.6.0`.
+6. **`v0.6.1`** — after this change is on `main`, a human tags `v0.6.1` and Portal-publishes. First trimmed deployment: 748 files, about 10 MB. Watch File Count / Usage Center; request a higher limit if needed before grace ends (2026-11-17).
 7. When Sonatype ships Trusted Publishing / OIDC for Central and vanniktech supports it: rewire `release.yml` and drop long-lived Portal passwords.
-8. Later: Gradle 9 + vanniktech ≥0.37 for default signature-checksum exclusion (file-count reduction).
+8. File-count filter is in root `build.gradle.kts` (drops `sha256`/`sha512` and `.asc` checksums on the Central staging repo). A later Gradle 9 + vanniktech ≥0.37 bump can replace that filter with the plugin default; do not drop jars, sources, Javadoc, or signatures to chase the cap.
 
 ## Blockers (current environment)
 
@@ -220,7 +237,7 @@ Or push a new version tag (e.g. `v0.6.0`) and let `.github/workflows/release.yml
 | Maven Central Trusted Publishing (OIDC) | **Not GA** — releases use Portal token + GPG |
 | Non-SNAPSHOT `0.1.1` on release train | **Done** — tagged `v0.1.1` |
 | Artifacts actually on Maven Central | **Done** for `0.1.0` / `0.1.1` (Portal Publish) |
-| File Count monthly limit | **Grace until 2026-11-17**; check Usage Center / request higher limit |
+| File Count monthly limit | **`0.6.0` shipped untrimmed at 1,870 files.** `0.6.1` is the first trimmed deployment (748 files, ~10 MB). Two releases in one month still exceed a 1,000 cap; grace until **2026-11-17** |
 
 **Not blocked:** local dry-run via `publishToMavenLocal` (Gradle, CI, and `install.sh`).
 
