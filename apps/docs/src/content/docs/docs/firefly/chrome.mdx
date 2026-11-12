@@ -12,7 +12,7 @@ Change the frame around every screen when the default sidebar, top bar, body, or
 
 The class that draws the frame is `org.konaframework.firefly.support.Panel`. The class you mount on the router is `org.konaframework.firefly.Panel`, on [Panel](/docs/firefly/panel/). The support class picks HTML for each region, checks that the hook markers are still there, fills those markers, and asks a layout to wrap the result.
 
-**Direction:** Firefly chrome and components use [Wire](/docs/wire/) classes with [Crema](/docs/crema/) views — the class holds config and behavior; the Crema file owns markup. Custom fields, columns, and widgets already follow that shape via `./grind make:firefly-field` (and siblings). The built-in authenticated document shell follows the same rule: `DefaultLayout` is a thin adapter that packs partial data and renders `views/firefly/layouts/panel.crema.html` through Crema (`FireflyCrema` / `ClasspathViewFinder` in `:kona-firefly-support`). A Wire page-host component for the shell is not required for this slice — Crema from `DefaultLayout` is the first vertical cut. Prefer overriding slots with Crema-backed HTML rather than growing string templates in the panel class. Auth screens still use `AuthLayout` (Kotlin document) until the next chrome step.
+**Direction:** Firefly chrome and components use [Wire](/docs/wire/) classes with [Crema](/docs/crema/) views — the class holds config and behavior; the Crema file owns markup. Custom fields, columns, and widgets already follow that shape via `./grind make:firefly-field` (and siblings). The built-in authenticated document shell follows the same rule: `DefaultLayout` is a thin adapter that packs partial data and renders `views/firefly/layouts/panel.crema.html` through Crema (`FireflyCrema` / `ClasspathViewFinder` in `:kona-firefly-support`). Guest screens do the same: `AuthLayout` renders `views/firefly/auth/shell.crema.html`, and the login, register, reset, and verify cards render `views/firefly/auth/form.crema.html`. A Wire page-host component for the shell is not required for this slice — Crema from the layout class is the vertical cut. Prefer overriding slots with Crema-backed HTML rather than growing string templates in the panel class.
 
 <FireflyShot file="panel-chrome.png" description="The panel chrome at http://127.0.0.1:4017/admin/desk, showing the sidebar, top bar, page body, and footer." />
 
@@ -121,7 +121,7 @@ If a slot were absent from the map it receives, it would throw `Missing partial 
 
 ## Auth screens use a guest document
 
-Login, register, password reset, and email verify do **not** render the sidebar or top bar. The panel mounts those routes, then draws `AuthLayout`: a centered `.ff-auth-shell` with brand, atmosphere, and the form card. Authenticated pages (including profile) stay on `DefaultLayout`.
+Login, register, password reset, and email verify do **not** render the sidebar or top bar. The panel mounts those routes, then draws `AuthLayout`: a centered `.ff-auth-shell` with brand, atmosphere, and the form card. The shell markup is `views/firefly/auth/shell.crema.html`. The card (title, alert, fields, submit) is `views/firefly/auth/form.crema.html`, placed in `views/firefly/auth/body.crema.html` so `<!-- ff-hook:body.start -->` and `<!-- ff-hook:body.end -->` stay on the guest main. CSRF tokens and the guard stay in Kotlin. Authenticated pages (including profile) stay on `DefaultLayout`.
 
 Auth forms include a hidden `_token` field when a session is present, matching the same CSRF token the meta tag exposes on panel pages.
 

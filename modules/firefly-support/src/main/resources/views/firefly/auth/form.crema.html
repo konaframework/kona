@@ -1,0 +1,11 @@
+<div class="ff-auth-panel {{ css }}">
+  <h1 class="ff-auth-title">{{ title }}</h1>
+  @if(error)<p class="ff-auth-alert" role="alert">{{ error }}</p>@endif
+  <form class="ff-auth-form" method="post" action="{{ action }}">
+    {!! csrf !!}
+    @if(showName)<div class="ff-auth-field"><label for="ff-auth-name">Name</label><input id="ff-auth-name" name="name" type="text" autocomplete="name" required /></div>@endif
+    <div class="ff-auth-field"><label for="ff-auth-email">Email</label><input id="ff-auth-email" name="email" type="email" autocomplete="username" required autofocus /></div>
+    @if(showPassword)<div class="ff-auth-field"><label for="ff-auth-password">Password</label><input id="ff-auth-password" name="password" type="password" autocomplete="{{ passwordAutocomplete }}" required /></div>@endif
+    <button type="submit" class="ff-auth-submit">{{ submit }}</button>
+  </form>
+</div>

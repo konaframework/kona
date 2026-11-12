@@ -32,7 +32,8 @@ interface PanelLayout {
  * Phase A (Wire + Crema rule): markup lives in
  * `views/firefly/layouts/panel.crema.html`. This class is the thin
  * [PanelLayout] adapter — it validates partials, packs data, and asks Crema to
- * render. A Wire page-host component is deferred; auth stays on [AuthLayout].
+ * render. A Wire page-host component is deferred. Auth screens use [AuthLayout],
+ * which renders `views/firefly/auth/shell.crema.html`.
  */
 class DefaultLayout(
     private val crema: CremaEngine,

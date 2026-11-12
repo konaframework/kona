@@ -117,6 +117,72 @@ class FireflySupportTest {
     }
 
     @Test
+    fun authCremaRendersShellBodyAndForm() {
+        val body = FireflyCrema.render(FireflyCrema.AUTH_BODY, mapOf("form" to "<p>form</p>"))
+        assertTrue(body.contains("ff-auth-main"))
+        assertTrue(body.contains("<!-- ff-hook:body.start --><p>form</p><!-- ff-hook:body.end -->"))
+
+        val login = FireflyCrema.render(
+            FireflyCrema.AUTH_FORM,
+            mapOf(
+                "css" to "ff-login",
+                "title" to "Sign in",
+                "error" to null,
+                "action" to "/login",
+                "csrf" to """<input type="hidden" name="_token" value="t">""",
+                "showName" to false,
+                "showPassword" to true,
+                "passwordAutocomplete" to "current-password",
+                "submit" to "Sign in",
+            ),
+        )
+        assertTrue(login.contains("ff-auth-panel ff-login"))
+        assertTrue(login.contains("current-password"))
+        assertTrue(login.contains("""name="_token""""))
+        assertFalse(login.contains("ff-auth-name"))
+        assertFalse(login.contains("ff-auth-alert"))
+
+        val register = FireflyCrema.render(
+            FireflyCrema.AUTH_FORM,
+            mapOf(
+                "css" to "ff-register",
+                "title" to "A & B",
+                "error" to "Bad <token>",
+                "action" to "/register",
+                "csrf" to "",
+                "showName" to true,
+                "showPassword" to true,
+                "passwordAutocomplete" to "new-password",
+                "submit" to "Register",
+            ),
+        )
+        assertTrue(register.contains("ff-auth-name"))
+        assertTrue(register.contains("new-password"))
+        assertTrue(register.contains("ff-auth-alert"))
+        assertTrue(register.contains("Bad &lt;token&gt;"))
+        assertTrue(register.contains("A &amp; B"))
+
+        val reset = FireflyCrema.render(
+            FireflyCrema.AUTH_FORM,
+            mapOf(
+                "css" to "ff-password-reset",
+                "title" to "Reset",
+                "error" to "",
+                "action" to "/password-reset",
+                "csrf" to "",
+                "showName" to false,
+                "showPassword" to false,
+                "passwordAutocomplete" to "new-password",
+                "submit" to "Send",
+            ),
+        )
+        assertFalse(reset.contains("ff-auth-password"))
+        assertFalse(reset.contains("ff-auth-name"))
+        assertFalse(reset.contains("ff-auth-alert"))
+        assertTrue(reset.contains("ff-auth-email"))
+    }
+
+    @Test
     fun dialogModesWidthsAndDefaults() {
         val plain = Dialog.make("Hello").render()
         assertTrue(plain.contains("ff-dialog-modal"))
@@ -846,6 +912,26 @@ class FireflySupportTest {
                 ChromeContext(KonaTheme(), RenderHooks(), emptyMap(), "", mode = ChromeMode.AUTH),
             )
         }
+        val blankOptional = AuthLayout().render(
+            ChromeContext(
+                KonaTheme(),
+                RenderHooks(),
+                mapOf("body" to """<main><!-- ff-hook:body.start -->ok<!-- ff-hook:body.end --></main>"""),
+                "/* css */",
+                csrfToken = "   ",
+                documentTitle = "Sign in",
+                mode = ChromeMode.AUTH,
+                branding = FireflyBranding.DEFAULT.copy(
+                    fontUrl = " ",
+                    fontPreconnect = true,
+                    copyrightText = " ",
+                ),
+            ),
+        )
+        assertFalse(blankOptional.contains("""name="csrf-token""""))
+        assertFalse(blankOptional.contains("rel=\"preconnect\""))
+        assertFalse(blankOptional.contains("ff-auth-copyright"))
+        assertTrue(blankOptional.contains("<title>Sign in</title>"))
 
         val panelEscaped = Panel()
             .csrfToken("a&b<\" ")

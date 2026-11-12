@@ -24,6 +24,7 @@ import org.konaframework.firefly.support.BrandingOverrideContext
 import org.konaframework.firefly.support.ChromeMode
 import org.konaframework.firefly.support.DefaultLayout
 import org.konaframework.firefly.support.FireflyBranding
+import org.konaframework.firefly.support.FireflyCrema
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.support.FireflyTheme
 import org.konaframework.firefly.support.Hook
@@ -606,7 +607,7 @@ open class Panel {
             .documentTitle("$brand · $title")
             .branding(branding)
             .mode(ChromeMode.AUTH)
-            .overridePartial("body", """<main class="ff-auth-main"><!-- ff-hook:body.start -->$body<!-- ff-hook:body.end --></main>""")
+            .overridePartial("body", FireflyCrema.render(FireflyCrema.AUTH_BODY, mapOf("form" to body)))
             .render()
     }
 
@@ -1832,46 +1833,22 @@ open class Panel {
     private fun authShell(request: Request, title: String, body: String): String = drawAuth(request, title, body)
 
     private fun authForm(request: Request, screen: AuthScreen, error: String?): String {
-        val message =
-            if (error == null) {
-                ""
-            } else {
-                """<p class="ff-auth-alert" role="alert">${escapeHtml(error)}</p>"""
-            }
         val token = FireflyCsrf.ensure(request)
-        val fields = StringBuilder()
-        if (screen == AuthScreen.REGISTER) {
-            fields.append(
-                """<div class="ff-auth-field"><label for="ff-auth-name">Name</label><input id="ff-auth-name" name="name" type="text" autocomplete="name" required /></div>""",
-            )
-        }
-        when (screen) {
-            AuthScreen.LOGIN, AuthScreen.REGISTER -> {
-                fields.append(
-                    """<div class="ff-auth-field"><label for="ff-auth-email">Email</label><input id="ff-auth-email" name="email" type="email" autocomplete="username" required autofocus /></div>""",
-                )
-                val passwordAutocomplete = if (screen == AuthScreen.LOGIN) "current-password" else "new-password"
-                fields.append(
-                    """<div class="ff-auth-field"><label for="ff-auth-password">Password</label><input id="ff-auth-password" name="password" type="password" autocomplete="$passwordAutocomplete" required /></div>""",
-                )
-            }
-            AuthScreen.RESET, AuthScreen.VERIFY -> {
-                fields.append(
-                    """<div class="ff-auth-field"><label for="ff-auth-email">Email</label><input id="ff-auth-email" name="email" type="email" autocomplete="username" required autofocus /></div>""",
-                )
-            }
-        }
-        return """
-            <div class="ff-auth-panel ${screen.css}">
-              <h1 class="ff-auth-title">${escapeHtml(screen.title)}</h1>
-              $message
-              <form class="ff-auth-form" method="post" action="${escapeHtml(plainUri(screen.action))}">
-                ${FireflyCsrf.field(token)}
-                $fields
-                <button type="submit" class="ff-auth-submit">${escapeHtml(screen.submit)}</button>
-              </form>
-            </div>
-        """.trimIndent()
+        val showPassword = screen == AuthScreen.LOGIN || screen == AuthScreen.REGISTER
+        return FireflyCrema.render(
+            FireflyCrema.AUTH_FORM,
+            mapOf(
+                "css" to screen.css,
+                "title" to screen.title,
+                "error" to error,
+                "action" to plainUri(screen.action),
+                "csrf" to FireflyCsrf.field(token),
+                "showName" to (screen == AuthScreen.REGISTER),
+                "showPassword" to showPassword,
+                "passwordAutocomplete" to if (screen == AuthScreen.LOGIN) "current-password" else "new-password",
+                "submit" to screen.submit,
+            ),
+        )
     }
 
     private fun welcomeHome(): DashboardPage {

@@ -1,5 +1,6 @@
 package org.konaframework.firefly.infolists
 
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.ComponentConfig
 import org.konaframework.firefly.schemas.Get
@@ -24,6 +25,8 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
     internal val hintIconValue = TextSetting()
     internal val prefixValue = TextSetting()
     internal val suffixValue = TextSetting()
+    private var prefixAction: Action? = null
+    private var suffixAction: Action? = null
     internal val alignmentValue = TextSetting()
     internal val openNewTab = BoolSetting(false)
     internal val copyableFlag = BoolSetting(false)
@@ -132,6 +135,12 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
 
     fun suffix(value: Function<Get, String>): T = self().also { suffixValue.set(value) }
 
+    /** Renders an [Action] before the entry value, beside prefix text. */
+    fun prefixAction(action: Action): T = self().also { prefixAction = action }
+
+    /** Renders an [Action] after the entry value, beside suffix text. */
+    fun suffixAction(action: Action): T = self().also { suffixAction = action }
+
     fun alignment(value: String): T = self().also { alignmentValue.set(alignmentOf(value)) }
 
     fun alignment(value: Function<Get, String>): T = self().also {
@@ -182,8 +191,17 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
     override fun renderBody(schema: Schema): String {
         if (meta("ff-view") != null) return super.renderBody(schema)
         val get = reader(schema)
-        val inner = renderEntry(schema, get)
+        val inner = affixActions(schema, renderEntry(schema, get))
         return """<div class="ff-entry" x-data="ffEntry"${entryAttrs(get)}>${labelHtml(schema)}${headingHtml(schema)}${descriptionHtml(schema)}${slot("above", above, schema)}${hintHtml(get)}${inner}${helperHtml(get)}${slot("below", below, schema)}</div>"""
+    }
+
+    /** Prefix and suffix actions use the actions [Action] type. Text prefix and suffix stay in [affixes]. */
+    private fun affixActions(schema: Schema, inner: String): String {
+        val prefixBtn = prefixAction
+        val suffixBtn = suffixAction
+        val prefixHtml = if (prefixBtn == null) "" else prefixBtn.render(schema)
+        val suffixHtml = if (suffixBtn == null) "" else suffixBtn.render(schema)
+        return prefixHtml + inner + suffixHtml
     }
 
     internal open fun renderEntry(schema: Schema, get: Get): String = ""

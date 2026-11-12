@@ -2,6 +2,7 @@ package org.konaframework.firefly.infolists;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.konaframework.firefly.actions.Action;
 import org.konaframework.firefly.schemas.Grid;
 import org.konaframework.firefly.schemas.Schema;
 import org.konaframework.firefly.schemas.Section;
@@ -104,6 +105,12 @@ public class InfolistJavaTest {
         assertTrue(Schema.make().components(TextEntry.make("price").money("EUR").state(5)).render().contains("€5.00"));
         assertTrue(Schema.make().components(TextEntry.make("price").currency().state(3)).render().contains("$3.00"));
         assertTrue(Schema.make().components(TextEntry.make("price").currency("KES", "en-KE").state(100)).render().contains("ff-text-money"));
+        TextEntry titled = TextEntry.make("title").state("Ada");
+        titled.prefixAction(Action.make("copy").label("Copy"));
+        titled.suffixAction(Action.make("open").label("Open"));
+        String actions = Schema.make().components(titled).render();
+        assertTrue(actions.contains("data-ff-action=\"copy\""));
+        assertTrue(actions.contains("data-ff-action=\"open\""));
     }
 }
 

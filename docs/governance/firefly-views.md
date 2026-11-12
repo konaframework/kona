@@ -45,13 +45,10 @@ Shamar’s admin shell is Edge + Wire/Alpine: e.g. `packages/adonis/resources/vi
 
 | Surface | Primary files |
 |---------|----------------|
-| Auth document shell | `modules/firefly-support/.../AuthLayout.kt` (still Kotlin HTML) |
-| Sidebar / topbar / user menu / auth forms | `modules/firefly/.../Panel.kt` (string partials) |
-| Tables (toolbar, scroll, pagination, cards) | `modules/firefly-tables/.../Table.kt` and neighbors |
-| Built-in form field chrome | `modules/firefly-forms` default `render` paths (custom fields already prefer `.view(...)`) |
+| Sidebar / topbar / user menu | `modules/firefly/.../Panel.kt` (string partials) |
 | Dialogs / some support widgets | `Dialog.kt` and related support HTML |
 
-**Phase A landed:** `:kona-firefly-support` depends on Crema. `DefaultLayout` renders `views/firefly/layouts/panel.crema.html` via `FireflyCrema` / `ClasspathViewFinder`. Wire page-host for the shell is deferred; auth remains Phase B.
+**Phase A landed:** `:kona-firefly-support` depends on Crema. `DefaultLayout` renders `views/firefly/layouts/panel.crema.html` via `FireflyCrema` / `ClasspathViewFinder`. Wire page-host for the shell is deferred. Phases B–D (auth, tables, field wrappers) have landed; dialogs and nav partials are still Kotlin HTML.
 
 ## Migration sketch (phased)
 
@@ -64,25 +61,25 @@ Do **not** boil the ocean in one PR. Each phase: own branch, 100% coverage on to
 | Change | Notes |
 |--------|--------|
 | Add Crema dependency to `:kona-firefly-support` (or extract `kona-firefly-chrome`) | **Done** — `api(project(":kona-crema"))`; package views under `views/firefly/layouts/` |
-| Ship `panel.crema.html` / `auth.crema.html` matching today’s DOM + hook markers | **`panel.crema.html` done**; `auth.crema.html` → Phase B. Keep `<!-- ff-hook:… -->` contract |
+| Ship `panel.crema.html` / auth views matching today’s DOM + hook markers | **Done** — `panel.crema.html` and `views/firefly/auth/{shell,body,form}.crema.html`. Keep `<!-- ff-hook:… -->` contract |
 | `PanelLayout` impl loads Crema (engine from app or bundled finder) | **Done** — `DefaultLayout` + `FireflyCrema` / `ClasspathViewFinder` |
 | Wire: optional `FireflyChrome` / page host component | **Deferred** — Phase A is Crema invoked from `DefaultLayout` (documented first vertical slice) |
 
 **Risks:** Kover on new branches; CSS class stability for desk/Shamar polish PRs; tests that assert exact HTML strings need Crema-rendered fixtures.
 
-**Status:** Phase A wiring is on `feat/firefly-wire-crema-chrome`. Next: Phase B auth shell.
+**Status:** Phases A–D have landed. Dialogs and sidebar/topbar string partials remain Kotlin HTML.
 
 ### Phase B — Auth shell
 
-Move auth document + login/register/reset form markup from `AuthLayout` / `Panel.kt` auth HTML into `views/firefly/auth/*.crema.html`. Keep CSRF and guard wiring in Kotlin.
+**Done.** Auth document is `views/firefly/auth/shell.crema.html` (`AuthLayout`). Login, register, reset, and verify forms are `views/firefly/auth/form.crema.html`, wrapped by `views/firefly/auth/body.crema.html` so the `<!-- ff-hook:… -->` contract stays. CSRF and guard wiring stay in Kotlin.
 
 ### Phase C — Table / toolbar partials
 
-Extract toolbar, scroll table, empty state, pagination, and card layout into `views/firefly/tables/*.crema.html`. `Table.render()` assembles data and calls Crema (or a Wire table component). Column cell renderers may stay small Kotlin snippets until field/column views exist.
+**Done.** Toolbar, scroll table, empty state, pagination, and card layout render from `views/firefly/tables/*.crema.html`. `Table.render()` assembles data and calls Crema. Column cell renderers stay Kotlin snippets.
 
 ### Phase D — Form field wrappers
 
-Built-in fields: keep fluent API; move label/hint/prefix/suffix wrapper chrome to Crema. Align with grind scaffolds (`view("firefly.fields…")`). Schema `renderBody` already prefers named views when set.
+**Done.** Built-in fields keep the fluent API. Label, hint, prefix, and suffix wrapper chrome render from `views/firefly/fields/label.crema.html` and `views/firefly/fields/wrapper.crema.html` (`firefly.fields.label` / `firefly.fields.wrapper`). The control stays Kotlin. Schema `renderBody` still prefers a named view when one is set on components that do not override it.
 
 ## Coverage and API
 

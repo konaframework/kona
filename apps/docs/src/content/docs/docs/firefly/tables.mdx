@@ -6,7 +6,7 @@ description: "Pass rows to Table.memory or a Cadence model to Table.cadence, nam
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Name the columns, point the table at the rows, and call `render()`. You get a list toolbar (search field with icon, filters, header buttons), sortable column headers when opted in, pagination with a record count, and an in-table empty state when there are no rows. Columns are not searchable or sortable until you call `searchable()` / `sortable()` (zero-arg means true).
+Name the columns, point the table at the rows, and call `render()`. You get a list toolbar (search field with icon, filters, header buttons), sortable column headers when opted in, pagination with a record count, and an in-table empty state when there are no rows. The toolbar, scroll table, empty state, pagination, and card layout come from Crema views under `views/firefly/tables/`. Column cells stay with the column class. Columns are not searchable or sortable until you call `searchable()` / `sortable()` (zero-arg means true).
 
 <FireflyShot file="section-tables.png" description="Tables surface on the Playground." />
 

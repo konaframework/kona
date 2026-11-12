@@ -14,6 +14,7 @@ kotlin {
 dependencies {
     api(project(":kona-firefly-schemas"))
     api(project(":kona-firefly-support"))
+    api(project(":kona-firefly-actions"))
     api(project(":kona-cadence"))
     testImplementation(libs.h2)
     testImplementation(libs.junit.jupiter)
