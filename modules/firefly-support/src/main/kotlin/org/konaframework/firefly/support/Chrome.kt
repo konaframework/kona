@@ -698,7 +698,7 @@ class DefaultLayout(
                 "var recordRow=t.closest('[data-ff-record-url],[data-ff-record-action]');" +
                 "if(recordRow&&!t.closest('a,button,input,label,select,textarea,summary,.ff-row-actions,.ff-table-select,[data-ff-menu],[data-ff-dialog-mount],[data-ff-column-toggle]')){" +
                 "var recordUrl=recordRow.getAttribute('data-ff-record-url');" +
-                "if(recordUrl){window.location.assign(recordUrl);return;}" +
+                "if(recordUrl){if(window.ffSpaNavigate){window.ffSpaNavigate(recordUrl);return;}window.location.assign(recordUrl);return;}" +
                 "var recordAction=recordRow.getAttribute('data-ff-record-action');" +
                 "if(recordAction){var recordTrigger=recordRow.querySelector('[data-ff-dialog-open][data-ff-action=\"'+recordAction+'\"]')" +
                 "||recordRow.querySelector('a[data-ff-action=\"'+recordAction+'\"]')" +
@@ -757,7 +757,7 @@ class DefaultLayout(
                 "ns=ns&&ns.querySelector('.ff-table-search');if(ns){ns.focus();if(typeof keep.v==='string')ns.value=keep.v;" +
                 "try{var end=typeof keep.e==='number'?keep.e:ns.value.length;var start=typeof keep.s==='number'?keep.s:end;ns.setSelectionRange(start,end);}catch(e){}}}}" +
                 "try{history.pushState({},'',href);}catch(e){}" +
-                "}).catch(function(){location.href=href;});}" +
+                "}).catch(function(){if(window.ffSpaNavigate){window.ffSpaNavigate(href);return;}location.href=href;});}" +
                 "document.addEventListener('submit',function(ev){var f=ev.target;if(!f||!f.matches)return;" +
                 "if(f.matches('form[data-ff-bulk-form]')){bulkSubmit(f);return;}" +
                 "if(!f.matches('form[data-ff-table-nav]'))return;" +
@@ -814,12 +814,15 @@ class DefaultLayout(
                 "window.addEventListener('scroll',repositionFloating,true);" +
                 "window.addEventListener('resize',repositionFloating);" +
                 // Reopen a dialog after redirect (`?dialog=create` / `?dialog=edit&dialog_id=…`) (#391).
-                "(function openDialogFromQuery(){var params=new URLSearchParams(location.search);var dialog=params.get('dialog');" +
+                "function openDialogFromQuery(){var params=new URLSearchParams(location.search);var dialog=params.get('dialog');" +
                 "if(!dialog)return;var id=params.get('dialog_id');var btn=null;" +
                 "if(id){var row=root.querySelector('[data-ff-record=\"'+cssEscape(id)+'\"]');" +
                 "if(row)btn=row.querySelector('[data-ff-dialog-open][data-ff-action=\"'+cssEscape(dialog)+'\"]');}" +
                 "if(!btn)btn=root.querySelector('[data-ff-dialog-open][data-ff-action=\"'+cssEscape(dialog)+'\"]');" +
-                "if(btn)setTimeout(function(){btn.click();},0);})();" +
+                "if(btn)setTimeout(function(){btn.click();},0);}" +
+                "openDialogFromQuery();" +
+                "document.addEventListener('kona:navigated',function(){armNotifications();armMasks();" +
+                "document.querySelectorAll('.ff-table-wrap[data-ff-selectable]').forEach(syncSel);openDialogFromQuery();});" +
                 "})();</script>"
     }
 }

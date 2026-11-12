@@ -1411,6 +1411,42 @@ class FireflyPanelTest {
         assertTrue(topbarBrand.contains("padding-block: 0"), topbarBrand)
     }
 
+    @Test
+    fun spaTrueFetchesInPlaceAndSpaFalseKeepsFullLoads() {
+        val spaRouter = Router()
+        Panel().path("admin").authenticate(false).spa(true)
+            .userMenu(
+                NavigationItem("Docs").label("Docs").url("/admin/docs"),
+                NavigationItem("Plain").label("Plain"),
+            )
+            .page(ListPage("orders"))
+            .mount(spaRouter)
+        val on = send(spaRouter, "GET", "/admin/orders").body
+        assertTrue(on.contains("<script data-ff-panel-spa>"))
+        assertTrue(on.contains("X-Brew-Navigate"))
+        assertTrue(on.contains("preventDefault"))
+        assertTrue(on.contains("""href="/admin/orders" wire:navigate"""))
+        assertTrue(on.contains("""href="/admin/docs" wire:navigate"""))
+        assertTrue(on.contains("""href="/admin/profile" wire:navigate"""))
+        assertTrue(on.contains("""<a class="ff-menu-link">Plain</a>"""))
+        assertTrue(on.contains("if(window.ffSpaNavigate){window.ffSpaNavigate(recordUrl);return;}"))
+        val script = on.substringAfter("<script data-ff-panel-spa>").substringBefore("</script>")
+        assertFalse(script.contains("location.assign"))
+        assertFalse(script.contains("location.href="))
+        val packaged = SpaNavigate.markup()
+        assertTrue(packaged.startsWith("<script data-ff-panel-spa>"))
+        assertTrue(packaged.contains("X-Brew-Navigate"))
+        assertThrows<FireflyException> { SpaNavigate.read("/org/konaframework/firefly/missing-spa.js") }
+
+        val fullRouter = Router()
+        Panel().path("admin").authenticate(false).spa(false).page(ListPage("orders")).mount(fullRouter)
+        val off = send(fullRouter, "GET", "/admin/orders").body
+        assertFalse(off.contains("data-ff-panel-spa"))
+        assertFalse(off.contains(" wire:navigate"))
+        assertTrue(off.contains("""<a href="/admin/orders">"""))
+        assertTrue(off.contains("window.location.assign"))
+    }
+
     private fun renderPanel(guard: PanelGuard, authenticate: Boolean = true): String {
         val router = Router()
         Panel().path("x").navigation(NavigationType.SIDE).authenticate(authenticate)
