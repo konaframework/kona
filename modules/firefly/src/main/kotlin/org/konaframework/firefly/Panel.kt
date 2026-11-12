@@ -308,6 +308,13 @@ open class Panel {
 
     fun spa(on: Boolean): Panel = apply { spaMode = on }
 
+    /** `wire:navigate` on a real URL when SPA mode is on. Empty URLs stay non-navigating. */
+    private fun spaNavigateAttr(url: String): String {
+        if (!spaMode) return ""
+        if (url.isEmpty()) return ""
+        return " wire:navigate"
+    }
+
     fun authenticate(on: Boolean): Panel = apply { authenticatePages = on }
 
     /**
@@ -576,6 +583,8 @@ open class Panel {
         chrome.hook(Hook.BODY_START, body)
         val toasts = flashToasts(request)
         if (toasts.isNotEmpty()) chrome.hook(Hook.BODY_END, toasts)
+        // spa(true) must fetch and swap the shell. A bare wire:navigate attribute still full-loads.
+        if (spaMode) chrome.hook(Hook.BODY_END, SpaNavigate.markup())
         chrome.hook(Hook.FOOTER, footerCopyrightHtml(branding))
         return chrome.render()
     }
@@ -2014,7 +2023,9 @@ open class Panel {
         for (tenant in tenantList) {
             val active = if (tenant.id == current) " ff-active" else ""
             val href = request.path + "?tenant=" + tenant.id
-            links.append("""<a class="ff-tenant$active" href="${escapeHtml(href)}">${escapeHtml(tenant.label())}</a>""")
+            links.append(
+                """<a class="ff-tenant$active" href="${escapeHtml(href)}"${spaNavigateAttr(href)}>${escapeHtml(tenant.label())}</a>""",
+            )
         }
         return """<nav class="ff-tenants">$links</nav>"""
     }
@@ -2039,7 +2050,9 @@ open class Panel {
 
     private fun userHtml(request: Request, path: String, user: ChromeUser, get: Get): String {
         val initial = avatarInitial(user.primary)
-        val profileLink = """<a class="ff-menu-link" href="${escapeHtml(plainUri("profile"))}">Profile</a>"""
+        val profileUrl = plainUri("profile")
+        val profileLink =
+            """<a class="ff-menu-link" href="${escapeHtml(profileUrl)}"${spaNavigateAttr(profileUrl)}>Profile</a>"""
         val extraLinks = userMenuLinksHtml(path, get)
         val signOut =
             if (user.signedIn) {
@@ -2071,7 +2084,7 @@ open class Panel {
             val href = if (url.isEmpty()) "" else " href=\"${escapeHtml(url)}\""
             val active = if (activeItem(path, url)) " ff-active" else ""
             out.append(
-                """<a class="ff-menu-link$active"$href${htmlAttributes(item.attributes(get))}>${escapeHtml(item.labelText(get))}</a>""",
+                """<a class="ff-menu-link$active"$href${spaNavigateAttr(url)}${htmlAttributes(item.attributes(get))}>${escapeHtml(item.labelText(get))}</a>""",
             )
         }
         return out.toString()

@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PanelJavaTest {
@@ -33,6 +34,15 @@ public class PanelJavaTest {
         assertEquals("java-app", welcome.getBody());
         Response orders = router.find("GET", "/orders").getRoute().getAction().handle(new Request("GET", "/orders"));
         assertTrue(orders.getBody().contains("ff-list"));
+        assertTrue(orders.getBody().contains("data-ff-panel-spa"));
+        assertTrue(orders.getBody().contains("X-Brew-Navigate"));
+        assertTrue(orders.getBody().contains("wire:navigate"));
+        int spaStart = orders.getBody().indexOf("<script data-ff-panel-spa>");
+        int spaEnd = orders.getBody().indexOf("</script>", spaStart);
+        assertTrue(spaStart >= 0 && spaEnd > spaStart);
+        String spaScript = orders.getBody().substring(spaStart, spaEnd);
+        assertFalse(spaScript.contains("location.assign"));
+        assertFalse(spaScript.contains("location.href="));
         assertTrue(orders.getBody().contains("data-ff-max-width=\"full\""));
         assertTrue(panel.render(new Request("GET", "/orders"), Map.of("brand", "Java")).contains("Java"));
         assertTrue(panel.render(new Request("GET", "/orders")).contains("ff-panel"));
@@ -80,6 +90,20 @@ public class PanelJavaTest {
         assertEquals("3", orders.navigationBadge().getText());
         NavigationItem item = new NavigationItem("calc").group("Tools").sort(1).badge(new NavigationBadge("9"));
         assertEquals("Tools", item.groupName());
+    }
+
+    @Test
+    void javaSpaFalseKeepsFullDocumentLinks() {
+        Router router = new Router();
+        Panel panel = new Panel();
+        panel.path("desk").authenticate(false).spa(false);
+        panel.page(new ListPage("orders"));
+        panel.mount(router, Map.of());
+        String html = router.find("GET", "/desk/orders").getRoute().getAction().handle(new Request("GET", "/desk/orders")).getBody();
+        assertFalse(html.contains("data-ff-panel-spa"));
+        assertFalse(html.contains(" wire:navigate"));
+        assertTrue(html.contains("<a href=\"/desk/orders\">"));
+        assertTrue(html.contains("window.location.assign"));
     }
 
     @Test
