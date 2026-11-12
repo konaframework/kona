@@ -94,7 +94,7 @@ The command writes a `CustomPage` in `app/panels/{panel}/pages/`. `--panel` defa
 | `form(schema)` | Content region from a form schema |
 | `infolistHtml(html)` | Content region from infolist HTML |
 | `table(table)` | Content region from a table |
-| `maxWidth(token)` | Cap this page’s content column (`xs`…`7xl`, `full`, `screen`, `prose`). Overrides the panel default. Emits `data-ff-max-width` on the section |
+| `maxWidth(token)` | Cap this page’s content column with the same widths as the panel (`xs`…`7xl`, `full`, `screen`, `prose`, `Prose`, `ScreenSmall`, `ScreenMedium`, `ScreenLarge`, `ScreenExtraLarge`, `ScreenTwoExtraLarge`, `container`, or `[900px]`). Overrides the panel default. `xs`…`7xl`, `full`, `screen`, and `prose` emit `data-ff-max-width` on the section. The others add a class (`max-w-prose`, `max-w-screen-sm`, `max-w-screen-md`, `max-w-screen-lg`, `max-w-screen-xl`, `max-w-screen-2xl`, `container`, `max-w-[900px]`). See [Content max width](/docs/firefly/panel/#content-max-width) |
 | `render()` / `render(state)` | `<section class="ff-page">` with header, content, widgets, and footer |
 
 `PanelPage` adds:

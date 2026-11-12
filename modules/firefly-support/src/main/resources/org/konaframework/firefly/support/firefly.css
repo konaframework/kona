@@ -1150,6 +1150,73 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 .ff-panel .ff-page[data-ff-max-width="prose"],
 .ff-panel .ff-profile[data-ff-max-width="prose"] { max-width: 65ch; }
 
+/* Class widths. The shell keeps its own size; these cap the content column.
+ * Screen steps match the default breakpoint scale (40rem / 48rem / 64rem / 80rem / 96rem).
+ * container follows the same steps and stays full width below 40rem.
+ * A bracketed length sets --ff-arbitrary-max on the element (class max-w-[900px]). */
+.ff-panel.max-w-prose { --ff-content-max-width: 65ch; }
+.ff-panel.max-w-screen-sm { --ff-content-max-width: 40rem; }
+.ff-panel.max-w-screen-md { --ff-content-max-width: 48rem; }
+.ff-panel.max-w-screen-lg { --ff-content-max-width: 64rem; }
+.ff-panel.max-w-screen-xl { --ff-content-max-width: 80rem; }
+.ff-panel.max-w-screen-2xl { --ff-content-max-width: 96rem; }
+.ff-panel[class*="max-w-["] { --ff-content-max-width: var(--ff-arbitrary-max); }
+
+.ff-panel .ff-page.max-w-prose,
+.ff-panel .ff-profile.max-w-prose { max-width: 65ch; }
+.ff-panel .ff-page.max-w-screen-sm,
+.ff-panel .ff-profile.max-w-screen-sm { max-width: 40rem; }
+.ff-panel .ff-page.max-w-screen-md,
+.ff-panel .ff-profile.max-w-screen-md { max-width: 48rem; }
+.ff-panel .ff-page.max-w-screen-lg,
+.ff-panel .ff-profile.max-w-screen-lg { max-width: 64rem; }
+.ff-panel .ff-page.max-w-screen-xl,
+.ff-panel .ff-profile.max-w-screen-xl { max-width: 80rem; }
+.ff-panel .ff-page.max-w-screen-2xl,
+.ff-panel .ff-profile.max-w-screen-2xl { max-width: 96rem; }
+.ff-panel .ff-page[class*="max-w-["],
+.ff-panel .ff-profile[class*="max-w-["] { max-width: var(--ff-arbitrary-max); }
+
+.ff-panel.container .ff-page:not([data-ff-max-width]):not([class*="max-w-"]),
+.ff-panel.container .ff-profile:not([data-ff-max-width]):not([class*="max-w-"]),
+.ff-panel .ff-page.container,
+.ff-panel .ff-profile.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: none;
+}
+@media (min-width: 40rem) {
+  .ff-panel.container .ff-page:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel.container .ff-profile:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel .ff-page.container,
+  .ff-panel .ff-profile.container { max-width: 40rem; }
+}
+@media (min-width: 48rem) {
+  .ff-panel.container .ff-page:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel.container .ff-profile:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel .ff-page.container,
+  .ff-panel .ff-profile.container { max-width: 48rem; }
+}
+@media (min-width: 64rem) {
+  .ff-panel.container .ff-page:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel.container .ff-profile:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel .ff-page.container,
+  .ff-panel .ff-profile.container { max-width: 64rem; }
+}
+@media (min-width: 80rem) {
+  .ff-panel.container .ff-page:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel.container .ff-profile:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel .ff-page.container,
+  .ff-panel .ff-profile.container { max-width: 80rem; }
+}
+@media (min-width: 96rem) {
+  .ff-panel.container .ff-page:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel.container .ff-profile:not([data-ff-max-width]):not([class*="max-w-"]),
+  .ff-panel .ff-page.container,
+  .ff-panel .ff-profile.container { max-width: 96rem; }
+}
+
 /* Relation managers fill the parent form/infolist width (Filament / Shamar). */
 .ff-panel .ff-relation {
   max-width: none;

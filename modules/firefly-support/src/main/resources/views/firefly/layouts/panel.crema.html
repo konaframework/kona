@@ -3,7 +3,9 @@
 
   Governance: docs/governance/firefly-views.md
   Data: documentTitle, brandName, csrfToken, css, sidebar, topbar, body, footer,
-  themeInitScript, chromeScript, bodyBackground, bodyColor, maxWidth (optional).
+  themeInitScript, chromeScript, bodyBackground, bodyColor,
+  maxWidth (optional data-ff-max-width token), maxWidthClass (optional leading-space class),
+  maxWidthStyle (optional inline style for a bracketed length).
   Partials keep <!-- ff-hook:… --> markers; Panel fills them before layout.render.
   Wire page-host component is deferred; this vertical slice is Crema from DefaultLayout.
 --}}
@@ -20,7 +22,7 @@
     <style>{!! css !!}</style>
   </head>
   <body class="ff-body-root" style="margin:0;background:{{ bodyBackground }};color:{{ bodyColor }}">
-    <div class="ff-panel"@if(maxWidth) data-ff-max-width="{{ maxWidth }}"@endif>
+    <div class="ff-panel@if(maxWidthClass) {{ maxWidthClass }}@endif"@if(maxWidth) data-ff-max-width="{{ maxWidth }}"@endif@if(maxWidthStyle) style="{{ maxWidthStyle }}"@endif>
       <div class="ff-backdrop" data-ff-backdrop aria-hidden="true"></div>
       @if(sidebar)
         {!! sidebar !!}

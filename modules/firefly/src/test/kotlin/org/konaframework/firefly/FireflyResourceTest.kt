@@ -712,6 +712,18 @@ class FireflyResourceTest {
         val overrideHtml = send(overrideRouter, "/admin/shelf/manage")
         assertTrue(overrideHtml.contains("""class="ff-page ff-manage" data-ff-max-width="sm""""))
         assertFalse(overrideHtml.contains("""class="ff-page ff-manage" data-ff-max-width="full""""))
+        val containerRouter = Router()
+        Panel().path("admin").authenticate(false)
+            .resource(Resource("shelf").model(Shelf::class.java).maxWidth("container").simple())
+            .mount(containerRouter)
+        val containerHtml = send(containerRouter, "/admin/shelf/manage")
+        assertTrue(containerHtml.contains("""class="ff-page ff-manage container""""))
+        assertFalse(containerHtml.contains("""class="ff-page ff-manage container max-w-"""))
+        val bracketRouter = Router()
+        Panel().path("admin").authenticate(false)
+            .resource(Resource("shelf").model(Shelf::class.java).maxWidth("[80ch]").simple())
+            .mount(bracketRouter)
+        assertTrue(send(bracketRouter, "/admin/shelf/manage").contains("""class="ff-page ff-manage max-w-[80ch]""""))
         assertThrows<FireflyException> { RelationManager(" ") }
         assertThrows<FireflyException> { RelationManager("lines").titleAttribute(" ") }
         assertThrows<FireflyException> { RelationManager("lines").titleAttribute { " " }.render() }

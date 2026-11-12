@@ -1,6 +1,9 @@
 package org.konaframework.firefly;
 
 import org.junit.jupiter.api.Test;
+import org.konaframework.firefly.support.FireflyException;
+import org.konaframework.firefly.support.MaxWidth;
+import org.konaframework.firefly.widgets.Page;
 import org.konaframework.firefly.widgets.Widget;
 import org.konaframework.http.Request;
 import org.konaframework.http.Response;
@@ -11,6 +14,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PanelJavaTest {
@@ -117,6 +121,47 @@ public class PanelJavaTest {
         assertTrue(orders.getBody().contains("ff-list"));
         panel.render(new Request("GET", "/staff/orders"));
         assertEquals(1, DeskPanel.calls);
+    }
+
+    @Test
+    void javaSetsMaxContentWidthClasses() {
+        assertEquals("max-w-[900px]", MaxWidth.utilityClass("[900px]"));
+        assertEquals("container", MaxWidth.utilityClass("container"));
+        assertEquals("container", MaxWidth.utilityClass("Container"));
+        assertEquals("max-w-prose", MaxWidth.utilityClass(MaxWidth.PROSE));
+        assertEquals("max-w-screen-sm", MaxWidth.utilityClass(MaxWidth.SCREEN_SMALL));
+        assertEquals("max-w-screen-md", MaxWidth.utilityClass(MaxWidth.SCREEN_MEDIUM));
+        assertEquals("max-w-screen-lg", MaxWidth.utilityClass(MaxWidth.SCREEN_LARGE));
+        assertEquals("max-w-screen-xl", MaxWidth.utilityClass(MaxWidth.SCREEN_EXTRA_LARGE));
+        assertEquals("max-w-screen-2xl", MaxWidth.utilityClass(MaxWidth.SCREEN_TWO_EXTRA_LARGE));
+        assertEquals(null, MaxWidth.utilityClass("full"));
+        assertEquals("full", MaxWidth.requireKnown("full"));
+        assertThrows(FireflyException.class, () -> MaxWidth.requireKnown("huge"));
+        assertThrows(FireflyException.class, () -> new Panel().maxContentWidth("[900px] extra"));
+
+        Router custom = new Router();
+        Panel customPanel = new Panel();
+        customPanel.path("wide").authenticate(false).maxContentWidth("[900px]").page(new ListPage("one"));
+        customPanel.mount(custom);
+        String customHtml = custom.find("GET", "/wide/one").getRoute().getAction().handle(new Request("GET", "/wide/one")).getBody();
+        assertTrue(customHtml.contains("class=\"ff-panel max-w-[900px]\""));
+        assertTrue(customHtml.contains("style=\"--ff-arbitrary-max: 900px\""));
+
+        Router box = new Router();
+        Panel boxPanel = new Panel();
+        boxPanel.path("box").authenticate(false).maxContentWidth(MaxWidth.CONTAINER).page(new ListPage("one"));
+        boxPanel.mount(box);
+        String boxHtml = box.find("GET", "/box/one").getRoute().getAction().handle(new Request("GET", "/box/one")).getBody();
+        String boxTag = boxHtml.substring(boxHtml.indexOf("<div class=\""), boxHtml.indexOf("\"", boxHtml.indexOf("<div class=\"") + 12));
+        assertTrue(boxTag.contains("ff-panel container"));
+        assertFalse(boxTag.contains("max-w-"));
+
+        String page = new Page().maxWidth(MaxWidth.SCREEN_LARGE).render();
+        assertTrue(page.contains("class=\"ff-page max-w-screen-lg\""));
+        assertFalse(page.contains("data-ff-max-width"));
+        String length = new Page().maxWidth("[48rem]").render();
+        assertTrue(length.contains("max-w-[48rem]"));
+        assertTrue(new Page().maxWidth("xl").render().contains("data-ff-max-width=\"xl\""));
     }
 
     public static class DeskPanel extends Panel {

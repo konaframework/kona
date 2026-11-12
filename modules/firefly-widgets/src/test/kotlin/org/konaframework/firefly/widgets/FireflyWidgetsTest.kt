@@ -7,6 +7,7 @@ import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.schemas.Text
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.icons.IconSetOptions
 import org.konaframework.icons.Icons
 import org.konaframework.firefly.tables.Table
@@ -129,6 +130,38 @@ class FireflyWidgetsTest {
         assertFalse(explicitWins.contains("""data-ff-max-width="full""""))
         assertThrows<FireflyException> { Page().maxWidth("nope") }
         assertThrows<FireflyException> { Page().defaultMaxWidth("nope") }
+        val named = linkedMapOf(
+            MaxWidth.PROSE to "max-w-prose",
+            MaxWidth.SCREEN_SMALL to "max-w-screen-sm",
+            MaxWidth.SCREEN_MEDIUM to "max-w-screen-md",
+            MaxWidth.SCREEN_LARGE to "max-w-screen-lg",
+            MaxWidth.SCREEN_EXTRA_LARGE to "max-w-screen-xl",
+            MaxWidth.SCREEN_TWO_EXTRA_LARGE to "max-w-screen-2xl",
+            "container" to "container",
+            "Container" to "container",
+        )
+        for ((token, cssClass) in named) {
+            val html = Page().title(token).maxWidth(token).render()
+            assertTrue(html.contains("""class="ff-page $cssClass""""), token)
+            assertFalse(html.contains("data-ff-max-width"), token)
+        }
+        val custom = Page().title("Custom").maxWidth("[900px]").render()
+        assertTrue(custom.contains("""class="ff-page max-w-[900px]""""))
+        assertTrue(custom.contains("""style="--ff-arbitrary-max: 900px""""))
+        assertFalse(custom.contains("data-ff-max-width"))
+        val rem = Page().title("Rem").defaultMaxWidth("[48rem]").render()
+        assertTrue(rem.contains("""class="ff-page max-w-[48rem]""""))
+        val ch = Page().title("Ch").maxWidth("[80ch]").render()
+        assertTrue(ch.contains("max-w-[80ch]"))
+        val kept = Page().title("Kept").maxWidth("sm").defaultMaxWidth("container").render()
+        assertTrue(kept.contains("""data-ff-max-width="sm""""))
+        assertFalse(kept.contains("container"))
+        val prose = Page().title("Prose token").maxWidth("prose").render()
+        assertTrue(prose.contains("""data-ff-max-width="prose""""))
+        assertFalse(prose.contains("max-w-prose"))
+        assertThrows<FireflyException> { Page().maxWidth("[900]") }
+        assertThrows<FireflyException> { Page().maxWidth("[900px] extra") }
+        assertThrows<FireflyException> { Page().defaultMaxWidth("Screen") }
     }
 
     @Test
