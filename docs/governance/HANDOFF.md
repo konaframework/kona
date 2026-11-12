@@ -133,7 +133,7 @@ Do **not** commit desk into kona. Restart serve yourself after framework rebuild
 | Item | Value |
 |------|--------|
 | Default branch | `main` — green; never push directly |
-| Repo version | `kona.version` **0.6.0** (Firefly themes, compiled theme CSS, dark colors, brand logo, body footer, active nav, first paint). Tag `v0.6.0` when cutting the Central release. Do not tag `v0.5.1`. |
+| Repo version | `kona.version` **0.6.1** (Central checksum trim + docs landing). `0.6.0` is on Central untrimmed (1,870 files). Tag `v0.6.1` only after merge. Do not re-tag `v0.6.0` or `v0.5.1`. |
 | On `main` | Firefly M28–M38 + polish (panel, resources, relation managers, tables/filters, docs, icons); Wire M26 remains on prior `0.3.0` |
 | Active / queued | Confirm `MILESTONES.md` before starting a new milestone. Non-colliding work may parallel |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
@@ -192,7 +192,7 @@ Schemas, forms, infolists, actions, and tables can render on their own for tests
 
 **Remonorepo done (#138):** Wire + Inertia are in-tree (`modules/wire`, `modules/inertia`, samples, `js/wire`). Docs unified into `apps/docs` (Frontend → Wire / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/wire/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-wire-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
 
-**Repo version:** `gradle.properties` `kona.version` is **0.6.0**. Confirm Maven Central after Portal **Publish** before describing the version as downloadable. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
+**Repo version:** `gradle.properties` `kona.version` is **0.6.1**. `0.6.0` is the Central release (untrimmed). Describe `0.6.1` as downloadable only after a human tags `v0.6.1` and Portal **Publish**. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
 
 **Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Wire parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Wire templates.
 
@@ -243,7 +243,7 @@ Key paths: `modules/` (framework), `apps/docs/`, `js/wire/`, `docs/governance/`,
 3. Confirm no conflicting open PRs (keep `fix/firefly-table-shamar-ui` separate from chrome).
 4. Pick remaining **deepen** slices from the Almasix ledger. Non-colliding milestones may proceed in parallel, each on its own branch. Do not start a milestone that depends on another until that dependency is on `main`. **M26 Wire** shipped on **0.3.0**.
 5. **Maven Central — `v0.2.0` shipped** (do not re-tag). **`0.2.1` version bump on `main` — do not tag until release cut.** Optional follow-ups:
-   - File Count monthly limit (grace through **2026-11-17**): check Usage Center; request higher limit if needed. Checksum-of-`.asc` reduction needs Gradle 9 + vanniktech ≥0.37 (deferred).
+   - File Count monthly limit (grace through **2026-11-17**): **`0.6.0` shipped untrimmed at 1,870 files** (same shape as `0.4.0` and `0.5.0`). **`0.6.1` is the first trimmed deployment (748 files, ~10 MB)** via the staging-repo checksum filter in root `build.gradle.kts`. Samples (`hello-*`, `wire-sample-*`, `inertia-sample-*`) are not published. Two releases in one month still need a higher limit. See [publishing.md](publishing.md).
    - Trusted Publishing (OIDC) still **not GA** — token + GPG. Full checklist: [publishing.md](publishing.md).
 
 ## Do not

@@ -2,6 +2,8 @@ import com.vanniktech.maven.publish.JavaPlatform
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import java.io.File
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 
 plugins {
     alias(libs.plugins.kotlin.jvm) apply false
@@ -113,4 +115,28 @@ fun MavenPublishBaseExtension.configureCentralAndSigning(project: Project) {
     if (hasInMemoryKey || hasKeyId) {
         signAllPublications()
     }
+    dropRedundantMavenCentralChecksums(project)
 }
+
+/**
+ * Central counts every uploaded file. Gradle 8.14 writes `sha256`/`sha512` and checksums of
+ * `.asc` signatures, which Maven Central does not require (same set vanniktech 0.37 drops).
+ * The Portal bundle is zipped from this staging repo at the end of the build, so deleting
+ * those files after publish keeps jars, POMs, sources, Javadoc, Gradle module metadata,
+ * `.asc` signatures, and `md5`/`sha1`.
+ */
+fun dropRedundantMavenCentralChecksums(project: Project) {
+    project.tasks.withType<PublishToMavenRepository>().configureEach {
+        if (!name.endsWith("ToMavenCentralRepository")) return@configureEach
+        doLast {
+            val repo = repository.url
+            if (repo.scheme != "file") return@doLast
+            val root = File(repo)
+            if (!root.isDirectory) return@doLast
+            root.walkTopDown().filter { it.isFile && isRedundantCentralChecksum(it.name) }.forEach { it.delete() }
+        }
+    }
+}
+
+private fun isRedundantCentralChecksum(name: String): Boolean =
+    name.endsWith(".sha256") || name.endsWith(".sha512") || name.contains(".asc.")
