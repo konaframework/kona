@@ -100,7 +100,7 @@ After the check, each marker is replaced with the concatenated hook HTML. A hook
 
 The sidebar shares the body background: it is **not** a contrasting card strip. Only the brand block and the top bar are raised (card surface, no primary top ribbon — so Wire navigate progress stays visible), so they line up as one strip across the top. At the bottom, `.ff-sidebar-foot` and `.ff-footer` share the same shell background, padding, type, soft top border, and a fixed `--ff-footer-height` min-height so they read as one continuous chrome band — even when the main footer is empty and the sidebar shows **Signed in as …**. The sidebar width and top-bar height come from the theme tokens `--ff-sidebar-width` and `--ff-topbar-height`.
 
-With `NavigationType.SIDE`, `APP`, and `INVERSE`, the brand label renders in `.ff-sidebar-brand` above the side nav, and the top bar shows a mobile-only brand beside the drawer toggle. `TOP` has no sidebar: the aside is omitted, an empty `.ff-sidebar` does not keep `--ff-sidebar-width`, and the brand stays in the top bar at every width.
+With `NavigationType.SIDE` and `APP`, the brand label renders in `.ff-sidebar-brand` above the side nav, and the top bar shows a mobile-only brand beside the drawer toggle. `INVERSE` uses that sidebar chrome when the active top-bar item has children. When the item has no children, `INVERSE` matches `TOP`: the brand stays in the top bar at every width, and a wide screen does not reserve `--ff-sidebar-width`. On those pages the aside is the narrow-screen drawer. An empty `.ff-sidebar` does not keep the sidebar width.
 
 ## Top bar tools and theme toggle
 

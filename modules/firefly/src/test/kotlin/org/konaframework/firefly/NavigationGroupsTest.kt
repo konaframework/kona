@@ -558,6 +558,17 @@ class NavigationGroupsTest {
     }
 
     @Test
+    fun inverseDashboardOmitsTheSidebarColumn() {
+        val html = body(Panel().path("admin").authenticate(false).navigation(NavigationType.INVERSE), "/admin")
+        assertTrue(html.contains(">Dashboard<"))
+        assertTrue(html.contains("""<nav class="ff-nav ff-nav-top">"""))
+        assertFalse(html.contains("""<nav class="ff-nav ff-nav-side">"""))
+        assertTrue(html.contains("""<div class="ff-sidebar-offcanvas" hidden></div>"""))
+        assertFalse(html.contains("""class="ff-brand-mark ff-topbar-brand""""))
+        assertTrue(html.contains("""class="ff-brand-mark""""))
+    }
+
+    @Test
     fun inverseNavigationPutsGroupsOnTopAndChildrenInTheSidebar() {
         val panel = promotedSales().navigation(NavigationType.INVERSE)
         val html = body(panel, "/admin/orders/list")
@@ -574,13 +585,23 @@ class NavigationGroupsTest {
         assertFalse(side.contains(">Loose<"))
         assertFalse(side.contains(">Sales<"))
         assertFalse(side.contains("""data-ff-nav-group="Sales""""))
+        // Children of the active root keep a real sidebar column. Brand stays mobile-only in the bar.
+        assertFalse(html.contains("""<div class="ff-sidebar-offcanvas" hidden></div>"""))
+        assertTrue(html.contains("""class="ff-brand-mark ff-topbar-brand""""))
         val quotes = body(promotedSales().navigation(NavigationType.INVERSE), "/admin/quotes/list")
         assertTrue(quotes.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>").contains("ff-nav-item ff-cluster ff-active"))
         assertTrue(sidebar(quotes).contains("ff-active"))
-        // Active root with no children: top bar keeps the roots, sidebar nav is omitted.
+        assertFalse(quotes.contains("""<div class="ff-sidebar-offcanvas" hidden></div>"""))
+        // Active root with no children: same chrome as top navigation. No side nav, no sidebar width.
         val loose = body(promotedSales().navigation(NavigationType.INVERSE), "/admin/loose/list")
         assertTrue(loose.contains("""<nav class="ff-nav ff-nav-top">"""))
         assertFalse(loose.contains("""<nav class="ff-nav ff-nav-side">"""))
+        assertTrue(loose.contains("""<div class="ff-sidebar-offcanvas" hidden></div>"""))
+        assertFalse(loose.contains("""class="ff-brand-mark ff-topbar-brand""""))
+        assertTrue(loose.contains("""class="ff-brand-mark""""))
+        // The aside remains for the narrow-screen drawer, matching top navigation.
+        assertTrue(loose.contains("""<aside class="ff-sidebar""""))
+        assertTrue(loose.contains("ff-nav-drawer"))
         assertTrue(loose.contains("ff-sidebar-brand"))
     }
 
@@ -593,5 +614,8 @@ class NavigationGroupsTest {
         assertFalse(html.contains("""<nav class="ff-nav ff-nav-top">"""))
         assertFalse(html.contains("""<nav class="ff-nav ff-nav-side">"""))
         assertTrue(html.contains("""<aside class="ff-sidebar""""))
+        // No visible top-bar item means no children, so the column is not reserved.
+        assertTrue(html.contains("""<div class="ff-sidebar-offcanvas" hidden></div>"""))
+        assertFalse(html.contains("""class="ff-brand-mark ff-topbar-brand""""))
     }
 }
