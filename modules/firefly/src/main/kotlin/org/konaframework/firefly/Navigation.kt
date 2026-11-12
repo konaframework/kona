@@ -15,6 +15,8 @@ import java.util.function.Predicate
  *   Navigation groups promote to level-1 clusters; their members render in the top bar.
  * - [INVERSE] — the inverse of [APP]: level 1 in the top bar; levels 2–3 of the active level-1 item
  *   in the sidebar. Groups promote to top-bar clusters; their members render in the sidebar.
+ *   When the active level-1 item has no children, the shell matches [TOP]: the brand stays in the
+ *   top bar and the layout does not reserve a sidebar column.
  * - [SIDE] — the full tree in the sidebar (groups are headings).
  * - [TOP] — the full tree in the top bar (no sidebar column; groups are inline clusters).
  */

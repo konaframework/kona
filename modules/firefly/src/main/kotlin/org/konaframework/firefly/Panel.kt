@@ -1886,11 +1886,12 @@ open class Panel {
     private fun topHtml(type: NavigationType, path: String, branding: FireflyBranding, get: Get): String {
         val lead = StringBuilder("""<div class="ff-topbar-lead">""")
         // Every layout can open the drawer. The control is hidden on wide screens.
-        // TOP keeps its brand in the bar at every width; the others show it there only on mobile.
+        // TOP, and INVERSE on a childless top-bar item, keep the brand in the bar at every width.
+        // The others show it there only on mobile.
         lead.append(
             """<button type="button" class="ff-hamburger" data-ff-sidebar-toggle aria-label="Open navigation">${Icon.BARS.svg()}</button>""",
         )
-        if (type == NavigationType.TOP) {
+        if (type == NavigationType.TOP || inverseWithoutSidebar(type, path, get)) {
             lead.append(brandMarkHtml(branding))
         } else {
             lead.append(brandMarkHtml(branding, "ff-topbar-brand"))
@@ -1929,8 +1930,13 @@ open class Panel {
         val brandBlock =
             """<div class="ff-sidebar-brand$logoClass">${brandMarkHtml(branding)}""" +
                 """<button type="button" class="ff-sidebar-close" data-ff-sidebar-close aria-label="Close navigation">${Icon.X.svg()}</button></div>"""
-        // Marker so desktop CSS can drop the TOP column without removing the mobile drawer.
-        val offcanvas = if (type == NavigationType.TOP) """<div class="ff-sidebar-offcanvas" hidden></div>""" else ""
+        // Marker so desktop CSS can drop the column without removing the mobile drawer.
+        // TOP always. INVERSE only when the active top-bar item has no children.
+        val offcanvas = if (type == NavigationType.TOP || inverseWithoutSidebar(type, path, get)) {
+            """<div class="ff-sidebar-offcanvas" hidden></div>"""
+        } else {
+            ""
+        }
         // APP: L1 roots only. INVERSE: children of the active L1 root. SIDE: full tree.
         // TOP has no desktop sidebar nav. Accordion on the desktop tree is SIDE-only.
         val nav = when (type) {
@@ -1979,6 +1985,13 @@ open class Panel {
         if (copyrightText.isNullOrBlank()) return ""
         return """<p class="ff-footer-copyright">$copyrightText</p>"""
     }
+
+    /**
+     * INVERSE draws a sidebar only for the active top-bar item's children.
+     * A leaf such as the dashboard uses the same chrome as [NavigationType.TOP].
+     */
+    private fun inverseWithoutSidebar(type: NavigationType, path: String, get: Get): Boolean =
+        type == NavigationType.INVERSE && activeLevelChildren(path, get).isEmpty()
 
     /**
      * Children of the active level-1 item.

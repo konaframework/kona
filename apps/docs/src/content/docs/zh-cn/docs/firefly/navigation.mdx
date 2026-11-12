@@ -25,11 +25,11 @@ On the hello samples that means a link for Desk, plus one sidebar entry each for
 | `NavigationType.SIDE` | Sidebar | Sidebar |
 | `NavigationType.TOP` | Top bar | Top bar |
 
-`INVERSE` is the inverse of `APP`: the same level-1 roots (ungrouped links, plus one cluster per navigation group), drawn in the top bar, with that root’s children in the sidebar. `topNavigation()` is `navigation(NavigationType.TOP)`. `navigation` accepts the enum or a closure that receives `Get`.
+`INVERSE` is the inverse of `APP`: the same level-1 roots (ungrouped links, plus one cluster per navigation group), drawn in the top bar, with that root’s children in the sidebar. When the active top-bar item has no children, the shell matches top navigation: the brand stays in the top bar, and the layout does not reserve a sidebar column. The sidebar renders only when that item has children. `topNavigation()` is `navigation(NavigationType.TOP)`. `navigation` accepts the enum or a closure that receives `Get`.
 
 Nesting stops at level 3. A fourth level fails when the panel mounts, and the message names the item. `cluster("Catalog")` adds a parent with no URL of its own. `userMenu(...)` entries render inside the user-menu dropdown in the top bar. `spa(true)` adds `wire:navigate` on links that have a URL.
 
-With `SIDE`, `APP`, and `INVERSE` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar. It does not render a sidebar, and the layout does not reserve a sidebar column.
+With `SIDE` and `APP` the brand sits in the sidebar brand block. `INVERSE` does the same while the active top-bar item has children. On a childless item it keeps the brand in the top bar and does not reserve a sidebar column, the same as `TOP`. On small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar. It does not render a sidebar, and the layout does not reserve a sidebar column.
 
 ## What the hello samples show
 

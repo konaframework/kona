@@ -117,6 +117,11 @@ class AppSmokeTest {
         assertTrue(sideNav.contains(">Orders<"), sideNav)
         assertTrue(sideNav.contains(">Quotes<"), sideNav)
         assertFalse(sideNav.contains(">Loose<"), sideNav)
+        assertFalse(orders.contains("""<div class="ff-sidebar-offcanvas" hidden></div>"""), orders)
+        val loose = inverse.find("GET", "/inv/loose")!!.route.action.handle(Request.get("/inv/loose")).body
+        assertFalse(loose.contains("""class="ff-nav ff-nav-side""""), loose)
+        assertTrue(loose.contains("""<div class="ff-sidebar-offcanvas" hidden></div>"""), loose)
+        assertFalse(loose.contains("""class="ff-brand-mark ff-topbar-brand""""), loose)
     }
 
     @Test
