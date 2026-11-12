@@ -20,7 +20,7 @@ Every chart, list, card, account, and navigation-cards widget renders inside a w
 
 ## Dashboard layout
 
-`DashboardPage` (panel home, empty slug) and the widgets-module `Dashboard` type emit a responsive widget grid and default to `maxWidth("full")` so the grid fills the panel body. Call `columns(1)` … `columns(4)` (default **3**). The page section gets `data-ff-dashboard-columns`, and CSS lays out `.ff-page-widgets` like Shamar (`1` → one column; `2` → `sm:2`; `3`/`4` → `sm:2` then `xl:3`/`xl:4`). Use each widget’s `columnSpan(...)` / `columnSpanFull()` so a stats strip or nav cards can span the row. `StatsOverviewWidget` and `NavigationCardsWidget` default to full span.
+`DashboardPage` (panel home, empty slug) and the widgets-module `Dashboard` type emit a responsive widget grid and leave the max width unset, so the page uses the panel’s max content width. Set `maxWidth` or `maxContentWidth` on the dashboard when that page should differ, including `full`. Call `columns(1)` … `columns(4)` (default **3**). The page section gets `data-ff-dashboard-columns`, and CSS lays out `.ff-page-widgets` like Shamar (`1` → one column; `2` → `sm:2`; `3`/`4` → `sm:2` then `xl:3`/`xl:4`). Use each widget’s `columnSpan(...)` / `columnSpanFull()` so a stats strip or nav cards can span the row. `StatsOverviewWidget` and `NavigationCardsWidget` default to full span.
 
 `filtersForm(Schema)` mounts a GET form above the grid. Field values land in the query string and page state so widgets can read filters while rendering.
 

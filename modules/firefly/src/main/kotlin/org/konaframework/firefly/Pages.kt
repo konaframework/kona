@@ -3,6 +3,7 @@ package org.konaframework.firefly
 import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.infolists.Infolist
 import org.konaframework.firefly.schemas.Schema
+import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.firefly.widgets.Page
 import java.util.function.Function
 import java.util.function.Supplier
@@ -112,6 +113,12 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
     fun mountInfolist(infolist: Infolist): PanelPage = apply { infolistHtml(infolist.render()) }
 
     override fun maxWidth(width: String): PanelPage = apply { super.maxWidth(width) }
+
+    override fun maxWidth(width: MaxWidth): PanelPage = apply { super.maxWidth(width) }
+
+    override fun maxContentWidth(width: String): PanelPage = apply { super.maxContentWidth(width) }
+
+    override fun maxContentWidth(width: MaxWidth): PanelPage = apply { super.maxContentWidth(width) }
 
     override fun defaultMaxWidth(width: String): PanelPage = apply { super.defaultMaxWidth(width) }
 
@@ -234,13 +241,10 @@ open class CustomPage @JvmOverloads constructor(slug: String? = null) : PanelPag
 /**
  * Panel home at the panel prefix (`GET /admin` when the id is `admin`).
  * Slug is empty so [Panel] mounts it at the panel root.
+ * The page does not set a max width, so it uses the panel content width.
+ * Call [maxWidth] or [maxContentWidth] when this page should differ.
  */
 open class DashboardPage : PanelPage("") {
-    init {
-        // Dashboards fill the panel body; individual pages can still narrow with maxWidth.
-        maxWidth("full")
-    }
-
     override fun sectionClass(): String = "ff-page ff-dashboard"
 
     override fun fallbackTitle(): String = "Dashboard"

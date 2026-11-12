@@ -556,13 +556,23 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     /**
      * Default content max-width for this resource's pages.
-     * Same values as the panel, including `Prose`, the screen names, `container`, and `[900px]`.
+     * Same values as the panel: `xs`…`7xl`, `full`, `screen`, `prose`, `container`,
+     * `screen-s`, `screen-m`, `screen-l`, `screen-xl`, `screen-2xl`, `[900px]`, or a [MaxWidth].
      * Applied when each page renders unless the page already called [Page.maxWidth].
      * Overrides the panel default for those pages.
      */
     fun maxWidth(width: String): Resource = apply {
         maxWidthLiteral = MaxWidth.requireKnown(width)
     }
+
+    /** Same as [maxWidth] with a [MaxWidth] constant. */
+    fun maxWidth(width: MaxWidth): Resource = maxWidth(width.token)
+
+    /** Alias for [maxWidth]. */
+    fun maxContentWidth(width: String): Resource = maxWidth(width)
+
+    /** Alias for [maxWidth]. */
+    fun maxContentWidth(width: MaxWidth): Resource = maxWidth(width)
 
     fun relation(manager: RelationManager): Resource = apply {
         if (simpleFlag) throw FireflyException("Simple resource [${slug()}] has no relation managers")

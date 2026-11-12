@@ -128,12 +128,14 @@ public class PanelJavaTest {
         assertEquals("max-w-[900px]", MaxWidth.utilityClass("[900px]"));
         assertEquals("container", MaxWidth.utilityClass("container"));
         assertEquals("container", MaxWidth.utilityClass("Container"));
-        assertEquals("max-w-prose", MaxWidth.utilityClass(MaxWidth.PROSE));
-        assertEquals("max-w-screen-sm", MaxWidth.utilityClass(MaxWidth.SCREEN_SMALL));
-        assertEquals("max-w-screen-md", MaxWidth.utilityClass(MaxWidth.SCREEN_MEDIUM));
-        assertEquals("max-w-screen-lg", MaxWidth.utilityClass(MaxWidth.SCREEN_LARGE));
-        assertEquals("max-w-screen-xl", MaxWidth.utilityClass(MaxWidth.SCREEN_EXTRA_LARGE));
-        assertEquals("max-w-screen-2xl", MaxWidth.utilityClass(MaxWidth.SCREEN_TWO_EXTRA_LARGE));
+        assertEquals("max-w-screen-sm", MaxWidth.utilityClass("screen-s"));
+        assertEquals("max-w-screen-md", MaxWidth.utilityClass("screen-m"));
+        assertEquals("max-w-screen-lg", MaxWidth.utilityClass("screen-l"));
+        assertEquals("max-w-screen-xl", MaxWidth.utilityClass("screen-xl"));
+        assertEquals("max-w-screen-xl", MaxWidth.utilityClass(MaxWidth.ScreenExtraLarge.getToken()));
+        assertEquals("max-w-screen-2xl", MaxWidth.utilityClass("screen-2xl"));
+        assertEquals(null, MaxWidth.utilityClass("prose"));
+        assertEquals(null, MaxWidth.utilityClass(MaxWidth.Prose.getToken()));
         assertEquals(null, MaxWidth.utilityClass("full"));
         assertEquals("full", MaxWidth.requireKnown("full"));
         assertThrows(FireflyException.class, () -> MaxWidth.requireKnown("huge"));
@@ -149,19 +151,60 @@ public class PanelJavaTest {
 
         Router box = new Router();
         Panel boxPanel = new Panel();
-        boxPanel.path("box").authenticate(false).maxContentWidth(MaxWidth.CONTAINER).page(new ListPage("one"));
+        boxPanel.path("box").authenticate(false).maxContentWidth("container").page(new ListPage("one"));
         boxPanel.mount(box);
         String boxHtml = box.find("GET", "/box/one").getRoute().getAction().handle(new Request("GET", "/box/one")).getBody();
         String boxTag = boxHtml.substring(boxHtml.indexOf("<div class=\""), boxHtml.indexOf("\"", boxHtml.indexOf("<div class=\"") + 12));
         assertTrue(boxTag.contains("ff-panel container"));
         assertFalse(boxTag.contains("max-w-"));
 
-        String page = new Page().maxWidth(MaxWidth.SCREEN_LARGE).render();
+        Router typed = new Router();
+        Panel typedPanel = new Panel();
+        typedPanel.path("typed").authenticate(false).maxContentWidth(MaxWidth.ScreenExtraLarge).page(new ListPage("one"));
+        typedPanel.mount(typed);
+        String typedHtml = typed.find("GET", "/typed/one").getRoute().getAction().handle(new Request("GET", "/typed/one")).getBody();
+        assertTrue(typedHtml.contains("class=\"ff-panel max-w-screen-xl\""));
+
+        String page = new Page().maxWidth(MaxWidth.ScreenLarge).render();
         assertTrue(page.contains("class=\"ff-page max-w-screen-lg\""));
         assertFalse(page.contains("data-ff-max-width"));
+        assertTrue(new Page().maxContentWidth("screen-xl").render().contains("max-w-screen-xl"));
+        assertTrue(new Page().maxContentWidth(MaxWidth.Container).render().contains("class=\"ff-page container\""));
         String length = new Page().maxWidth("[48rem]").render();
         assertTrue(length.contains("max-w-[48rem]"));
         assertTrue(new Page().maxWidth("xl").render().contains("data-ff-max-width=\"xl\""));
+
+        Router desk = new Router();
+        Panel deskPanel = new Panel();
+        deskPanel.path("desk").authenticate(false).maxContentWidth("screen-xl").page(new DashboardPage());
+        deskPanel.mount(desk);
+        String deskHtml = desk.find("GET", "/desk").getRoute().getAction().handle(new Request("GET", "/desk")).getBody();
+        assertTrue(deskHtml.contains("class=\"ff-panel max-w-screen-xl\""));
+        String deskSection = openTag(deskHtml, "ff-page ff-dashboard");
+        assertFalse(deskSection.contains("data-ff-max-width"));
+        assertFalse(deskSection.contains("max-w-"));
+
+        Router own = new Router();
+        Panel ownPanel = new Panel();
+        ownPanel.path("own").authenticate(false).maxContentWidth(MaxWidth.ScreenExtraLarge)
+            .page(new DashboardPage().maxContentWidth("screen-s"));
+        ownPanel.mount(own);
+        String ownHtml = own.find("GET", "/own").getRoute().getAction().handle(new Request("GET", "/own")).getBody();
+        assertTrue(openTag(ownHtml, "ff-page ff-dashboard").contains("max-w-screen-sm"));
+
+        Router full = new Router();
+        Panel fullPanel = new Panel();
+        fullPanel.path("full").authenticate(false).maxContentWidth("full").page(new DashboardPage());
+        fullPanel.mount(full);
+        String fullHtml = full.find("GET", "/full").getRoute().getAction().handle(new Request("GET", "/full")).getBody();
+        assertTrue(fullHtml.contains("data-ff-max-width=\"full\""));
+        assertFalse(openTag(fullHtml, "ff-page ff-dashboard").contains("data-ff-max-width"));
+    }
+
+    private static String openTag(String html, String marker) {
+        int idx = html.indexOf(marker);
+        int start = html.lastIndexOf('<', idx);
+        return html.substring(start, html.indexOf('>', start));
     }
 
     public static class DeskPanel extends Panel {

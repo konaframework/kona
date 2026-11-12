@@ -872,11 +872,15 @@ class Panel {
     /**
      * Default content max-width for pages and resources in this chrome.
      * `xs`…`7xl`, `full`, `screen`, and `prose` emit `data-ff-max-width` on `.ff-panel`.
-     * `Prose`, the screen names, `container`, and a bracketed length such as `[900px]` add a class.
+     * `container`, `screen-s`, `screen-m`, `screen-l`, `screen-xl`, `screen-2xl`,
+     * and a bracketed length such as `[900px]` add a class.
      */
     fun maxWidth(width: String): Panel = apply {
         this.maxWidth = MaxWidth.requireKnown(width)
     }
+
+    /** Same as [maxWidth] with a [MaxWidth] constant. */
+    fun maxWidth(width: MaxWidth): Panel = maxWidth(width.token)
 
     fun render(): String {
         val partials = linkedMapOf<String, String>()

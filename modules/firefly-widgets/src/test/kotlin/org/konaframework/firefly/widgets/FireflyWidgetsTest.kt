@@ -131,15 +131,30 @@ class FireflyWidgetsTest {
         assertThrows<FireflyException> { Page().maxWidth("nope") }
         assertThrows<FireflyException> { Page().defaultMaxWidth("nope") }
         val named = linkedMapOf(
-            MaxWidth.PROSE to "max-w-prose",
-            MaxWidth.SCREEN_SMALL to "max-w-screen-sm",
-            MaxWidth.SCREEN_MEDIUM to "max-w-screen-md",
-            MaxWidth.SCREEN_LARGE to "max-w-screen-lg",
-            MaxWidth.SCREEN_EXTRA_LARGE to "max-w-screen-xl",
-            MaxWidth.SCREEN_TWO_EXTRA_LARGE to "max-w-screen-2xl",
+            "screen-s" to "max-w-screen-sm",
+            "screen-m" to "max-w-screen-md",
+            "screen-l" to "max-w-screen-lg",
+            "screen-xl" to "max-w-screen-xl",
+            "screen-2xl" to "max-w-screen-2xl",
             "container" to "container",
+            "Prose" to "max-w-prose",
             "Container" to "container",
         )
+        val typed = Page().title("Typed").maxWidth(MaxWidth.ScreenExtraLarge).render()
+        assertTrue(typed.contains("""class="ff-page max-w-screen-xl""""))
+        val alias = Page().title("Alias").maxContentWidth("screen-l").render()
+        assertTrue(alias.contains("""class="ff-page max-w-screen-lg""""))
+        val enumAlias = Page().title("Enum").maxContentWidth(MaxWidth.Container).render()
+        assertTrue(enumAlias.contains("""class="ff-page container""""))
+        assertFalse(enumAlias.contains("max-w-"))
+        val bareDash = Dashboard().render()
+        assertTrue(bareDash.contains("ff-dashboard"))
+        assertFalse(bareDash.contains("data-ff-max-width"))
+        assertFalse(bareDash.contains("max-w-"))
+        val dashFull = Dashboard().maxWidth("full").render()
+        assertTrue(dashFull.contains("""data-ff-max-width="full""""))
+        val dashOwn = Dashboard().maxContentWidth(MaxWidth.ScreenSmall).render()
+        assertTrue(dashOwn.contains("""class="ff-page ff-dashboard max-w-screen-sm""""))
         for ((token, cssClass) in named) {
             val html = Page().title(token).maxWidth(token).render()
             assertTrue(html.contains("""class="ff-page $cssClass""""), token)

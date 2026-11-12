@@ -90,6 +90,13 @@ public class DialogJavaTest {
         String css = Stylesheet.render(new KonaTheme());
         assertTrue(css.contains("--ff-primary"));
         assertTrue(Stylesheet.render(new KonaTheme(), FireflyBranding.DEFAULT).contains("--ff-logo-height"));
+        assertEquals("screen-xl", MaxWidth.requireKnown("screen-xl"));
+        assertEquals("max-w-screen-xl", MaxWidth.utilityClass(MaxWidth.ScreenExtraLarge.getToken()));
+        assertEquals("container", MaxWidth.utilityClass("container"));
+        assertEquals(null, MaxWidth.utilityClass("prose"));
+        assertEquals("--ff-arbitrary-max: 900px", MaxWidth.arbitraryStyle("[900px]"));
+        assertEquals(null, MaxWidth.arbitraryStyle("full"));
+        assertTrue(new Panel().maxWidth(MaxWidth.ScreenExtraLarge).render().contains("max-w-screen-xl"));
     }
 }
 
