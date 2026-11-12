@@ -1,0 +1,39 @@
+{{--
+  Firefly guest document — rendered by AuthLayout via Crema (Phase B).
+
+  Data: documentTitle, csrfToken, fontUrl, fontPreconnect, themeInitScript, css,
+  bodyBackground, bodyColor, brandMark, body, copyright.
+  The body partial keeps <!-- ff-hook:body.start --> and <!-- ff-hook:body.end -->.
+--}}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    @if(csrfToken)
+    <meta name="csrf-token" content="{{ csrfToken }}" />
+    @endif
+    <title>{{ documentTitle }}</title>
+    @if(fontUrl)
+    @if(fontPreconnect)
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    @endif
+    <link rel="stylesheet" href="{{ fontUrl }}" />
+    @endif
+    {!! themeInitScript !!}
+    <style>{!! css !!}</style>
+  </head>
+  <body class="ff-auth" style="margin:0;background:{{ bodyBackground }};color:{{ bodyColor }}">
+    <div class="ff-auth-shell">
+      <div class="ff-auth-atmosphere" aria-hidden="true"></div>
+      <div class="ff-auth-frame">
+        <header class="ff-auth-brand">
+          {!! brandMark !!}
+        </header>
+        {!! body !!}
+        @if(copyright)<p class="ff-auth-copyright">{!! copyright !!}</p>@endif
+      </div>
+    </div>
+  </body>
+</html>

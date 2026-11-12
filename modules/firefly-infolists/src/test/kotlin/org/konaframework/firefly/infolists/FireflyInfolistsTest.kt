@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Grid
@@ -862,6 +863,28 @@ class FireflyInfolistsTest {
             ItemFrame.use(mapOf("a" to 1)) { throw IllegalStateException("x") }
         }
         assertNull(ItemFrame.current())
+    }
+
+    @Test
+    fun prefixAndSuffixActionsRenderBesideTheValue() {
+        val entry = TextEntry.make("title")
+            .state("Ada")
+            .prefix("$")
+            .suffix("kg")
+            .prefixAction(Action.make("copy").label("Copy"))
+            .suffixAction(Action.make("open").label("Open"))
+        val rendered = html(entry)
+        assertTrue(rendered.contains("ff-prefix"))
+        assertTrue(rendered.contains("ff-suffix"))
+        assertTrue(rendered.contains("""data-ff-action="copy""""))
+        assertTrue(rendered.contains("""data-ff-action="open""""))
+        val copyAt = rendered.indexOf("""data-ff-action="copy"""")
+        val valueAt = rendered.indexOf("ff-value")
+        val openAt = rendered.indexOf("""data-ff-action="open"""")
+        assertTrue(copyAt >= 0 && valueAt > copyAt && openAt > valueAt)
+
+        val icon = IconEntry.make("ok").state(true).prefixAction(Action.make("mark").label("Mark"))
+        assertTrue(html(icon).contains("""data-ff-action="mark""""))
     }
 
     private fun html(component: Component): String = Schema.make().components(component).render()

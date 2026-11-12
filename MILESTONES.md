@@ -1187,7 +1187,7 @@ Chainable entry setters accept a static value or a closure (`Function` / `Predic
 - [x] Kotlin and Java regression paths
 - [x] Public docs under Firefly → Infolists
 - [x] 100% line + branch Kover on `kona-firefly-infolists` (and `kona-grind` for the new command)
-- [ ] Entry prefix/suffix actions that need the actions `Action` type (M30)
+- [x] Entry prefix/suffix actions that need the actions `Action` type (M30)
 - [ ] Record aggregates (`avg`, counts, min, max, sum) — no record store on this branch
 - [ ] Private-disk temporary URLs and real file-existence checks
 

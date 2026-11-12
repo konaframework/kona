@@ -64,11 +64,11 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 ### Architectural directive (cemented)
 
-User rejection of “stay on Kotlin string HTML” is accepted. Filament puts layout in Livewire/Blade views; Shamar puts the admin shell in Edge partials + Wire. Kona Wire is already class + Crema (`Component` + `views/wire/….crema.html`). Firefly grind scaffolds already emit class + Crema for custom fields/columns/widgets. Built-in **panel document** chrome now renders from Crema; remaining Kotlin HTML: auth shell, `Panel.kt` partials, tables, built-in field wrappers, dialogs. Performance of string builders vs Crema is **not** a reason to keep Kotlin markup without a measured bench — UX parity is markup + CSS structure.
+User rejection of “stay on Kotlin string HTML” is accepted. Filament puts layout in Livewire/Blade views; Shamar puts the admin shell in Edge partials + Wire. Kona Wire is already class + Crema (`Component` + `views/wire/….crema.html`). Firefly grind scaffolds already emit class + Crema for custom fields/columns/widgets. Built-in **panel document**, auth shell, table chrome, and field wrappers now render from Crema; remaining Kotlin HTML: `Panel.kt` sidebar/topbar partials and dialogs. Performance of string builders vs Crema is **not** a reason to keep Kotlin markup without a measured bench — UX parity is markup + CSS structure.
 
-**How chrome + tables relate now:** Crema owns the outer panel document (`DefaultLayout` → `panel.crema.html`). Table/list/create/edit UX (toolbar, empty row, POST `#ff-form` + submit header actions, horizontal actions, closed-by-default dialogs, denser `firefly.css`) stays Kotlin/CSS until Phase C moves table markup to Crema. Do not reintroduce Kotlin string HTML for the panel shell.
+**How chrome + tables relate now:** Crema owns the outer panel document (`DefaultLayout` → `panel.crema.html`), the auth shell (`AuthLayout` → `views/firefly/auth/shell.crema.html` plus `form.crema.html`), table chrome (`views/firefly/tables/*.crema.html`), and built-in field wrappers (`views/firefly/fields/wrapper.crema.html`). Column cells, sidebar/topbar partials, and dialogs stay Kotlin. Do not reintroduce Kotlin string HTML for the panel shell, auth shell, table chrome, or field wrappers.
 
-**Next steps:** (1) green CI / PR + automerge this unified branch; (2) abandon or close `fix/firefly-table-shamar-ui` and `docs/firefly-wire-crema-rule` once this lands; (3) Phase B in [firefly-views.md](firefly-views.md) — auth shell to Crema; then C table partials → D field wrappers; (4) optional follow-up **`kona-heroicons`** (see below) — do not block this PR.
+**Next steps:** (1) green CI / PR + automerge this unified branch; (2) abandon or close `fix/firefly-table-shamar-ui` and `docs/firefly-wire-crema-rule` once this lands; (3) remaining Kotlin HTML is sidebar/topbar partials and dialogs — see [firefly-views.md](firefly-views.md); (4) optional follow-up **`kona-heroicons`** (see below) — do not block this PR.
 
 ### Layout file locations (Phase A)
 
@@ -77,7 +77,11 @@ User rejection of “stay on Kotlin string HTML” is accepted. Filament puts la
 | Crema panel document | `modules/firefly-support/src/main/resources/views/firefly/layouts/panel.crema.html` |
 | Adapter | `DefaultLayout` in `modules/firefly-support/.../Chrome.kt` → `FireflyCrema.engine().render("firefly.layouts.panel", …)` |
 | Finder | `FireflyCrema` / `ClasspathViewFinder` in `FireflyCrema.kt` (classpath `views/`) |
-| Still Kotlin HTML | Auth shell (`AuthLayout.kt`); sidebar/topbar/body/footer **partials** + hooks in `Panel.kt` / `Chrome.kt` `builtin()`; tables, actions, dialogs, field wrappers |
+| Auth Crema document | `modules/firefly-support/src/main/resources/views/firefly/auth/shell.crema.html` |
+| Auth forms | `views/firefly/auth/form.crema.html` inside `body.crema.html` (hook markers) |
+| Table chrome | `modules/firefly-tables/src/main/resources/views/firefly/tables/*.crema.html` |
+| Field wrappers | `modules/firefly-forms/src/main/resources/views/firefly/fields/{label,wrapper}.crema.html` |
+| Still Kotlin HTML | Sidebar/topbar/body/footer **partials** + hooks in `Panel.kt` / `Chrome.kt` `builtin()`; dialogs; column cell renderers |
 
 ### Desk bugfixes on this branch (edit / delete / nav)
 
@@ -238,7 +242,7 @@ Key paths: `modules/` (framework), `apps/docs/`, `js/wire/`, `docs/governance/`,
 
 ## Open gaps / next priorities
 
-1. **Firefly Phase B (auth Crema):** move `AuthLayout` / auth form markup to `views/firefly/auth/*.crema.html` — see [firefly-views.md](firefly-views.md). Phase A (panel chrome Crema) is on `feat/firefly-wire-crema-chrome`.
+1. **Firefly chrome still in Kotlin HTML:** sidebar, top bar, and user-menu partials in `Panel.kt`, plus dialogs. Phases A–D (panel document, auth shell, table chrome, field wrappers) render from Crema — see [firefly-views.md](firefly-views.md).
 2. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
 3. Confirm no conflicting open PRs (keep `fix/firefly-table-shamar-ui` separate from chrome).
 4. Pick remaining **deepen** slices from the Almasix ledger. Non-colliding milestones may proceed in parallel, each on its own branch. Do not start a milestone that depends on another until that dependency is on `main`. **M26 Wire** shipped on **0.3.0**.

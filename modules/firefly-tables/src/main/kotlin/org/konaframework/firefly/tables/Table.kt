@@ -643,18 +643,22 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             } else {
                 """ data-ff-filters-prefix="${escapeHtml(filterSet.queryPrefix())}""""
             }
-        return """
-            <div class="ff-table-wrap" data-ff-layout="${layout.name.lowercase()}"$stackedAttr$composedAttr$gridAttr$pollAttr$filtersPrefix${selectionAttrs(loaded)}>
-              ${toolbar(cell, loaded)}
-              ${filterSet.aboveHtml(filterView(cell))}
-              ${filterSet.indicatorsHtml(filterView(cell))}
-              ${body(loaded, visible)}
-              ${footer(loaded)}
-              ${emptyState(loaded, cell)}
-              ${pager(loaded)}
-              ${filterSet.belowHtml(filterView(cell))}
-            </div>
-        """.trimIndent()
+        val filters = filterView(cell)
+        return TableCrema.render(
+            TableCrema.WRAP,
+            mapOf(
+                "layout" to layout.name.lowercase(),
+                "attrs" to stackedAttr + composedAttr + gridAttr + pollAttr + filtersPrefix + selectionAttrs(loaded),
+                "toolbar" to toolbar(cell, loaded),
+                "above" to filterSet.aboveHtml(filters),
+                "indicators" to filterSet.indicatorsHtml(filters),
+                "body" to body(loaded, visible),
+                "footer" to footer(loaded),
+                "empty" to emptyState(loaded, cell),
+                "pager" to pager(loaded),
+                "below" to filterSet.belowHtml(filters),
+            ),
+        )
     }
 
     private fun usesComposedLayout(): Boolean = columnDefs.any { it is LayoutComponent }
@@ -806,25 +810,28 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private fun selectionBar(loaded: LoadedTable<T>): String {
         if (!isSelectable()) return ""
         val withinMax = maxSelectable?.let { loaded.total <= it } ?: true
-        val all = if (!currentPageOnly && !groupsOnly && withinMax) {
-            """<button type="button" class="ff-table-selection-link" data-ff-select-all-matching hidden>Select all ${loaded.total}</button>"""
-        } else {
-            ""
-        }
-        return """<div class="ff-table-selection" data-ff-selection role="status" hidden><span class="ff-table-selection-count" data-ff-selection-count></span>$all<button type="button" class="ff-table-selection-link" data-ff-deselect-all>Deselect all</button></div>"""
+        return TableCrema.render(
+            TableCrema.SELECTION,
+            mapOf(
+                "showAll" to (!currentPageOnly && !groupsOnly && withinMax),
+                "total" to loaded.total,
+            ),
+        )
     }
 
     private fun toolbar(cell: Cell, loaded: LoadedTable<T>): String {
         val bulk = bulkHtml(cell)
-        val selection = selectionBar(loaded)
         val form = toolbarForm(cell)
-        val toolbar = when {
-            bulk.isEmpty() && form.isEmpty() -> """<div class="ff-table-toolbar ff-table-toolbar--empty" hidden></div>"""
-            bulk.isEmpty() -> """<div class="ff-table-toolbar">$form</div>"""
-            // Bulk forms are POST forms — keep them outside the GET toolbar form.
-            else -> """<div class="ff-table-toolbar"><div class="ff-table-toolbar-row">$bulk$form</div></div>"""
-        }
-        return toolbar + selection
+        return TableCrema.render(
+            TableCrema.TOOLBAR,
+            mapOf(
+                "empty" to (bulk.isEmpty() && form.isEmpty()),
+                "hasBulk" to bulk.isNotEmpty(),
+                "bulk" to bulk,
+                "form" to form,
+                "selection" to selectionBar(loaded),
+            ),
+        )
     }
 
     /** Search, column picker, filters, and header buttons — empty when the table has none. */
@@ -832,27 +839,13 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val searchable = columnList.any { it.isSearchable(cell) }
         val columnToggle = columnToggleHtml(cell)
         val mobileSort = mobileSortHtml(cell)
-        val search = if (!searchable) {
-            ""
-        } else {
-            """
-            <div class="ff-table-search-wrap">
-              <svg class="ff-table-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0015.803 15.803z"/></svg>
-              <input class="ff-table-search" type="search" name="search" value="${escapeHtml(searchTerm)}" placeholder="Search…" aria-label="Search">
-            </div>
-            """.trimIndent()
-        }
         val filterView = filterView(cell)
         val filters = filterSet.triggerHtml(filterView)
         val buttons = headerButtonList.joinToString("") { it.render(cell, selectedKeys.isEmpty()) }
-        val tools = if (filters.isEmpty() && buttons.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) {
-            ""
-        } else {
-            """<div class="ff-table-toolbar-actions">$mobileSort$columnToggle$filters$buttons</div>"""
+        val tools = mobileSort + columnToggle + filters + buttons
+        if (!searchable && filters.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) {
+            return ""
         }
-        if (!searchable && filters.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) return ""
-        val columnsHidden = columnsQueryHiddenInput(cell)
-        val filterHidden = filterSet.hiddenInputs(cell)
         val persistedHidden = persistentQuery.entries.joinToString("") { (key, value) ->
             """<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}" />"""
         }
@@ -864,7 +857,20 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             } else {
                 """ data-ff-filters-prefix="${escapeHtml(filterSet.queryPrefix())}""""
             }
-        return """<form class="ff-table-toolbar-form" method="get" data-ff-table-nav$prefixAttr>$persistedHidden$search$columnsHidden$filterHidden$tools</form>${filterSet.panelHtml(filterView)}"""
+        return TableCrema.render(
+            TableCrema.FORM,
+            mapOf(
+                "prefixAttr" to prefixAttr,
+                "persisted" to persistedHidden,
+                "searchable" to searchable,
+                "searchTerm" to searchTerm,
+                "columnsHidden" to columnsQueryHiddenInput(cell),
+                "filterHidden" to filterSet.hiddenInputs(cell),
+                "hasTools" to tools.isNotEmpty(),
+                "tools" to tools,
+                "panels" to filterSet.panelHtml(filterView),
+            ),
+        )
     }
 
     /**
@@ -890,12 +896,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                 """<option value="${escapeHtml(column.name)}:desc"$descSelected>$label · Desc</option>""",
             )
         }
-        return """
-            <label class="ff-table-mobile-sort">
-              <span class="ff-table-mobile-sort-label">Sort</span>
-              <select class="ff-table-mobile-sort-select" data-ff-table-nav-select data-ff-mobile-sort aria-label="Sort records">$options</select>
-            </label>
-        """.trimIndent()
+        return TableCrema.render(TableCrema.MOBILE_SORT, mapOf("options" to options.toString()))
     }
 
     /** Columns picker for [Column.toggleable] / [Column.toggledHiddenByDefault] (#363). */
@@ -907,15 +908,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             val label = escapeHtml(column.heading(cell))
             """<label class="ff-column-toggle-option"><input type="checkbox" data-ff-column-toggle="${escapeHtml(column.name)}"$checked /><span>$label</span></label>"""
         }
-        return """
-            <details class="ff-column-toggle">
-              <summary class="ff-column-toggle-trigger" aria-label="Toggle columns">
-                <svg class="ff-column-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"/></svg>
-                <span>Columns</span>
-              </summary>
-              <div class="ff-column-toggle-panel" role="group" aria-label="Toggle columns">$options</div>
-            </details>
-        """.trimIndent()
+        return TableCrema.render(TableCrema.COLUMN_TOGGLE, mapOf("options" to options))
     }
 
     private fun columnsQueryHiddenInput(cell: Cell): String {
@@ -955,7 +948,10 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val span = visible.size + (if (selecting) 1 else 0) + (if (rowButtonList.isEmpty()) 0 else 1)
         val body = when {
             loaded.isEmpty() -> {
-                """<tr class="ff-table-empty-row"><td colspan="$span">${emptyStateInner(cell)}</td></tr>"""
+                TableCrema.render(
+                    TableCrema.EMPTY_ROW,
+                    mapOf("span" to span, "inner" to emptyStateInner(cell)),
+                )
             }
             loaded.groups.isEmpty() -> loaded.records.joinToString("") { recordRow(it, visible, null) }
             else -> loaded.groups.joinToString("") { (label, records) ->
@@ -964,7 +960,10 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             }
         }
         val head = if (checkboxPosition == RecordCheckboxPosition.AFTER_CELLS) "$headers$selectHead" else "$selectHead$headers"
-        return """<div class="ff-table-scroll"><table class="ff-table"><thead><tr>$head$actionHead</tr></thead><tbody>$body</tbody></table></div>"""
+        return TableCrema.render(
+            TableCrema.SCROLL,
+            mapOf("head" to head + actionHead, "rows" to body),
+        )
     }
 
     private fun columnHeader(column: Column, cell: Cell): String {
@@ -1082,7 +1081,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val cell = tableCell()
         val content = when {
             loaded.isEmpty() -> {
-                """<div class="ff-table-card ff-table-card--empty">${emptyStateInner(cell)}</div>"""
+                TableCrema.render(TableCrema.EMPTY_CARD, mapOf("inner" to emptyStateInner(cell)))
             }
             loaded.groups.isEmpty() -> loaded.records.joinToString("") { card(it, visible, null) }
             else -> loaded.groups.joinToString("") { (label, records) ->
@@ -1098,20 +1097,24 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             } else {
                 """ data-ff-content-grid="true" data-ff-columns="${grid.dataValue()}""""
             }
-        val selectPage =
-            if (!isSelectable() || loaded.isEmpty() || groupsOnly) {
-                ""
-            } else {
-                """<div class="ff-table-card-select-page">${selectPageBox(loaded)}<span>Select all on this page</span></div>"""
-            }
-        return """<div class="$className"$gridData$style>$selectPage$content</div>"""
+        val showSelectPage = isSelectable() && !loaded.isEmpty() && !groupsOnly
+        return TableCrema.render(
+            TableCrema.CARDS,
+            mapOf(
+                "className" to className,
+                "extra" to gridData + style,
+                "showSelectPage" to showSelectPage,
+                "selectBox" to if (showSelectPage) selectPageBox(loaded) else "",
+                "content" to content,
+            ),
+        )
     }
 
     private fun card(record: T, visible: List<Column>, group: String?): String {
         val values = store.attributes(record)
         val key = store.keyOf(record)
-        val select = if (isSelectable()) """<div class="ff-table-select ff-table-card-select">${selectionBox(values, key)}</div>""" else ""
-        val selected = if (select.isNotEmpty() && key in selectedKeys) " ff-selected" else ""
+        val selectable = isSelectable()
+        val selected = if (selectable && key in selectedKeys) " ff-selected" else ""
         val groupAttr = group?.let { """ data-ff-group="${escapeHtml(it)}"""" }.orEmpty()
         val fields =
             if (usesComposedLayout()) {
@@ -1123,7 +1126,19 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             }
         val actions = rowActions(values, key, record, asTableCell = false)
         val click = recordClickAttrs(rowActionCell(values, key))
-        return """<article class="ff-table-card$selected" data-ff-record="${escapeHtml(key)}"$groupAttr$click><div class="ff-table-card-main">$select<div class="ff-table-card-body">$fields</div></div>$actions</article>"""
+        return TableCrema.render(
+            TableCrema.CARD,
+            mapOf(
+                "selected" to selected,
+                "key" to escapeHtml(key),
+                "groupAttr" to groupAttr,
+                "click" to click,
+                "selectable" to selectable,
+                "selectBox" to if (selectable) selectionBox(values, key) else "",
+                "fields" to fields,
+                "actions" to actions,
+            ),
+        )
     }
 
     private fun composedFields(values: Map<String, Any?>, key: String): String {
@@ -1249,7 +1264,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private fun emptyState(loaded: LoadedTable<T>, cell: Cell): String {
         // Empty copy lives inside the table body (Shamar list). Keep a hidden sentinel for tests.
         if (!loaded.isEmpty()) return ""
-        return """<div class="ff-table-empty" hidden>${emptyStateInner(cell)}</div>"""
+        return TableCrema.render(TableCrema.EMPTY, mapOf("inner" to emptyStateInner(cell)))
     }
 
     private fun emptyStateInner(cell: Cell): String {
@@ -1262,47 +1277,38 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     private fun pager(loaded: LoadedTable<T>): String {
         if (!paginate) return ""
-        val meta = """<p class="ff-pagination-meta">Page ${loaded.page} of ${loaded.lastPage} · ${loaded.total} records</p>"""
-        val previous = if (loaded.page > 1) {
-            """<a class="ff-pagination-link" href="${escapeHtml(pageHref(loaded.page - 1))}" data-ff-table-nav data-ff-page="prev">Previous</a>"""
+        val links = if (loaded.lastPage <= 1) {
+            emptyList()
         } else {
-            """<span class="ff-pagination-link is-disabled" aria-disabled="true">Previous</span>"""
-        }
-        val next = if (loaded.hasMorePages()) {
-            """<a class="ff-pagination-link" href="${escapeHtml(pageHref(loaded.page + 1))}" data-ff-table-nav data-ff-page="next">Next</a>"""
-        } else {
-            """<span class="ff-pagination-link is-disabled" aria-disabled="true">Next</span>"""
-        }
-        val links = pageLinks(loaded)
-        val sizes = if (pageSizes.isEmpty()) {
-            ""
-        } else {
-            val options = pageSizes.joinToString("") { size ->
-                val selected = if (size == pageSize) " selected" else ""
-                """<option value="$size"$selected>$size</option>"""
+            paginationWindow(loaded.page, loaded.lastPage).map { token ->
+                if (token == null) {
+                    mapOf("ellipsis" to true, "current" to false, "page" to 0, "href" to "")
+                } else {
+                    mapOf(
+                        "ellipsis" to false,
+                        "current" to (token == loaded.page),
+                        "page" to token,
+                        "href" to pageHref(token),
+                    )
+                }
             }
-            """<label class="ff-page-size-label">Rows <select class="ff-page-size" name="perPage" data-ff-table-nav-select>$options</select></label>"""
         }
-        val controls = """<div class="ff-pagination-controls">$previous$links$next$sizes</div>"""
-        return """<nav class="ff-pagination" data-ff-pagination aria-label="Pagination">$meta$controls</nav>"""
-    }
-
-    /** Shamar-style numbered page links with ellipsis windows. */
-    private fun pageLinks(loaded: LoadedTable<T>): String {
-        if (loaded.lastPage <= 1) return ""
-        val out = StringBuilder()
-        for (token in paginationWindow(loaded.page, loaded.lastPage)) {
-            if (token == null) {
-                out.append("""<span class="ff-pagination-ellipsis" aria-hidden="true">…</span>""")
-                continue
-            }
-            val current = if (token == loaded.page) """ aria-current="page"""" else ""
-            val active = if (token == loaded.page) " is-active" else ""
-            out.append(
-                """<a class="ff-pagination-link$active"$current href="${escapeHtml(pageHref(token))}" data-ff-table-nav data-ff-page="$token">$token</a>""",
-            )
-        }
-        return out.toString()
+        val sizes = pageSizes.map { size -> mapOf("value" to size, "selected" to (size == pageSize)) }
+        return TableCrema.render(
+            TableCrema.PAGINATION,
+            mapOf(
+                "page" to loaded.page,
+                "lastPage" to loaded.lastPage,
+                "total" to loaded.total,
+                "hasPrev" to (loaded.page > 1),
+                "hasNext" to loaded.hasMorePages(),
+                "prevHref" to pageHref(loaded.page - 1),
+                "nextHref" to pageHref(loaded.page + 1),
+                "links" to links,
+                "showSizes" to pageSizes.isNotEmpty(),
+                "sizes" to sizes,
+            ),
+        )
     }
 
     private fun pageHref(page: Int): String {

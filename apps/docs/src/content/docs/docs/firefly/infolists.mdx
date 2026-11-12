@@ -127,6 +127,7 @@ name.live();
 | `copyable`, `copyMessage`, `copyMessageDuration`, `copyableState` | Copy affordance on the entry |
 | `helperText`, `hint`, `hintColor`, `hintIcon` | Secondary text and hint |
 | `prefix`, `suffix` | Text around the value |
+| `prefixAction`, `suffixAction` | An `Action` before or after the value |
 | `alignment`, `alignStart`, `alignCenter`, `alignEnd`, `alignJustify` | Text alignment (default **justify**; labels stay start) |
 | `wrap`, `inlineLabel` | Wrapping (default **on** so long values fit view/manage modals and page containers) and an inline label |
 | `extraAttributes` | HTML attributes on the component root. A map or a closure. Names that are not HTML attribute names are skipped |
@@ -212,4 +213,31 @@ The command writes `app/firefly/entries/Note.kt` and a Crema view that uses `x-d
 
 ## Prefix, suffix, and what lives elsewhere
 
-`prefix` and `suffix` are text, or a closure that returns text. They are not action buttons. A count or an average belongs on a table column: call `summarize` on [Tables](/docs/firefly/tables/). A code editor is a form field on [Forms](/docs/firefly/forms/).
+`prefix` and `suffix` are text, or a closure that returns text. They render as `ff-prefix` and `ff-suffix` on a text entry.
+
+`prefixAction` and `suffixAction` take an [Action](/docs/firefly/actions/). The button renders beside the value: the prefix action before it, the suffix action after it. Text prefix and suffix stay in place. The same methods work on every entry, including an icon entry.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextEntry.make("title")
+    .state("Ada")
+    .prefix("$")
+    .prefixAction(Action.make("copy").label("Copy"))
+    .suffixAction(Action.make("open").label("Open"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry title = TextEntry.make("title").state("Ada").prefix("$");
+title.prefixAction(Action.make("copy").label("Copy"));
+title.suffixAction(Action.make("open").label("Open"));
+```
+
+</TabItem>
+</Tabs>
+
+You see **Copy** before the value and **Open** after it. A count or an average belongs on a table column: call `summarize` on [Tables](/docs/firefly/tables/). A code editor is a form field on [Forms](/docs/firefly/forms/).

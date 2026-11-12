@@ -334,48 +334,60 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
 
     protected fun chrome(schema: Schema, get: Get, path: String, value: Any?): String {
         val required = isEffectivelyRequired(get)
-        return buildString {
-            append(textTag("div", "ff-above", aboveText.get(get)))
-            append(fieldLabelHtml(schema, required))
-            append(textTag("p", "ff-hint", hintText.get(get)))
-            val hintButton = hintAction
-            if (hintButton != null) append(hintButton.render(schema))
-            val hintColor = hintColorText.get(get)
-            val hintIcon = hintIconText.get(get)
-            if (hintColor != null) append("""<span class="ff-hint-color" data-ff-hint-color="${esc(hintColor)}"></span>""")
-            if (hintIcon != null) append("""<span class="ff-hint-icon" data-ff-hint-icon="${esc(hintIcon)}"></span>""")
-            val prefixLabel = prefixText.get(get)
-            val suffixLabel = suffixText.get(get)
-            val prefixIcon = prefixIconText.get(get)
-            val suffixIcon = suffixIconText.get(get)
-            val prefixButton = prefixAction
-            val suffixButton = suffixAction
-            val hasPrefix = !prefixLabel.isNullOrEmpty() || prefixIcon != null || prefixButton != null
-            val hasSuffix = !suffixLabel.isNullOrEmpty() || suffixIcon != null || suffixButton != null
-            val controlClass = buildString {
-                append("ff-control")
-                if (hasPrefix) append(" has-prefix")
-                if (hasSuffix) append(" has-suffix")
-                if (inlinePrefixFlag) append(" ff-inline-prefix")
-            }
-            append("""<div class="$controlClass">""")
-            append(entangle(path))
-            if (prefixButton != null) append(prefixButton.render(schema))
-            if (!prefixLabel.isNullOrEmpty()) append("""<span class="ff-prefix" aria-hidden="true">${esc(prefixLabel)}</span>""")
-            if (prefixIcon != null) {
-                append("""<span class="ff-prefix-icon" data-ff-icon="${esc(prefixIcon)}"${attr("data-ff-icon-color", prefixIconColorText.get(get))}></span>""")
-            }
-            append(control(schema, get, path, value))
-            if (!suffixLabel.isNullOrEmpty()) append("""<span class="ff-suffix" aria-hidden="true">${esc(suffixLabel)}</span>""")
-            if (suffixButton != null) append(suffixButton.render(schema))
-            if (suffixIcon != null) {
-                append("""<span class="ff-suffix-icon" data-ff-icon="${esc(suffixIcon)}"${attr("data-ff-icon-color", suffixIconColorText.get(get))}></span>""")
-            }
-            append("</div>")
-            append(textTag("p", "ff-helper", helperText.get(get)))
-            append(textTag("div", "ff-below", belowText.get(get)))
+        val prefixLabel = prefixText.get(get)
+        val suffixLabel = suffixText.get(get)
+        val prefixIcon = prefixIconText.get(get)
+        val suffixIcon = suffixIconText.get(get)
+        val prefixIconColor = prefixIconColorText.get(get)
+        val suffixIconColor = suffixIconColorText.get(get)
+        val hintColor = hintColorText.get(get)
+        val hintIcon = hintIconText.get(get)
+        val prefixButton = prefixAction
+        val suffixButton = suffixAction
+        val hintButton = hintAction
+        val hasPrefix = !prefixLabel.isNullOrEmpty() || prefixIcon != null || prefixButton != null
+        val hasSuffix = !suffixLabel.isNullOrEmpty() || suffixIcon != null || suffixButton != null
+        val controlClass = buildString {
+            append("ff-control")
+            if (hasPrefix) append(" has-prefix")
+            if (hasSuffix) append(" has-suffix")
+            if (inlinePrefixFlag) append(" ff-inline-prefix")
         }
+        return FieldCrema.render(
+            FieldCrema.WRAPPER,
+            mapOf(
+                "above" to escOrNull(aboveText.get(get)),
+                "label" to fieldLabelHtml(schema, required),
+                "hint" to escOrNull(hintText.get(get)),
+                "hintAction" to if (hintButton == null) "" else hintButton.render(schema),
+                "showHintColor" to (hintColor != null),
+                "hintColor" to esc(hintColor ?: ""),
+                "showHintIcon" to (hintIcon != null),
+                "hintIcon" to esc(hintIcon ?: ""),
+                "controlClass" to controlClass,
+                "entangle" to entangle(path),
+                "prefixAction" to if (prefixButton == null) "" else prefixButton.render(schema),
+                "showPrefixLabel" to !prefixLabel.isNullOrEmpty(),
+                "prefixLabel" to esc(prefixLabel ?: ""),
+                "showPrefixIcon" to (prefixIcon != null),
+                "prefixIcon" to esc(prefixIcon ?: ""),
+                "showPrefixIconColor" to (prefixIconColor != null),
+                "prefixIconColor" to esc(prefixIconColor ?: ""),
+                "control" to control(schema, get, path, value),
+                "showSuffixLabel" to !suffixLabel.isNullOrEmpty(),
+                "suffixLabel" to esc(suffixLabel ?: ""),
+                "suffixAction" to if (suffixButton == null) "" else suffixButton.render(schema),
+                "showSuffixIcon" to (suffixIcon != null),
+                "suffixIcon" to esc(suffixIcon ?: ""),
+                "showSuffixIconColor" to (suffixIconColor != null),
+                "suffixIconColor" to esc(suffixIconColor ?: ""),
+                "helper" to escOrNull(helperText.get(get)),
+                "below" to escOrNull(belowText.get(get)),
+            ),
+        )
     }
+
+    private fun escOrNull(value: String?): String? = if (value.isNullOrEmpty()) null else esc(value)
 
     /**
      * Label with an inline red required mark when needed (Shamar-style).
@@ -384,8 +396,10 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
     protected open fun fieldLabelHtml(schema: Schema, required: Boolean): String {
         val text = resolvedLabel(schema).orEmpty()
         if (text.isEmpty() && !required) return ""
-        val mark = if (required) """<span class="ff-required-mark" aria-hidden="true">*</span>""" else ""
-        return """<label class="ff-label">${esc(text)}$mark</label>"""
+        return FieldCrema.render(
+            FieldCrema.LABEL,
+            mapOf("text" to esc(text), "required" to required),
+        )
     }
 
     protected fun isEffectivelyRequired(get: Get): Boolean = requiredSwitch.get(get) || markRequired

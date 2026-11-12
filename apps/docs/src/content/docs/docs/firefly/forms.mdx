@@ -41,7 +41,7 @@ String html = schema.render();
 </TabItem>
 </Tabs>
 
-`make("name")` sets the state key. `render()` wraps the control in field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Leave `Alpine.start()` to that instance.
+`make("name")` sets the state key. `render()` wraps the control in field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. That wrapper is the Crema view `firefly.fields.wrapper` (`views/firefly/fields/wrapper.crema.html`). The label tag is `firefly.fields.label`. The input itself stays with the field class. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Leave `Alpine.start()` to that instance.
 
 `FormAssets.script()` and `FormAssets.stylesheet()` are the field script and CSS. Prose from the rich-text and markdown editors uses the caramel accent `#DF8723` through `--ff-primary`.
 

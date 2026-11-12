@@ -35,10 +35,15 @@ class ClasspathViewFinder(
  * Bundled Crema engine for Firefly support layouts.
  *
  * Phase A: [DefaultLayout] renders [PANEL] (`views/firefly/layouts/panel.crema.html`).
+ * Phase B: [AuthLayout] renders [AUTH_SHELL]; login, register, reset, and verify forms
+ * render [AUTH_FORM] inside [AUTH_BODY].
  * A full Wire page-host component is deferred; Kotlin remains the [PanelLayout] adapter.
  */
 object FireflyCrema {
     const val PANEL: String = "firefly.layouts.panel"
+    const val AUTH_SHELL: String = "firefly.auth.shell"
+    const val AUTH_BODY: String = "firefly.auth.body"
+    const val AUTH_FORM: String = "firefly.auth.form"
 
     private val defaultEngine: CremaEngine by lazy {
         CremaEngine(ClasspathViewFinder(FireflyCrema::class.java.classLoader))
@@ -48,5 +53,8 @@ object FireflyCrema {
     fun engine(): CremaEngine = defaultEngine
 
     @JvmStatic
-    fun renderPanel(data: Map<String, Any?>): String = defaultEngine.render(PANEL, data)
+    fun render(name: String, data: Map<String, Any?>): String = defaultEngine.render(name, data)
+
+    @JvmStatic
+    fun renderPanel(data: Map<String, Any?>): String = render(PANEL, data)
 }
