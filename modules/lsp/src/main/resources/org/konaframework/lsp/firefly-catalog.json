@@ -18,32 +18,32 @@
     "name" : "CreatePage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "CustomPage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "Dashboard",
     "package" : "org.konaframework.firefly.widgets",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "infolistHtml", "maxWidth", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "relationsHtml", "render", "schema", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "infolistHtml", "maxContentWidth", "maxWidth", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "relationsHtml", "render", "schema", "table", "title", "widgets" ]
   }, {
     "name" : "DashboardPage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "EditPage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "extraHeaderActions", "filtersForm", "findWidget", "footerActions", "form", "getHeaderActions", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "extraHeaderActions", "filtersForm", "findWidget", "footerActions", "form", "getHeaderActions", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "ListPage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "ListWidget",
     "package" : "org.konaframework.firefly.widgets",
@@ -53,7 +53,7 @@
     "name" : "ManagePage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "NavigationCardsWidget",
     "package" : "org.konaframework.firefly.widgets",
@@ -68,7 +68,7 @@
     "name" : "Page",
     "package" : "org.konaframework.firefly.widgets",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "infolistHtml", "maxWidth", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "relationsHtml", "render", "schema", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "infolistHtml", "maxContentWidth", "maxWidth", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "relationsHtml", "render", "schema", "table", "title", "widgets" ]
   }, {
     "name" : "Panel",
     "package" : "org.konaframework.firefly",
@@ -78,22 +78,22 @@
     "name" : "PanelPage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "ProfilePage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "fill", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "save", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "fill", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "save", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "RecordPage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "extraHeaderActions", "filtersForm", "findWidget", "footerActions", "form", "getHeaderActions", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "extraHeaderActions", "filtersForm", "findWidget", "footerActions", "form", "getHeaderActions", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "Resource",
     "package" : "org.konaframework.firefly",
     "kind" : "resource",
-    "methods" : [ "authorizeWithoutPolicy", "boundModel", "can", "canCreate", "canDelete", "canDeleteAny", "canEdit", "canForceDelete", "canForceDeleteAny", "canReorder", "canReplicate", "canRestore", "canRestoreAny", "canView", "canViewAny", "combinedRelationManagerTabsWithContent", "contentTabLabel", "form", "formColumns", "getContentTabLabel", "getPages", "getRelationGroups", "getRelations", "hasCombinedRelationManagerTabsWithContent", "icon", "infolist", "infolistColumns", "isScopedToTenant", "isSimple", "label", "maxWidth", "model", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "pages", "pluralLabel", "query", "relation", "relationGroup", "relationManagers", "scopedToTenant", "shouldRegisterNavigation", "simple", "slug", "table", "tenant", "tenantOwnershipRelationship", "tenantOwnershipRelationshipName" ]
+    "methods" : [ "authorizeWithoutPolicy", "boundModel", "can", "canCreate", "canDelete", "canDeleteAny", "canEdit", "canForceDelete", "canForceDeleteAny", "canReorder", "canReplicate", "canRestore", "canRestoreAny", "canView", "canViewAny", "combinedRelationManagerTabsWithContent", "contentTabLabel", "form", "formColumns", "getContentTabLabel", "getPages", "getRelationGroups", "getRelations", "hasCombinedRelationManagerTabsWithContent", "icon", "infolist", "infolistColumns", "isScopedToTenant", "isSimple", "label", "maxContentWidth", "maxWidth", "model", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "pages", "pluralLabel", "query", "relation", "relationGroup", "relationManagers", "scopedToTenant", "shouldRegisterNavigation", "simple", "slug", "table", "tenant", "tenantOwnershipRelationship", "tenantOwnershipRelationshipName" ]
   }, {
     "name" : "RevenueChart",
     "package" : "org.konaframework.firefly.widgets",
@@ -103,7 +103,7 @@
     "name" : "SettingsPage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "canSave", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "canSave", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "StatsOverviewWidget",
     "package" : "org.konaframework.firefly.widgets",
@@ -118,17 +118,17 @@
     "name" : "TenantProfile",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "fill", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "save", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "fill", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "save", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "TenantRegistration",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "register", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "filtersForm", "findWidget", "footerActions", "form", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "register", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "ViewPage",
     "package" : "org.konaframework.firefly",
     "kind" : "page",
-    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "extraHeaderActions", "filtersForm", "findWidget", "footerActions", "form", "getHeaderActions", "headerActionList", "headerActions", "icon", "infolistHtml", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
+    "methods" : [ "actionHost", "actionPost", "breadcrumbs", "canAccess", "columns", "defaultMaxWidth", "discoverWidgets", "extraHeaderActions", "filtersForm", "findWidget", "footerActions", "form", "getHeaderActions", "headerActionList", "headerActions", "icon", "infolistHtml", "maxContentWidth", "maxWidth", "mountForm", "mountInfolist", "mountedFiltersForm", "mountedForm", "mountedTable", "mountedWidgets", "navigationBadge", "navigationBadgeColor", "navigationGroup", "navigationIcon", "navigationLabel", "navigationSort", "onFormSubmit", "parent", "parentName", "relationsHtml", "render", "schema", "shouldRegisterNavigation", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "Widget",
     "package" : "org.konaframework.firefly.widgets",
