@@ -44,6 +44,34 @@ Collection.wrap(List.of(1, 2)).join("-");
 </TabItem>
 </Tabs>
 
+## 惰性集合
+
+`Collection` 上的 `lazy()` 返回 `LazyCollection`。`map`、`filter`、`reject`、`take`、`skip`、`unique`、`flatMap` 和 `tap` 会等到你迭代、调用 `first`、`count` 或 `isEmpty`，或用 `collect()` 收回一个 `Collection` 时才读取元素。`LazyCollection.make`、`of` 和 `empty` 可以直接创建。
+
+```kotlin
+val firstEven = Collection.make(1, 2, 3, 4)
+    .lazy()
+    .filter { it % 2 == 0 }
+    .take(1)
+    .first()
+```
+
+## 高阶代理
+
+`higher(operation)` 把该操作作用到每个元素的属性或无参方法上。`get` 先读映射的键，再读 `get` 或 `is` 访问器，然后读字段。`call` 调用公开的无参方法。操作有 `map`、`filter`、`reject`、`each`、`sum`、`every` 和 `first`。值为 `true`、非零数字、非空字符串或非空可迭代对象时视为存在。代理来自 `LazyCollection` 时，`map`、`filter` 和 `reject` 保持惰性。
+
+```kotlin
+collect(users).higher("map").get("name")
+collect(users).higher("filter").get("active")
+collect(users).higher("each").call("ping")
+collect(users).higher("sum").get("votes")
+```
+
+```java
+rows.higher("map").get("name");
+rows.higher("each").call("ping");
+```
+
 ## 字符串
 
 ```kotlin

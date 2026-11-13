@@ -44,6 +44,34 @@ Collection.wrap(List.of(1, 2)).join("-");
 </TabItem>
 </Tabs>
 
+## Colecciones perezosas
+
+`lazy()` en un `Collection` devuelve un `LazyCollection`. `map`, `filter`, `reject`, `take`, `skip`, `unique`, `flatMap` y `tap` esperan hasta que iteras, llamas a `first`, `count` o `isEmpty`, o `collect()` de vuelta a un `Collection`. `LazyCollection.make`, `of` y `empty` lo crean directamente.
+
+```kotlin
+val firstEven = Collection.make(1, 2, 3, 4)
+    .lazy()
+    .filter { it % 2 == 0 }
+    .take(1)
+    .first()
+```
+
+## Proxies de orden superior
+
+`higher(operation)` aplica esa operación a una propiedad o a un método sin argumentos de cada elemento. `get` lee una clave de mapa, luego un accesor `get` o `is`, y después un campo. `call` invoca un método público sin argumentos. Las operaciones son `map`, `filter`, `reject`, `each`, `sum`, `every` y `first`. Un valor cuenta como presente cuando es `true`, un número distinto de cero, un texto no vacío o un iterable no vacío. `map`, `filter` y `reject` siguen perezosos si el proxy sale de un `LazyCollection`.
+
+```kotlin
+collect(users).higher("map").get("name")
+collect(users).higher("filter").get("active")
+collect(users).higher("each").call("ping")
+collect(users).higher("sum").get("votes")
+```
+
+```java
+rows.higher("map").get("name");
+rows.higher("each").call("ping");
+```
+
 ## Cadenas
 
 ```kotlin

@@ -44,6 +44,34 @@ Collection.wrap(List.of(1, 2)).join("-");
 </TabItem>
 </Tabs>
 
+## Lazy collections
+
+`lazy()` on a `Collection` returns a `LazyCollection`. `map`, `filter`, `reject`, `take`, `skip`, `unique`, `flatMap`, and `tap` wait until you iterate, call `first`, `count`, or `isEmpty`, or `collect()` back into a `Collection`. `LazyCollection.make`, `of`, and `empty` build one directly.
+
+```kotlin
+val firstEven = Collection.make(1, 2, 3, 4)
+    .lazy()
+    .filter { it % 2 == 0 }
+    .take(1)
+    .first()
+```
+
+## Higher-order proxies
+
+`higher(operation)` applies that operation to a property or a no-arg method on every item. `get` reads a map key, then a `get` or `is` accessor, then a field. `call` invokes a public no-arg method. Operations are `map`, `filter`, `reject`, `each`, `sum`, `every`, and `first`. A value counts as present when it is `true`, a non-zero number, a non-empty string, or a non-empty iterable. `map`, `filter`, and `reject` stay lazy when the proxy comes from a `LazyCollection`.
+
+```kotlin
+collect(users).higher("map").get("name")
+collect(users).higher("filter").get("active")
+collect(users).higher("each").call("ping")
+collect(users).higher("sum").get("votes")
+```
+
+```java
+rows.higher("map").get("name");
+rows.higher("each").call("ping");
+```
+
 ## Strings
 
 ```kotlin

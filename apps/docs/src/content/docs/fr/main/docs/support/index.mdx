@@ -44,6 +44,34 @@ Collection.wrap(List.of(1, 2)).join("-");
 </TabItem>
 </Tabs>
 
+## Collections paresseuses
+
+`lazy()` sur un `Collection` renvoie un `LazyCollection`. `map`, `filter`, `reject`, `take`, `skip`, `unique`, `flatMap` et `tap` attendent que vous itériez, appeliez `first`, `count` ou `isEmpty`, ou `collect()` vers un `Collection`. `LazyCollection.make`, `of` et `empty` en construisent un directement.
+
+```kotlin
+val firstEven = Collection.make(1, 2, 3, 4)
+    .lazy()
+    .filter { it % 2 == 0 }
+    .take(1)
+    .first()
+```
+
+## Proxies d'ordre supérieur
+
+`higher(operation)` applique cette opération à une propriété ou à une méthode sans argument de chaque élément. `get` lit une clé de map, puis un accesseur `get` ou `is`, puis un champ. `call` invoque une méthode publique sans argument. Les opérations sont `map`, `filter`, `reject`, `each`, `sum`, `every` et `first`. Une valeur compte comme présente quand elle vaut `true`, un nombre non nul, un texte non vide ou un itérable non vide. `map`, `filter` et `reject` restent paresseux quand le proxy vient d'un `LazyCollection`.
+
+```kotlin
+collect(users).higher("map").get("name")
+collect(users).higher("filter").get("active")
+collect(users).higher("each").call("ping")
+collect(users).higher("sum").get("votes")
+```
+
+```java
+rows.higher("map").get("name");
+rows.higher("each").call("ping");
+```
+
 ## Chaînes
 
 ```kotlin
