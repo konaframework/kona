@@ -58,7 +58,7 @@ Living audit of `kona-support` Collections, `Arr`, `Str` / `Stringable`, and `Ko
 | startOf/endOf second→year (week/quarter) | **done** | #411 |
 | between / weekday / today / min-max / closest | **done** | #411 |
 | English `diffForHumans` / `ago` / `fromNow` / `age` | **done** | #411 |
-| Full multi-locale human-diff packs | **deferred** | intentional |
+| Full multi-locale human-diff packs | **done** | `HumanDiff` packs + `KonaDate.setHumanLocale` / `diffForHumans(locale)` (#549). English remains the default. |
 
 ## 5. Public docs
 
@@ -73,3 +73,4 @@ Living audit of `kona-support` Collections, `Arr`, `Str` / `Stringable`, and `Ko
 | 2026-10-16 | Collection/Arr/Str/Date deepen + Java regressions + 100% kover |
 | 2026-10-30 | KonaDate Carbon-class deepen (create, boundaries, between, English human diff) #411 |
 | 2026-11-13 | Lazy collections and higher-order proxies #548 |
+| 2026-11-13 | Multi-locale human-diff packs #549 |

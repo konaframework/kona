@@ -124,7 +124,7 @@ KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15), ZoneOffset.UTC);
 </TabItem>
 </Tabs>
 
-解析接受 ISO 时刻（`…Z`）、带偏移和时区的字符串、`yyyy-MM-dd HH:mm:ss` / `T` 本地日期时间（按 UTC 读取），以及日历日期。运算：`add` / `sub` 秒、分钟、小时、天、周、月、年。边界：`startOfDay` / `endOfDay`。比较：`isBefore` / `isAfter` / `isSameDay` / `isPast` / `isFuture`。格式：`format(pattern)`、`toDateString`、`toDateTimeString`、`toIso` / `toIso8601String`。
+解析接受 ISO 时刻（`…Z`）、带偏移和时区的字符串、`yyyy-MM-dd HH:mm:ss` / `T` 本地日期时间（按 UTC 读取），以及日历日期。运算：`add` / `sub` 秒、分钟、小时、天、周、月、年。边界：`startOfDay` / `endOfDay`。比较：`isBefore` / `isAfter` / `isSameDay` / `isPast` / `isFuture`。格式：`format(pattern)`、`toDateString`、`toDateTimeString`、`toIso` / `toIso8601String`。`diffForHumans`、`ago` 和 `fromNow` 取最大的时间单位。传入 `Locale`，或调用 `KonaDate.setHumanLocale`。短语包包括英语、西班牙语、法语、德语、意大利语、葡萄牙语（`pt` 与 `pt-BR`）、荷兰语、瑞典语、丹麦语、书面挪威语（`nb`、`no`）、新挪威语（`nn`）、简体中文（`zh`、`zh-CN`、`zh-Hans`）、繁体中文（`zh-TW`、`zh-Hant`）、日语、韩语、印尼语、土耳其语和俄语。其他区域设置使用英语。`resetHumanLocale()` 恢复英语。
 
 HTTP JSON 示例：
 
