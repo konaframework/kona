@@ -206,7 +206,7 @@ Schemas, forms, infolists, actions, and tables can render on their own for tests
 
 - Horizon / queue metrics dashboard
 - ~~Cross-process batch `then`/`catch` callbacks (durable counts only)~~ — done (#547): concrete callback classes are stored on the batch row; lambdas stay in-process
-- Lazy collections / higher-order proxies
+- ~~Lazy collections / higher-order proxies~~ — done (#548): `LazyCollection` and `higher(operation).get` / `call`
 - Full multi-locale Carbon human-diff packs (English `diffForHumans` shipped on `KonaDate`, #411)
 - ~~`make:migration` auto-register into `MigrationRegistry`~~ — done (`META-INF/kona/migrations` + `MigrationDiscovery`; see #150)
 - Pivot / morph-pivot `make:model` stubs — defer until Cadence pivot model surface is first-class

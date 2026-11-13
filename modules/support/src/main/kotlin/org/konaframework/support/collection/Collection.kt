@@ -164,6 +164,16 @@ class Collection<T> private constructor(
 
     fun toList(): List<T> = items.toList()
 
+    /** Snapshot this collection as a [LazyCollection]. Later steps wait until a value is read. */
+    fun lazy(): LazyCollection<T> = LazyCollection(items.toList())
+
+    /**
+     * Higher-order proxy for [operation] (`map`, `filter`, `reject`, `each`, `sum`, `every`, `first`).
+     * Java: `higher("map").get("name")`, `higher("each").call("ping")`.
+     */
+    fun higher(operation: String): HigherOrderCollectionProxy<T> =
+        HigherOrderCollectionProxy(this, operation, false)
+
     fun reject(predicate: (T) -> Boolean): Collection<T> =
         Collection(items.filterNot(predicate))
 

@@ -25,7 +25,7 @@ Living audit of `kona-support` Collections, `Arr`, `Str` / `Stringable`, and `Ko
 | `slice` / `nth` / `pad` / `tap` / `whenEmpty` | **done** | deepen |
 | `sole` / `diff` / `intersect` / `mapWithKeys` / `countBy` | **done** | deepen |
 | `times` / `wrap` / `join` | **done** | deepen |
-| Lazy collections / higher-order proxies | **deferred** | intentional |
+| Lazy collections / higher-order proxies | **done** | `LazyCollection`, `Collection.lazy()`, `higher(operation).get` / `call` (#548) |
 
 ## 2. Arr
 
@@ -72,3 +72,4 @@ Living audit of `kona-support` Collections, `Arr`, `Str` / `Stringable`, and `Ko
 |------|-------|
 | 2026-10-16 | Collection/Arr/Str/Date deepen + Java regressions + 100% kover |
 | 2026-10-30 | KonaDate Carbon-class deepen (create, boundaries, between, English human diff) #411 |
+| 2026-11-13 | Lazy collections and higher-order proxies #548 |
