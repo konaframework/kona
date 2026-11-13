@@ -94,7 +94,7 @@ The command writes a `CustomPage` in `app/panels/{panel}/pages/`. `--panel` defa
 | `form(schema)` | Content region from a form schema |
 | `infolistHtml(html)` | Content region from infolist HTML |
 | `table(table)` | Content region from a table |
-| `maxWidth(token)` / `maxContentWidth(token)` | Cap this page’s content column with the same widths as the panel (`xs`…`7xl`, `full`, `screen`, `prose`, `container`, `screen-s`, `screen-m`, `screen-l`, `screen-xl`, `screen-2xl`, or `[900px]`, or a `MaxWidth` constant). Overrides the panel default. A dashboard that does not call this uses the panel width. `xs`…`7xl`, `full`, `screen`, and `prose` emit `data-ff-max-width` on the section. `container` adds `container`. The screen tokens add `max-w-screen-sm`, `max-w-screen-md`, `max-w-screen-lg`, `max-w-screen-xl`, and `max-w-screen-2xl`. A bracketed length adds `max-w-[900px]`. See [Content max width](/docs/firefly/panel/#content-max-width) |
+| `maxWidth(token)` / `maxContentWidth(token)` | Cap this page’s content column with the same widths as the panel (`xs`…`7xl`, `full`, `screen`, `prose`, `container`, `screen-sm`, `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`, or `[900px]`, or a `MaxWidth` constant). Overrides the panel default. A dashboard that does not call this uses the panel width. `xs`…`7xl`, `full`, `screen`, and `prose` emit `data-ff-max-width` on the section. `container` adds `container`. The screen tokens add `max-w-screen-sm`, `max-w-screen-md`, `max-w-screen-lg`, `max-w-screen-xl`, and `max-w-screen-2xl`. A bracketed length adds `max-w-[900px]`. See [Content max width](/docs/firefly/panel/#content-max-width) |
 | `render()` / `render(state)` | `<section class="ff-page">` with header, content, widgets, and footer |
 
 `PanelPage` adds:

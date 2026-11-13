@@ -135,7 +135,7 @@ open class Page {
     /**
      * Cap this page's content column.
      * `xs`…`7xl`, `full`, `screen`, and `prose` emit `data-ff-max-width` on the section.
-     * `container`, `screen-s`, `screen-m`, `screen-l`, `screen-xl`, `screen-2xl`,
+     * `container`, `screen-sm`, `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`,
      * and a bracketed length such as `[900px]` add a class.
      * Pass the string or a [MaxWidth] constant. Overrides the panel default.
      */

@@ -872,7 +872,7 @@ class Panel {
     /**
      * Default content max-width for pages and resources in this chrome.
      * `xs`…`7xl`, `full`, `screen`, and `prose` emit `data-ff-max-width` on `.ff-panel`.
-     * `container`, `screen-s`, `screen-m`, `screen-l`, `screen-xl`, `screen-2xl`,
+     * `container`, `screen-sm`, `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`,
      * and a bracketed length such as `[900px]` add a class.
      */
     fun maxWidth(width: String): Panel = apply {

@@ -62,7 +62,7 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 | `navigation` / `topNavigation()` | `NavigationType` (`APP`, `INVERSE`, `SIDE`, `TOP`). Default `APP`. See [Navigation](/docs/firefly/navigation/) |
 | `theme(FireflyTheme)` | Tokens, partials, and chrome classes. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | Replaces the shell arrangement |
-| `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources. Strings: `xs`…`7xl`, `full`, `screen`, `prose`, `container`, `screen-s`, `screen-m`, `screen-l`, `screen-xl`, `screen-2xl`, or `[900px]`. The same widths are `MaxWidth` constants (`MaxWidth.ExtraSmall` through `MaxWidth.SevenExtraLarge`, `MaxWidth.Full`, `MaxWidth.Screen`, `MaxWidth.Prose`, `MaxWidth.Container`, `MaxWidth.ScreenSmall`, `MaxWidth.ScreenMedium`, `MaxWidth.ScreenLarge`, `MaxWidth.ScreenExtraLarge`, `MaxWidth.ScreenTwoExtraLarge`). Default is `7xl` (80rem). Pages and resources can override. A dashboard that does not set a width uses this panel width. Tables fill that column. See [Content max width](#content-max-width) |
+| `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources. Strings: `xs`…`7xl`, `full`, `screen`, `prose`, `container`, `screen-sm`, `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`, or `[900px]`. The same widths are `MaxWidth` constants (`MaxWidth.ExtraSmall` through `MaxWidth.SevenExtraLarge`, `MaxWidth.Full`, `MaxWidth.Screen`, `MaxWidth.Prose`, `MaxWidth.Container`, `MaxWidth.ScreenSmall`, `MaxWidth.ScreenMedium`, `MaxWidth.ScreenLarge`, `MaxWidth.ScreenExtraLarge`, `MaxWidth.ScreenTwoExtraLarge`). Default is `7xl` (80rem). Pages and resources can override. A dashboard that does not set a width uses this panel width. Tables fill that column. See [Content max width](#content-max-width) |
 | `hook(Hook, html)` | Appends HTML into a chrome hook |
 | `spa(true)` | Adds `wire:navigate` on links that have a URL |
 | `authenticate(false)` | Pages skip the login redirect. The hello samples do this |
@@ -154,9 +154,9 @@ These values add a class on the panel or on the page section:
 
 | String | Enum | Result |
 | --- | --- | --- |
-| `screen-s` | `MaxWidth.ScreenSmall` | `max-w-screen-sm` |
-| `screen-m` | `MaxWidth.ScreenMedium` | `max-w-screen-md` |
-| `screen-l` | `MaxWidth.ScreenLarge` | `max-w-screen-lg` |
+| `screen-sm` | `MaxWidth.ScreenSmall` | `max-w-screen-sm` |
+| `screen-md` | `MaxWidth.ScreenMedium` | `max-w-screen-md` |
+| `screen-lg` | `MaxWidth.ScreenLarge` | `max-w-screen-lg` |
 | `screen-xl` | `MaxWidth.ScreenExtraLarge` | `max-w-screen-xl` |
 | `screen-2xl` | `MaxWidth.ScreenTwoExtraLarge` | `max-w-screen-2xl` |
 | `container` | `MaxWidth.Container` | `container` |
@@ -167,14 +167,14 @@ These values add a class on the panel or on the page section:
 ```kotlin
 Panel().id("admin").maxContentWidth("[900px]")
 Panel().id("admin").maxContentWidth("container")
-Panel().id("admin").maxContentWidth("screen-l")
+Panel().id("admin").maxContentWidth("screen-lg")
 Panel().id("admin").maxContentWidth(MaxWidth.ScreenExtraLarge)
 ```
 
 ```java
 new Panel().id("admin").maxContentWidth("[900px]");
 new Panel().id("admin").maxContentWidth("container");
-new Panel().id("admin").maxContentWidth("screen-l");
+new Panel().id("admin").maxContentWidth("screen-lg");
 new Panel().id("admin").maxContentWidth(MaxWidth.ScreenExtraLarge);
 ```
 

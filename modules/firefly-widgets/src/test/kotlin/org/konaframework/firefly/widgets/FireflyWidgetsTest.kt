@@ -131,9 +131,9 @@ class FireflyWidgetsTest {
         assertThrows<FireflyException> { Page().maxWidth("nope") }
         assertThrows<FireflyException> { Page().defaultMaxWidth("nope") }
         val named = linkedMapOf(
-            "screen-s" to "max-w-screen-sm",
-            "screen-m" to "max-w-screen-md",
-            "screen-l" to "max-w-screen-lg",
+            "screen-sm" to "max-w-screen-sm",
+            "screen-md" to "max-w-screen-md",
+            "screen-lg" to "max-w-screen-lg",
             "screen-xl" to "max-w-screen-xl",
             "screen-2xl" to "max-w-screen-2xl",
             "container" to "container",
@@ -142,7 +142,7 @@ class FireflyWidgetsTest {
         )
         val typed = Page().title("Typed").maxWidth(MaxWidth.ScreenExtraLarge).render()
         assertTrue(typed.contains("""class="ff-page max-w-screen-xl""""))
-        val alias = Page().title("Alias").maxContentWidth("screen-l").render()
+        val alias = Page().title("Alias").maxContentWidth("screen-lg").render()
         assertTrue(alias.contains("""class="ff-page max-w-screen-lg""""))
         val enumAlias = Page().title("Enum").maxContentWidth(MaxWidth.Container).render()
         assertTrue(enumAlias.contains("""class="ff-page container""""))

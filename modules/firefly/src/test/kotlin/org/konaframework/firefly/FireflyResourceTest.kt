@@ -729,7 +729,7 @@ class FireflyResourceTest {
         Panel().path("admin").authenticate(false)
             .resource(
                 Resource("shelf").model(Shelf::class.java)
-                    .maxContentWidth("screen-m")
+                    .maxContentWidth("screen-md")
                     .maxWidth(MaxWidth.ScreenMedium)
                     .maxContentWidth(MaxWidth.ScreenSmall)
                     .simple(),

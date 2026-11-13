@@ -557,7 +557,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     /**
      * Default content max-width for this resource's pages.
      * Same values as the panel: `xs`…`7xl`, `full`, `screen`, `prose`, `container`,
-     * `screen-s`, `screen-m`, `screen-l`, `screen-xl`, `screen-2xl`, `[900px]`, or a [MaxWidth].
+     * `screen-sm`, `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`, `[900px]`, or a [MaxWidth].
      * Applied when each page renders unless the page already called [Page.maxWidth].
      * Overrides the panel default for those pages.
      */

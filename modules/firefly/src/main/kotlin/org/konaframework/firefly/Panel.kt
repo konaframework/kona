@@ -294,7 +294,7 @@ open class Panel {
     /**
      * Default content max-width for pages and resources.
      * `xs`…`7xl`, `full`, `screen`, and `prose` set `data-ff-max-width`.
-     * `container`, `screen-s`, `screen-m`, `screen-l`, `screen-xl`, `screen-2xl`,
+     * `container`, `screen-sm`, `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`,
      * and a bracketed length such as `[900px]` add a class.
      * Pass the string or a [MaxWidth] constant.
      * Pages and resources can narrow further with their own [org.konaframework.firefly.widgets.Page.maxWidth].

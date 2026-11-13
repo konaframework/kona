@@ -128,9 +128,18 @@ public class PanelJavaTest {
         assertEquals("max-w-[900px]", MaxWidth.utilityClass("[900px]"));
         assertEquals("container", MaxWidth.utilityClass("container"));
         assertEquals("container", MaxWidth.utilityClass("Container"));
-        assertEquals("max-w-screen-sm", MaxWidth.utilityClass("screen-s"));
-        assertEquals("max-w-screen-md", MaxWidth.utilityClass("screen-m"));
-        assertEquals("max-w-screen-lg", MaxWidth.utilityClass("screen-l"));
+        assertEquals("screen-sm", MaxWidth.ScreenSmall.getToken());
+        assertEquals("screen-md", MaxWidth.ScreenMedium.getToken());
+        assertEquals("screen-lg", MaxWidth.ScreenLarge.getToken());
+        assertEquals("max-w-screen-sm", MaxWidth.utilityClass("screen-sm"));
+        assertEquals("max-w-screen-sm", MaxWidth.utilityClass(MaxWidth.ScreenSmall.getToken()));
+        assertEquals("max-w-screen-md", MaxWidth.utilityClass("screen-md"));
+        assertEquals("max-w-screen-md", MaxWidth.utilityClass(MaxWidth.ScreenMedium.getToken()));
+        assertEquals("max-w-screen-lg", MaxWidth.utilityClass("screen-lg"));
+        assertEquals("max-w-screen-lg", MaxWidth.utilityClass(MaxWidth.ScreenLarge.getToken()));
+        assertThrows(FireflyException.class, () -> new Panel().maxContentWidth("screen-s"));
+        assertThrows(FireflyException.class, () -> MaxWidth.requireKnown("screen-m"));
+        assertThrows(FireflyException.class, () -> MaxWidth.requireKnown("screen-l"));
         assertEquals("max-w-screen-xl", MaxWidth.utilityClass("screen-xl"));
         assertEquals("max-w-screen-xl", MaxWidth.utilityClass(MaxWidth.ScreenExtraLarge.getToken()));
         assertEquals("max-w-screen-2xl", MaxWidth.utilityClass("screen-2xl"));
@@ -187,7 +196,7 @@ public class PanelJavaTest {
         Router own = new Router();
         Panel ownPanel = new Panel();
         ownPanel.path("own").authenticate(false).maxContentWidth(MaxWidth.ScreenExtraLarge)
-            .page(new DashboardPage().maxContentWidth("screen-s"));
+            .page(new DashboardPage().maxContentWidth("screen-sm"));
         ownPanel.mount(own);
         String ownHtml = own.find("GET", "/own").getRoute().getAction().handle(new Request("GET", "/own")).getBody();
         assertTrue(openTag(ownHtml, "ff-page ff-dashboard").contains("max-w-screen-sm"));

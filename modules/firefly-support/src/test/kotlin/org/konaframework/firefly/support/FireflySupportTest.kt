@@ -1968,9 +1968,9 @@ class FireflySupportTest {
             }
         }
         val classes = linkedMapOf(
-            "screen-s" to "max-w-screen-sm",
-            "screen-m" to "max-w-screen-md",
-            "screen-l" to "max-w-screen-lg",
+            "screen-sm" to "max-w-screen-sm",
+            "screen-md" to "max-w-screen-md",
+            "screen-lg" to "max-w-screen-lg",
             "screen-xl" to "max-w-screen-xl",
             "screen-2xl" to "max-w-screen-2xl",
             "container" to "container",
@@ -2012,7 +2012,9 @@ class FireflySupportTest {
             "[900px][48rem]",
             "CONTAINER",
             "SCREEN-XL",
-            "screen-sm",
+            "screen-s",
+            "screen-m",
+            "screen-l",
         )) {
             val error = assertThrows(FireflyException::class.java) { MaxWidth.requireKnown(rejected) }
             assertTrue(error.message!!.contains("Unknown max width [$rejected]"))

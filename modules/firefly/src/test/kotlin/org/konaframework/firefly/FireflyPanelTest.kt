@@ -1463,7 +1463,7 @@ class FireflyPanelTest {
         assertEquals("ff-panel container", boxTag)
         assertFalse(boxTag.contains("max-w-"))
         val screen = Router()
-        Panel().path("screen").authenticate(false).maxContentWidth("screen-2xl").page(ListPage("one").maxWidth("screen-s")).mount(screen)
+        Panel().path("screen").authenticate(false).maxContentWidth("screen-2xl").page(ListPage("one").maxWidth("screen-sm")).mount(screen)
         val screenHtml = send(screen, "GET", "/screen/one").body
         assertTrue(screenHtml.contains("""class="ff-panel max-w-screen-2xl""""))
         assertTrue(screenHtml.contains("""class="ff-page ff-list max-w-screen-sm""""))
@@ -1481,7 +1481,7 @@ class FireflyPanelTest {
         assertFalse(inheritedSection.contains("max-w-"), inheritedSection)
         val own = Router()
         Panel().path("own").authenticate(false).maxContentWidth(MaxWidth.ScreenExtraLarge)
-            .page(DashboardPage().maxContentWidth("screen-s")).mount(own)
+            .page(DashboardPage().maxContentWidth("screen-sm")).mount(own)
         val ownHtml = send(own, "GET", "/own").body
         assertTrue(ownHtml.contains("""class="ff-panel max-w-screen-xl""""))
         assertTrue(sectionOpen(ownHtml, "ff-page ff-dashboard").contains("max-w-screen-sm"))

@@ -3,8 +3,8 @@ package org.konaframework.firefly.support
 /**
  * Content-column widths for panel, page, and resource max-width settings.
  *
- * Pass a constant, or the same token as a string: `container`, `prose`, `screen-s`,
- * `screen-m`, `screen-l`, `screen-xl`, `screen-2xl`, `xs`…`7xl`, `full`, `screen`,
+ * Pass a constant, or the same token as a string: `container`, `prose`, `screen-sm`,
+ * `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`, `xs`…`7xl`, `full`, `screen`,
  * or a bracketed length such as `[900px]`.
  *
  * [ExtraSmall] through [SevenExtraLarge], [Full], [Screen], and [Prose] stay on
@@ -30,9 +30,9 @@ enum class MaxWidth(val token: String, private val widthClass: String?) {
     Screen("screen", null),
     Prose("prose", null),
     Container("container", "container"),
-    ScreenSmall("screen-s", "max-w-screen-sm"),
-    ScreenMedium("screen-m", "max-w-screen-md"),
-    ScreenLarge("screen-l", "max-w-screen-lg"),
+    ScreenSmall("screen-sm", "max-w-screen-sm"),
+    ScreenMedium("screen-md", "max-w-screen-md"),
+    ScreenLarge("screen-lg", "max-w-screen-lg"),
     ScreenExtraLarge("screen-xl", "max-w-screen-xl"),
     ScreenTwoExtraLarge("screen-2xl", "max-w-screen-2xl"),
     ;
