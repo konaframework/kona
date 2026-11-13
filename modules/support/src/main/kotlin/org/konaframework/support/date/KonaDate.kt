@@ -18,6 +18,7 @@ import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
 import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 import kotlin.math.abs
 
 /**
@@ -482,19 +483,26 @@ class KonaDate private constructor(
     }
 
     /**
-     * Human-readable relative difference (English).
+     * Human-readable relative difference.
      * Relative to now when [other] is null. When [absolute] is true, omits ago/from now/before/after.
+     * [locale] selects a phrase pack; unknown locales use English. The process default is [humanLocale].
      */
-    fun diffForHumans(): String = diffForHumans(null, false, Clock.system(zone))
+    fun diffForHumans(): String = diffForHumans(null, false, Clock.system(zone), humanLocale())
 
-    fun diffForHumans(other: KonaDate?): String = diffForHumans(other, false, Clock.system(zone))
+    fun diffForHumans(other: KonaDate?): String = diffForHumans(other, false, Clock.system(zone), humanLocale())
 
     fun diffForHumans(other: KonaDate?, absolute: Boolean): String =
-        diffForHumans(other, absolute, Clock.system(zone))
+        diffForHumans(other, absolute, Clock.system(zone), humanLocale())
 
-    fun diffForHumans(other: KonaDate?, absolute: Boolean, clock: Clock): String {
+    fun diffForHumans(other: KonaDate?, absolute: Boolean, clock: Clock): String =
+        diffForHumans(other, absolute, clock, humanLocale())
+
+    fun diffForHumans(locale: Locale): String =
+        diffForHumans(null, false, Clock.system(zone), locale)
+
+    fun diffForHumans(other: KonaDate?, absolute: Boolean, clock: Clock, locale: Locale): String {
         val reference = other ?: now(zone, clock)
-        return humanDiff(this, reference, absolute, other == null)
+        return humanDiff(this, reference, absolute, other == null, locale)
     }
 
     /** Alias of [diffForHumans] with no other date. */
@@ -543,6 +551,25 @@ class KonaDate private constructor(
     companion object {
         @Volatile
         private var defaultZone: ZoneId = ZoneOffset.UTC
+
+        @Volatile
+        private var defaultHumanLocale: Locale = Locale.ENGLISH
+
+        /** Locale used by [diffForHumans], [ago], and [fromNow] when the caller does not pass one. */
+        @JvmStatic
+        fun humanLocale(): Locale = defaultHumanLocale
+
+        /** Set the process default for human-diff phrases. */
+        @JvmStatic
+        fun setHumanLocale(locale: Locale) {
+            defaultHumanLocale = locale
+        }
+
+        /** Restore English human-diff phrases (tests). */
+        @JvmStatic
+        fun resetHumanLocale() {
+            defaultHumanLocale = Locale.ENGLISH
+        }
 
         /** Default zone used by [now], [today], [parse], and [ofInstant] overloads without a zone. */
         @JvmStatic
@@ -695,7 +722,13 @@ class KonaDate private constructor(
     }
 }
 
-private fun humanDiff(self: KonaDate, other: KonaDate, absolute: Boolean, relativeToNow: Boolean): String {
+private fun humanDiff(
+    self: KonaDate,
+    other: KonaDate,
+    absolute: Boolean,
+    relativeToNow: Boolean,
+    locale: Locale,
+): String {
     val seconds = Duration.between(other.toInstant(), self.toInstant()).seconds
     val ahead = seconds >= 0
     val absSeconds = abs(seconds)
@@ -704,29 +737,13 @@ private fun humanDiff(self: KonaDate, other: KonaDate, absolute: Boolean, relati
     val days = abs(self.diffInDays(other))
 
     val (count, unit) = when {
-        years >= 1L -> years to if (years == 1L) "year" else "years"
-        months >= 1L -> months to if (months == 1L) "month" else "months"
-        days >= 7L -> {
-            val w = days / 7
-            w to if (w == 1L) "week" else "weeks"
-        }
-        days >= 1L -> days to if (days == 1L) "day" else "days"
-        absSeconds >= 3_600L -> {
-            val h = absSeconds / 3_600
-            h to if (h == 1L) "hour" else "hours"
-        }
-        absSeconds >= 60L -> {
-            val m = absSeconds / 60
-            m to if (m == 1L) "minute" else "minutes"
-        }
-        else -> absSeconds to if (absSeconds == 1L) "second" else "seconds"
+        years >= 1L -> years to "year"
+        months >= 1L -> months to "month"
+        days >= 7L -> (days / 7) to "week"
+        days >= 1L -> days to "day"
+        absSeconds >= 3_600L -> (absSeconds / 3_600) to "hour"
+        absSeconds >= 60L -> (absSeconds / 60) to "minute"
+        else -> absSeconds to "second"
     }
-
-    val amount = "$count $unit"
-    if (absolute) return amount
-    return if (relativeToNow) {
-        if (ahead) "$amount from now" else "$amount ago"
-    } else {
-        if (ahead) "$amount after" else "$amount before"
-    }
+    return HumanDiff.phrase(count, unit, absolute, relativeToNow, ahead, locale)
 }

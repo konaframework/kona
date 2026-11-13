@@ -176,7 +176,7 @@ d.diffForHumans(other)                // "2 weeks before" / "after"
 d.ago() / d.fromNow()
 ```
 
-`diffForHumans` is English today (largest calendar unit first: years → months → weeks → days → hours → minutes → seconds). Format helpers: `format(pattern)`, `toDateString`, `toFormattedDateString`, `toDateTimeString`, `toTimeString`, `toIso` / `toIso8601String`, `toRfc3339String`.
+`diffForHumans`, `ago`, and `fromNow` use the largest calendar unit first (years → months → weeks → days → hours → minutes → seconds). Pass a `Locale`, or call `KonaDate.setHumanLocale`, to select a phrase pack. Packs: English, Spanish, French, German, Italian, Portuguese (`pt` and `pt-BR`), Dutch, Swedish, Danish, Norwegian Bokmål (`nb`, `no`), Norwegian Nynorsk (`nn`), Simplified Chinese (`zh`, `zh-CN`, `zh-Hans`), Traditional Chinese (`zh-TW`, `zh-Hant`), Japanese, Korean, Indonesian, Turkish, and Russian. Any other locale uses English. `KonaDate.resetHumanLocale()` restores English. Format helpers: `format(pattern)`, `toDateString`, `toFormattedDateString`, `toDateTimeString`, `toTimeString`, `toIso` / `toIso8601String`, `toRfc3339String`.
 
 HTTP JSON example:
 

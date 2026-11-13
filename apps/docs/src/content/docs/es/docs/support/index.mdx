@@ -124,7 +124,7 @@ KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15), ZoneOffset.UTC);
 </TabItem>
 </Tabs>
 
-El análisis acepta instantes ISO (`…Z`), cadenas con desplazamiento y zona, datetimes locales `yyyy-MM-dd HH:mm:ss` / `T` (leídos como UTC) y fechas de calendario. Aritmética: `add` / `sub` de segundos, minutos, horas, días, semanas, meses, años. Límites: `startOfDay` / `endOfDay`. Comparaciones: `isBefore` / `isAfter` / `isSameDay` / `isPast` / `isFuture`. Formato: `format(pattern)`, `toDateString`, `toDateTimeString`, `toIso` / `toIso8601String`.
+El análisis acepta instantes ISO (`…Z`), cadenas con desplazamiento y zona, datetimes locales `yyyy-MM-dd HH:mm:ss` / `T` (leídos como UTC) y fechas de calendario. Aritmética: `add` / `sub` de segundos, minutos, horas, días, semanas, meses, años. Límites: `startOfDay` / `endOfDay`. Comparaciones: `isBefore` / `isAfter` / `isSameDay` / `isPast` / `isFuture`. Formato: `format(pattern)`, `toDateString`, `toDateTimeString`, `toIso` / `toIso8601String`. `diffForHumans`, `ago` y `fromNow` eligen la unidad mayor. Pasa un `Locale` o llama a `KonaDate.setHumanLocale`. Hay frases en inglés, español, francés, alemán, italiano, portugués (`pt` y `pt-BR`), neerlandés, sueco, danés, noruego bokmål (`nb`, `no`), nynorsk (`nn`), chino simplificado (`zh`, `zh-CN`, `zh-Hans`), chino tradicional (`zh-TW`, `zh-Hant`), japonés, coreano, indonesio, turco y ruso. Otro locale usa inglés. `resetHumanLocale()` vuelve al inglés.
 
 Ejemplo de JSON HTTP:
 
