@@ -41,8 +41,9 @@ class InMemoryBatchRepository : BatchRepository {
 /**
  * JDBC-backed batches (`job_batches` by default).
  *
- * Callbacks (`then` / `catch` / `finally`) remain in-process on the [Batch] instance
- * held by [memory]; durable rows track counts for status across workers.
+ * Counts, flags, and concrete `then` / `catch` / `finally` callbacks are stored on the row.
+ * A fresh repository (another process) restores those callbacks and runs them when the batch
+ * finishes. Lambdas stay on the in-memory [Batch] held by [memory].
  */
 class DatabaseBatchRepository @JvmOverloads constructor(
     private val connection: org.konaframework.cadence.DatabaseConnection,
@@ -66,11 +67,23 @@ class DatabaseBatchRepository @JvmOverloads constructor(
               allow_failures BOOLEAN NOT NULL,
               cancelled BOOLEAN NOT NULL,
               finished BOOLEAN NOT NULL,
-              created_at BIGINT NOT NULL
+              created_at BIGINT NOT NULL,
+              callbacks CLOB
             )
             """.trimIndent(),
         )
+        if (!callbacksColumnPresent()) {
+            connection.statement("ALTER TABLE $table ADD COLUMN callbacks CLOB")
+        }
     }
+
+    private fun callbacksColumnPresent(): Boolean =
+        try {
+            connection.select("SELECT callbacks FROM $table WHERE 1 = 0", emptyList())
+            true
+        } catch (_: Exception) {
+            false
+        }
 
     override fun store(batch: Batch) {
         memory.store(batch)
@@ -82,7 +95,7 @@ class DatabaseBatchRepository @JvmOverloads constructor(
         val rows = connection.select(
             """
             SELECT id, name, total_jobs, pending_jobs, failed_jobs, failed_job_ids,
-                   allow_failures, cancelled, finished, created_at
+                   allow_failures, cancelled, finished, created_at, callbacks
             FROM $table WHERE id = ?
             """.trimIndent(),
             listOf(id),
@@ -109,8 +122,8 @@ class DatabaseBatchRepository @JvmOverloads constructor(
             """
             INSERT INTO $table
               (id, name, total_jobs, pending_jobs, failed_jobs, failed_job_ids,
-               allow_failures, cancelled, finished, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               allow_failures, cancelled, finished, created_at, callbacks)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent(),
             listOf(
                 batch.id,
@@ -123,6 +136,7 @@ class DatabaseBatchRepository @JvmOverloads constructor(
                 batch.cancelled(),
                 batch.finished(),
                 batch.createdAt,
+                batch.callbackRecord(),
             ),
         )
     }
@@ -260,6 +274,18 @@ class Batch internal constructor(
         finishedFlag = finished
     }
 
+    internal fun callbackRecord(): String? = BatchCallbacks.encode(thenCallback, catchCallback, finallyCallback)
+
+    internal fun attachCallbacks(
+        thenCallback: Consumer<Batch>?,
+        catchCallback: BiConsumer<Batch, Throwable?>?,
+        finallyCallback: Consumer<Batch>?,
+    ) {
+        this.thenCallback = thenCallback
+        this.catchCallback = catchCallback
+        this.finallyCallback = finallyCallback
+    }
+
     companion object {
         internal fun restore(row: Map<String, Any?>, repository: BatchRepository): Batch {
             fun cell(name: String): Any {
@@ -292,6 +318,7 @@ class Batch internal constructor(
                 cancelled = boolCell("cancelled"),
                 finished = boolCell("finished"),
             )
+            BatchCallbacks.attach(batch, row)
             return batch
         }
     }
@@ -311,6 +338,8 @@ class PendingBatch(
 
     fun then(callback: Consumer<Batch>): PendingBatch = apply { thenCallback = callback }
 
+    /** Java: `onCatch`. */
+    @JvmName("onCatch")
     fun catch(callback: BiConsumer<Batch, Throwable?>): PendingBatch = apply { catchCallback = callback }
 
     /** Java: `onFinally`. */

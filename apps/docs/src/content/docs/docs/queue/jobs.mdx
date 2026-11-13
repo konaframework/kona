@@ -69,6 +69,7 @@ Batch batch = bus.batch(new JobA(), new JobB())
     .name("fulfill-order")
     .allowFailures()
     .then(b -> { })
+    .onCatch((b, err) -> { })
     .onFinally(b -> { })
     .dispatch();
 ```
@@ -82,7 +83,17 @@ queue.batch.driver=database
 queue.batch.table=job_batches
 ```
 
-`QueueServiceProvider` creates a `job_batches` table (Cadence `Database` required) and wires `DatabaseBatchRepository`. Callbacks (`then` / `catch` / `finally`) stay in-process on the dispatching JVM; durable rows track totals, pending, failures, and finished/cancelled flags.
+`QueueServiceProvider` creates a `job_batches` table (Cadence `Database` required) and wires `DatabaseBatchRepository`. The row stores totals, pending work, failures, and finished/cancelled flags. A `then`, `catch`, or `finally` callback written as a concrete class with a public no-arg constructor is saved on that row and runs when a worker in another process finishes the batch. Fields on the callback are restored with it. Lambdas stay on the process that dispatched the batch. From Java, register the failure callback with `onCatch`.
+
+```kotlin
+class OrderFulfilled : Consumer<Batch> {
+    var note: String = "ready"
+
+    override fun accept(batch: Batch) {
+        // runs in the process that finishes the batch
+    }
+}
+```
 
 ### Queue events
 
