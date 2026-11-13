@@ -2,6 +2,12 @@ package org.konaframework.firefly.infolists;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.konaframework.core.Config;
+import org.konaframework.filesystem.FilesystemManager;
+import org.konaframework.filesystem.LocalAdapter;
+import org.konaframework.firefly.support.FireflyException;
+
+import java.nio.file.Files;
 import org.konaframework.firefly.actions.Action;
 import org.konaframework.firefly.schemas.Grid;
 import org.konaframework.firefly.schemas.Schema;
@@ -16,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class InfolistJavaTest {
@@ -24,6 +31,7 @@ public class InfolistJavaTest {
         TextEntry.configureUsing(null);
         IconEntry.configureUsing(null);
         ImageEntry.configureUsing(null);
+        ImageEntry.clearDisks();
         ColorEntry.configureUsing(null);
         KeyValueEntry.configureUsing(null);
         CodeEntry.configureUsing(null);
@@ -111,6 +119,52 @@ public class InfolistJavaTest {
         String actions = Schema.make().components(titled).render();
         assertTrue(actions.contains("data-ff-action=\"copy\""));
         assertTrue(actions.contains("data-ff-action=\"open\""));
+    }
+
+    @Test
+    void javaAggregatesRelatedRows() {
+        Map<String, Object> low = new LinkedHashMap<>();
+        low.put("votes", 3);
+        Map<String, Object> high = new LinkedHashMap<>();
+        high.put("votes", 7);
+        Map<String, Object> author = new LinkedHashMap<>();
+        author.put("books", List.of(low, high));
+        String html = Infolist.make().record(author).components(
+            TextEntry.make("books_count").counts("books"),
+            TextEntry.make("books_avg_votes").avg("books", "votes").numeric(0),
+            TextEntry.make("books_min_votes").min("books", "votes"),
+            TextEntry.make("books_max_votes").max("books", "votes"),
+            TextEntry.make("books_sum_votes").sum("books", "votes").numeric(0)
+        ).render();
+        assertTrue(html.contains("ff-value\">2<"));
+        assertTrue(html.contains("ff-value\">5<"));
+        assertTrue(html.contains("ff-value\">3<"));
+        assertTrue(html.contains("ff-value\">7<"));
+        assertTrue(html.contains("ff-value\">10<"));
+        assertThrows(FireflyException.class, () -> TextEntry.make("books_count").counts(" "));
+    }
+
+    @Test
+    void javaSignsAPrivateImageUrl() throws Exception {
+        var root = Files.createTempDirectory("ff-img");
+        var disk = new LocalAdapter(root, "/media");
+        disk.buildTemporaryUrlsUsing((url, exp) -> url + "?expires=" + exp);
+        disk.put("ada.png", "png");
+        var manager = new FilesystemManager(new Config(), root);
+        manager.set("avatars", disk);
+        ImageEntry.useDisks(name -> disk);
+        ImageEntry.useDisks(manager);
+        try {
+            String html = Infolist.make().components(
+                ImageEntry.make("photo").disk("avatars").visibility("private").state("ada.png"),
+                ImageEntry.make("missing").disk("avatars").defaultImageUrl("/fallback.png").state("gone.png")
+            ).render();
+            assertTrue(html.contains("/media/ada.png?expires=300"));
+            assertTrue(html.contains("/fallback.png"));
+            assertThrows(FireflyException.class, () -> ImageEntry.make("photo").temporaryUrlExpiration(0));
+        } finally {
+            ImageEntry.clearDisks();
+        }
     }
 }
 

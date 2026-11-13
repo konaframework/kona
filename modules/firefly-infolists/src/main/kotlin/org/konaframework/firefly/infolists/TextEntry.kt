@@ -2,6 +2,7 @@ package org.konaframework.firefly.infolists
 
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
+import org.konaframework.firefly.support.FireflyException
 import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Predicate
@@ -179,6 +180,44 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
     }
 
     fun formatStateUsing(formatter: Function<Get, String>): TextEntry = apply { this.formatter = formatter }
+
+    /**
+     * Number of related rows. On a Cadence model the count is loaded from the database when the
+     * relationship is not already on the record. On a map, the relationship value is the related
+     * rows (a list, one map, or one model).
+     */
+    fun counts(relationship: String): TextEntry = aggregate(RecordAggregate.COUNT, relationship, null)
+
+    /** Average of [column] on the related rows. The entry is empty when no numeric values exist. */
+    fun avg(relationship: String, column: String): TextEntry = aggregate(RecordAggregate.AVG, relationship, column)
+
+    /** Smallest [column] on the related rows. The entry is empty when no numeric values exist. */
+    fun min(relationship: String, column: String): TextEntry = aggregate(RecordAggregate.MIN, relationship, column)
+
+    /** Largest [column] on the related rows. The entry is empty when no numeric values exist. */
+    fun max(relationship: String, column: String): TextEntry = aggregate(RecordAggregate.MAX, relationship, column)
+
+    /** Total of [column] on the related rows. No numeric values totals `0`. */
+    fun sum(relationship: String, column: String): TextEntry = aggregate(RecordAggregate.SUM, relationship, column)
+
+    private fun aggregate(kind: RecordAggregate, relationship: String, column: String?): TextEntry = apply {
+        val relation = relationship.trim()
+        if (relation.isEmpty()) throw FireflyException("Relationship name is blank")
+        val trimmed = if (column == null) null else column.trim()
+        val field = if (trimmed == null || trimmed.isEmpty()) null else trimmed
+        if (kind != RecordAggregate.COUNT && field == null) {
+            throw FireflyException("Aggregate column is blank")
+        }
+        recordAggregate = AggregateRequest(kind, relation, field ?: "")
+    }
+
+    private var recordAggregate: AggregateRequest? = null
+
+    override fun aggregatedState(record: Any?): Any? {
+        val request = recordAggregate
+        if (request == null) return NoAggregate
+        return aggregateRecord(record, request, name)
+    }
 
     override fun renderEntry(schema: Schema, get: Get): String {
         val state = resolvedState(schema, get)

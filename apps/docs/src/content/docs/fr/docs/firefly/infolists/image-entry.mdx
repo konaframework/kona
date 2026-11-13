@@ -105,15 +105,47 @@ ImageEntry.make("gallery")
 </TabItem>
 </Tabs>
 
-## Disk attributes
+## Disks and file checks
+
+Register disks before the entry renders. `ImageEntry.useDisks` accepts a `FilesystemManager` or an `ImageDisks` opener. `ImageEntry.clearDisks()` turns that off. Until disks are registered, a path is painted as `src` and the data attributes below are still written.
 
 | Method | Effect |
 |--------|--------|
-| `disk(name)` | Emitted as `data-ff-disk` |
-| `visibility(value)` | Emitted as `data-ff-visibility` |
-| `checkFileExistence(on)` | Default `true`; blank sources are dropped |
+| `disk(name)` | Disk that holds the file. Also `data-ff-disk`. A blank name is ignored |
+| `visibility` | `private` signs a temporary URL. `public` uses the disk's normal URL. When you omit it, the file's own visibility is used. Also `data-ff-visibility` |
+| `checkFileExistence` | Default `true`. A missing file is dropped, or replaced by `defaultImageUrl` when that is set. Blank text is dropped. `false` keeps the path even when the file is absent. Also `data-ff-check-file` |
+| `temporaryUrlExpiration(seconds)` | Lifetime of a private URL. Default 300 seconds. Zero or a negative number throws `FireflyException` |
 
-This module does not open a disk or sign a temporary URL. A relative or absolute URL string is rendered as `src`. Panel or storage layers may read the data attributes later; the entry itself only paints what you pass.
+`https`, `http`, `data:`, and protocol-relative sources stay as written. A private disk must be able to sign a temporary URL; otherwise render throws `FireflyException`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ImageEntry.useDisks(filesystems)
+ImageEntry.make("photo")
+    .disk("avatars")
+    .visibility("private")
+    .checkFileExistence(true)
+    .defaultImageUrl("/images/avatar.png")
+    .state("ada.png")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ImageEntry.useDisks(filesystems);
+ImageEntry.make("photo")
+    .disk("avatars")
+    .visibility("private")
+    .checkFileExistence(true)
+    .defaultImageUrl("/images/avatar.png")
+    .state("ada.png");
+```
+
+</TabItem>
+</Tabs>
 
 ## Defaults for every make
 

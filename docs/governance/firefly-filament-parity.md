@@ -229,7 +229,7 @@ Depends on `kona-firefly-schemas` and `kona-firefly-support` only. Layouts are s
 | INF-1 | Infolist over a schema | `Infolist` | done |
 | INF-2 | Text entry | `TextEntry` | done |
 | INF-3 | Icon entry | `IconEntry` (`bool`, `whenTrue`, `whenFalse`) | done |
-| INF-4 | Image entry | `ImageEntry` (disk, visibility, and file check are data attributes) | done |
+| INF-4 | Image entry | `ImageEntry` (disk URL, private temporary URL, file existence check) | done |
 | INF-5 | Color entry | `ColorEntry` | done |
 | INF-6 | Key-value entry | `KeyValueEntry` | done |
 | INF-7 | Code entry | `CodeEntry` + `ShikiCode` (`createHighlighter`) | done |
@@ -237,7 +237,7 @@ Depends on `kona-firefly-schemas` and `kona-firefly-support` only. Layouts are s
 | INF-9 | Shared entry helpers and static-or-closure setters | `Entry` | done |
 | INF-10 | Entry scaffold | `make:firefly-entry` | done |
 
-`Entry.prefixAction` and `Entry.suffixAction` render an actions `Action` beside the value. Left for later milestones (not implemented in this module): record aggregates; private-disk temporary URLs; the forms code editor (M31, still not on `main`). Tables shipped in M33.
+`Entry.prefixAction` and `Entry.suffixAction` render an actions `Action` beside the value. `TextEntry` counts, averages, and takes the min, max, and sum of a relationship on the record. `ImageEntry.useDisks` signs a temporary URL for a private file and skips a path that is not on the disk. Left for later milestones (not implemented in this module): the forms code editor (M31, still not on `main`). Tables shipped in M33.
 
 ## Queued
 
