@@ -36,6 +36,7 @@ class FireflyInfolistsTest {
         TextEntry.configureUsing(null)
         IconEntry.configureUsing(null)
         ImageEntry.configureUsing(null)
+        ImageEntry.clearDisks()
         ColorEntry.configureUsing(null)
         KeyValueEntry.configureUsing(null)
         CodeEntry.configureUsing(null)

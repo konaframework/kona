@@ -1,10 +1,19 @@
 package org.konaframework.firefly.infolists
 
+import org.konaframework.filesystem.FilesystemAdapter
+import org.konaframework.filesystem.FilesystemManager
+import org.konaframework.filesystem.Visibility
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
+import org.konaframework.firefly.support.FireflyException
 import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Predicate
+
+/** Opens a named filesystem disk for image entries. */
+fun interface ImageDisks {
+    fun open(name: String): FilesystemAdapter
+}
 
 class ImageEntry private constructor(name: String) : Entry<ImageEntry>(name) {
     private val diskValue = TextSetting()
@@ -20,6 +29,7 @@ class ImageEntry private constructor(name: String) : Entry<ImageEntry>(name) {
     private val separateFlag = BoolSetting(false)
     private val remainingFlag = BoolSetting(false)
     private val checkFlag = BoolSetting(true)
+    private val expiration = IntSetting()
     private val overlapValue = IntSetting()
     private val ringValue = TextSetting()
     private val limitValue = IntSetting()
@@ -127,6 +137,17 @@ class ImageEntry private constructor(name: String) : Entry<ImageEntry>(name) {
 
     fun checkFileExistence(predicate: Predicate<Get>): ImageEntry = apply { checkFlag.set(predicate) }
 
+    /**
+     * Lifetime of a private-disk temporary URL, in seconds. The default is 300.
+     * Zero or a negative value is rejected.
+     */
+    fun temporaryUrlExpiration(seconds: Int): ImageEntry = apply {
+        if (seconds <= 0) throw FireflyException("Temporary URL lifetime must be positive")
+        expiration.set(seconds)
+    }
+
+    fun temporaryUrlExpiration(provider: Function<Get, Int>): ImageEntry = apply { expiration.set(provider) }
+
     override fun renderEntry(schema: Schema, get: Get): String {
         val state = resolvedState(schema, get)
         val sources = sources(state, get)
@@ -167,13 +188,72 @@ class ImageEntry private constructor(name: String) : Entry<ImageEntry>(name) {
             } else if (checkFlag.get(get) && text.isBlank()) {
                 continue
             } else {
-                out.add(text)
+                val resolved = resolveDisk(text, get)
+                if (resolved != null) out.add(resolved)
             }
         }
         return out
     }
 
+    /**
+     * Storage paths become disk URLs when [useDisks] is set. `http`, `https`, `data`, and
+     * protocol-relative values stay as written. A missing file is dropped, or replaced by
+     * [defaultImageUrl], when [checkFileExistence] is on.
+     */
+    private fun resolveDisk(text: String, get: Get): String? {
+        val rawDisk = diskValue.get(get)
+        val diskName = if (rawDisk == null) null else rawDisk.trim().takeIf { it.isNotEmpty() }
+        val opener = disks
+        if (diskName == null || opener == null || isRemote(text)) return text
+        val path = text.trim()
+        if (path.isEmpty()) return text
+        val adapter = opener.open(diskName)
+        if (checkFlag.get(get) && !adapter.exists(path)) {
+            val fallback = defaultUrl.get(get)
+            if (fallback != null && fallback.isNotEmpty()) return fallback
+            return null
+        }
+        return locate(adapter, diskName, path, get)
+    }
+
+    private fun locate(adapter: FilesystemAdapter, diskName: String, path: String, get: Get): String {
+        val rawVisibility = visibilityValue.get(get)
+        val visibility = if (rawVisibility == null) null else rawVisibility.trim().lowercase()
+        val privateFile = when (visibility) {
+            "private" -> true
+            "public" -> false
+            else -> adapter.getVisibility(path).equals(Visibility.PRIVATE, ignoreCase = true)
+        }
+        if (!privateFile) return adapter.url(path)
+        val seconds = expiration.get(get) ?: DEFAULT_TEMPORARY_URL_SECONDS
+        if (seconds <= 0) throw FireflyException("Temporary URL lifetime must be positive")
+        return try {
+            adapter.temporaryUrl(path, seconds.toLong())
+        } catch (_: IllegalStateException) {
+            throw FireflyException("Disk [$diskName] cannot sign a temporary URL for [$path]")
+        }
+    }
+
     companion object {
+        private const val DEFAULT_TEMPORARY_URL_SECONDS: Int = 300
+
+        private var disks: ImageDisks? = null
+
+        /** Opens named disks while an image entry renders. Pass null to render paths unchanged. */
+        @JvmStatic
+        fun useDisks(opener: ImageDisks?) {
+            disks = opener
+        }
+
+        /** Opens disks from a [FilesystemManager] while an image entry renders. */
+        @JvmStatic
+        fun useDisks(manager: FilesystemManager) = useDisks(ManagerDisks(manager))
+
+        @JvmStatic
+        fun clearDisks() {
+            disks = null
+        }
+
         @JvmStatic
         fun make(name: String): ImageEntry {
             val entry = ImageEntry(name)
@@ -184,4 +264,16 @@ class ImageEntry private constructor(name: String) : Entry<ImageEntry>(name) {
         @JvmStatic
         fun configureUsing(block: Consumer<ImageEntry>?) = configure(ImageEntry::class.java, block)
     }
+}
+
+private class ManagerDisks(private val manager: FilesystemManager) : ImageDisks {
+    override fun open(name: String): FilesystemAdapter = manager.disk(name)
+}
+
+private fun isRemote(text: String): Boolean {
+    val lower = text.trim().lowercase()
+    return lower.startsWith("https://") ||
+        lower.startsWith("http://") ||
+        lower.startsWith("data:") ||
+        lower.startsWith("//")
 }
