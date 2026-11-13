@@ -1960,14 +1960,26 @@ class FireflySupportTest {
             assertEquals(null, MaxWidth.arbitraryStyle(token))
         }
         assertEquals("7xl", MaxWidth.DEFAULT)
+        assertEquals("7xl", MaxWidth.SevenExtraLarge.token)
+        for (width in MaxWidth.entries) {
+            assertEquals(width.token, MaxWidth.requireKnown(width.token))
+            if (width.token in MaxWidth.TOKENS) {
+                assertEquals(null, MaxWidth.utilityClass(width.token))
+            }
+        }
         val classes = linkedMapOf(
-            MaxWidth.PROSE to "max-w-prose",
-            MaxWidth.SCREEN_SMALL to "max-w-screen-sm",
-            MaxWidth.SCREEN_MEDIUM to "max-w-screen-md",
-            MaxWidth.SCREEN_LARGE to "max-w-screen-lg",
-            MaxWidth.SCREEN_EXTRA_LARGE to "max-w-screen-xl",
-            MaxWidth.SCREEN_TWO_EXTRA_LARGE to "max-w-screen-2xl",
-            MaxWidth.CONTAINER to "container",
+            "screen-sm" to "max-w-screen-sm",
+            "screen-md" to "max-w-screen-md",
+            "screen-lg" to "max-w-screen-lg",
+            "screen-xl" to "max-w-screen-xl",
+            "screen-2xl" to "max-w-screen-2xl",
+            "container" to "container",
+            "Prose" to "max-w-prose",
+            "ScreenSmall" to "max-w-screen-sm",
+            "ScreenMedium" to "max-w-screen-md",
+            "ScreenLarge" to "max-w-screen-lg",
+            "ScreenExtraLarge" to "max-w-screen-xl",
+            "ScreenTwoExtraLarge" to "max-w-screen-2xl",
             "Container" to "container",
         )
         for ((token, cssClass) in classes) {
@@ -1991,7 +2003,19 @@ class FireflySupportTest {
             assertTrue(open.contains("""style="$style""""), open)
             assertFalse(open.contains("data-ff-max-width"), open)
         }
-        for (rejected in listOf("huge", "[900]", "[]", "[900px] extra", "max-w-[900px]", "[900px][48rem]", "CONTAINER")) {
+        for (rejected in listOf(
+            "huge",
+            "[900]",
+            "[]",
+            "[900px] extra",
+            "max-w-[900px]",
+            "[900px][48rem]",
+            "CONTAINER",
+            "SCREEN-XL",
+            "screen-s",
+            "screen-m",
+            "screen-l",
+        )) {
             val error = assertThrows(FireflyException::class.java) { MaxWidth.requireKnown(rejected) }
             assertTrue(error.message!!.contains("Unknown max width [$rejected]"))
             assertThrows(FireflyException::class.java) { Panel().maxWidth(rejected) }
@@ -2011,6 +2035,10 @@ class FireflySupportTest {
         assertTrue(css.contains("max-width: 96rem"))
         assertTrue(css.contains("--ff-content-max-width: var(--ff-arbitrary-max)"))
         assertFalse(css.contains("max-w-container"))
+        val typed = Panel().maxWidth(MaxWidth.ScreenExtraLarge).render()
+        assertTrue(typed.contains("""class="ff-panel max-w-screen-xl""""))
+        assertEquals("prose", MaxWidth.Prose.token)
+        assertEquals(null, MaxWidth.utilityClass(MaxWidth.Prose.token))
         val box = Panel().maxWidth("container").render()
         val tag = box.substringAfter("<div class=\"").substringBefore("\"")
         assertEquals("ff-panel container", tag)

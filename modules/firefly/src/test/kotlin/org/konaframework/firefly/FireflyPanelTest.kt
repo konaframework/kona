@@ -30,6 +30,7 @@ import org.konaframework.firefly.schemas.Text
 import org.konaframework.firefly.support.ChromeContext
 import org.konaframework.firefly.support.DefaultLayout
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.firefly.support.FireflyTheme
 import org.konaframework.firefly.support.Hook
 import org.konaframework.firefly.support.PanelLayout
@@ -1462,11 +1463,47 @@ class FireflyPanelTest {
         assertEquals("ff-panel container", boxTag)
         assertFalse(boxTag.contains("max-w-"))
         val screen = Router()
-        Panel().path("screen").authenticate(false).maxContentWidth("ScreenTwoExtraLarge").page(ListPage("one").maxWidth("ScreenSmall")).mount(screen)
+        Panel().path("screen").authenticate(false).maxContentWidth("screen-2xl").page(ListPage("one").maxWidth("screen-sm")).mount(screen)
         val screenHtml = send(screen, "GET", "/screen/one").body
         assertTrue(screenHtml.contains("""class="ff-panel max-w-screen-2xl""""))
         assertTrue(screenHtml.contains("""class="ff-page ff-list max-w-screen-sm""""))
+        val typed = Router()
+        Panel().path("typed").authenticate(false).maxContentWidth(MaxWidth.ScreenExtraLarge).page(ListPage("one")).mount(typed)
+        assertTrue(send(typed, "GET", "/typed/one").body.contains("""class="ff-panel max-w-screen-xl""""))
         assertThrows<FireflyException> { Panel().maxContentWidth("[nope]") }
+        val inherited = Router()
+        Panel().path("desk").authenticate(false).maxContentWidth("screen-xl").page(DashboardPage()).mount(inherited)
+        val inheritedHtml = send(inherited, "GET", "/desk").body
+        assertTrue(inheritedHtml.contains("""class="ff-panel max-w-screen-xl""""))
+        val inheritedSection = sectionOpen(inheritedHtml, "ff-page ff-dashboard")
+        assertTrue(inheritedSection.contains("ff-page ff-dashboard"), inheritedSection)
+        assertFalse(inheritedSection.contains("data-ff-max-width"), inheritedSection)
+        assertFalse(inheritedSection.contains("max-w-"), inheritedSection)
+        val own = Router()
+        Panel().path("own").authenticate(false).maxContentWidth(MaxWidth.ScreenExtraLarge)
+            .page(DashboardPage().maxContentWidth("screen-sm")).mount(own)
+        val ownHtml = send(own, "GET", "/own").body
+        assertTrue(ownHtml.contains("""class="ff-panel max-w-screen-xl""""))
+        assertTrue(sectionOpen(ownHtml, "ff-page ff-dashboard").contains("max-w-screen-sm"))
+        assertTrue(DashboardPage().maxWidth(MaxWidth.ScreenMedium).render().contains("max-w-screen-md"))
+        assertTrue(DashboardPage().maxContentWidth(MaxWidth.ScreenLarge).render().contains("max-w-screen-lg"))
+        val full = Router()
+        Panel().path("full").authenticate(false).maxContentWidth("full").page(DashboardPage()).mount(full)
+        val fullHtml = send(full, "GET", "/full").body
+        assertTrue(fullHtml.contains("""class="ff-panel" data-ff-max-width="full""""))
+        assertFalse(sectionOpen(fullHtml, "ff-page ff-dashboard").contains("data-ff-max-width"))
+        val forced = Router()
+        Panel().path("forced").authenticate(false).maxWidth(MaxWidth.ScreenSmall)
+            .page(DashboardPage().maxWidth("full")).mount(forced)
+        val forcedHtml = send(forced, "GET", "/forced").body
+        assertTrue(forcedHtml.contains("max-w-screen-sm"))
+        assertTrue(sectionOpen(forcedHtml, "ff-page ff-dashboard").contains("""data-ff-max-width="full""""))
+    }
+
+    private fun sectionOpen(html: String, marker: String): String {
+        val idx = html.indexOf(marker)
+        val start = html.lastIndexOf('<', idx)
+        return html.substring(start, html.indexOf('>', start))
     }
 
     private fun renderPanel(guard: PanelGuard, authenticate: Boolean = true): String {

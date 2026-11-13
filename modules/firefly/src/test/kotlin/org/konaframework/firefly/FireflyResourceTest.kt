@@ -42,6 +42,7 @@ import org.konaframework.firefly.schemas.Tabs
 import org.konaframework.firefly.schemas.Wizard
 import org.konaframework.firefly.schemas.WizardStep
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.firefly.tables.BulkAction
 import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TableButton
@@ -724,6 +725,17 @@ class FireflyResourceTest {
             .resource(Resource("shelf").model(Shelf::class.java).maxWidth("[80ch]").simple())
             .mount(bracketRouter)
         assertTrue(send(bracketRouter, "/admin/shelf/manage").contains("""class="ff-page ff-manage max-w-[80ch]""""))
+        val enumRouter = Router()
+        Panel().path("admin").authenticate(false)
+            .resource(
+                Resource("shelf").model(Shelf::class.java)
+                    .maxContentWidth("screen-md")
+                    .maxWidth(MaxWidth.ScreenMedium)
+                    .maxContentWidth(MaxWidth.ScreenSmall)
+                    .simple(),
+            )
+            .mount(enumRouter)
+        assertTrue(send(enumRouter, "/admin/shelf/manage").contains("""class="ff-page ff-manage max-w-screen-sm""""))
         assertThrows<FireflyException> { RelationManager(" ") }
         assertThrows<FireflyException> { RelationManager("lines").titleAttribute(" ") }
         assertThrows<FireflyException> { RelationManager("lines").titleAttribute { " " }.render() }

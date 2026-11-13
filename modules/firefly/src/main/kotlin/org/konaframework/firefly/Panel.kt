@@ -294,18 +294,25 @@ open class Panel {
     /**
      * Default content max-width for pages and resources.
      * `xs`…`7xl`, `full`, `screen`, and `prose` set `data-ff-max-width`.
-     * `Prose`, `ScreenSmall`, `ScreenMedium`, `ScreenLarge`, `ScreenExtraLarge`,
-     * `ScreenTwoExtraLarge`, `container`, and a bracketed length such as `[900px]` add a class.
+     * `container`, `screen-sm`, `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`,
+     * and a bracketed length such as `[900px]` add a class.
+     * Pass the string or a [MaxWidth] constant.
      * Pages and resources can narrow further with their own [org.konaframework.firefly.widgets.Page.maxWidth].
-     * Tables fill that column; only a page/resource max width shrinks them.
-     * Alias of Filament-style `maxContentWidth`.
+     * A dashboard that does not set a width uses this one.
+     * Tables fill that column; only a page or resource max width shrinks them.
      */
     fun maxWidth(width: String): Panel = apply {
         maxWidthLiteral = MaxWidth.requireKnown(width)
     }
 
-    /** Filament-shaped alias for [maxWidth]. */
+    /** Same as [maxWidth] with a [MaxWidth] constant. */
+    fun maxWidth(width: MaxWidth): Panel = maxWidth(width.token)
+
+    /** Alias for [maxWidth]. */
     fun maxContentWidth(width: String): Panel = maxWidth(width)
+
+    /** Alias for [maxWidth]. */
+    fun maxContentWidth(width: MaxWidth): Panel = maxWidth(width)
 
     fun hook(hook: Hook, html: String): Panel = apply { hooks.add(hook to html) }
 

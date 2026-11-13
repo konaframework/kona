@@ -98,7 +98,7 @@ Firefly does not scan the classpath for pages, resources, or widgets. Register t
 | `navigation` / `topNavigation()` | `NavigationType` (`APP`, `INVERSE`, `SIDE`, `TOP`). Default `APP`. See [Navigation](/docs/firefly/navigation/) |
 | `theme(FireflyTheme)` | Tokens, partials, and chrome classes. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | Replaces the shell arrangement |
-| `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources (`xs`…`7xl`, `full`, `screen`, `prose`, plus `Prose`, `ScreenSmall`, `ScreenMedium`, `ScreenLarge`, `ScreenExtraLarge`, `ScreenTwoExtraLarge`, `container`, or `[900px]`). Default is `7xl` (80rem). Pages and resources can override. Tables fill that column. See [Content max width](#content-max-width) |
+| `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources. Strings: `xs`…`7xl`, `full`, `screen`, `prose`, `container`, `screen-sm`, `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`, or `[900px]`. The same widths are `MaxWidth` constants (`MaxWidth.ExtraSmall` through `MaxWidth.SevenExtraLarge`, `MaxWidth.Full`, `MaxWidth.Screen`, `MaxWidth.Prose`, `MaxWidth.Container`, `MaxWidth.ScreenSmall`, `MaxWidth.ScreenMedium`, `MaxWidth.ScreenLarge`, `MaxWidth.ScreenExtraLarge`, `MaxWidth.ScreenTwoExtraLarge`). Default is `7xl` (80rem). Pages and resources can override. A dashboard that does not set a width uses this panel width. Tables fill that column. See [Content max width](#content-max-width) |
 | `hook(Hook, html)` | Appends HTML into a chrome hook |
 | `spa(true)` | Adds `wire:navigate` on links that have a URL |
 | `authenticate(false)` | Pages skip the login redirect. The hello samples do this |
@@ -189,33 +189,34 @@ new Panel()
     .page(new ListPage("orders").maxWidth("5xl"));
 ```
 
-`xs` through `7xl`, `full`, `screen`, and `prose` set `data-ff-max-width` on `.ff-panel`. A page or resource sets that attribute on the page `<section>`. `prose` is that attribute (65ch). `Prose` adds the class `max-w-prose`.
+`xs` through `7xl`, `full`, `screen`, and `prose` set `data-ff-max-width` on `.ff-panel`. A page or resource sets that attribute on the page `<section>`. `prose` is that attribute (65ch), and `MaxWidth.Prose` is the same token. The scale is `MaxWidth.ExtraSmall` through `MaxWidth.SevenExtraLarge`, plus `MaxWidth.Full` and `MaxWidth.Screen`.
 
 These values add a class on the panel or on the page section:
 
-| Value | Class |
-| --- | --- |
-| `Prose` | `max-w-prose` |
-| `ScreenSmall` | `max-w-screen-sm` |
-| `ScreenMedium` | `max-w-screen-md` |
-| `ScreenLarge` | `max-w-screen-lg` |
-| `ScreenExtraLarge` | `max-w-screen-xl` |
-| `ScreenTwoExtraLarge` | `max-w-screen-2xl` |
-| `container` or `Container` | `container` |
-| `[900px]`, `[48rem]`, `[80ch]` | `max-w-[900px]` (the brackets stay; any one CSS length works the same way) |
+| String | Enum | Result |
+| --- | --- | --- |
+| `screen-sm` | `MaxWidth.ScreenSmall` | `max-w-screen-sm` |
+| `screen-md` | `MaxWidth.ScreenMedium` | `max-w-screen-md` |
+| `screen-lg` | `MaxWidth.ScreenLarge` | `max-w-screen-lg` |
+| `screen-xl` | `MaxWidth.ScreenExtraLarge` | `max-w-screen-xl` |
+| `screen-2xl` | `MaxWidth.ScreenTwoExtraLarge` | `max-w-screen-2xl` |
+| `container` | `MaxWidth.Container` | `container` |
+| `[900px]`, `[48rem]`, `[80ch]` | pass the string | `max-w-[900px]` (the brackets stay; any one CSS length works the same way) |
 
-`container` sizes the content column with the viewport, then caps it at 40rem, 48rem, 64rem, 80rem, and 96rem as the viewport grows. A bracketed value sets the column to that exact length. Any other string throws `FireflyException` (`Unknown max width […]`). The same strings are `MaxWidth.PROSE`, `MaxWidth.SCREEN_SMALL`, `MaxWidth.SCREEN_MEDIUM`, `MaxWidth.SCREEN_LARGE`, `MaxWidth.SCREEN_EXTRA_LARGE`, `MaxWidth.SCREEN_TWO_EXTRA_LARGE`, and `MaxWidth.CONTAINER`.
+`container` sizes the content column with the viewport, then caps it at 40rem, 48rem, 64rem, 80rem, and 96rem as the viewport grows. A bracketed value sets the column to that exact length. `maxWidth` and `maxContentWidth` take the string or the `MaxWidth` constant (`org.konaframework.firefly.support.MaxWidth`). Any other string throws `FireflyException` (`Unknown max width […]`). A dashboard page that does not set its own width uses this panel width. Call `maxWidth` or `maxContentWidth` on that page when it should differ. A panel set to `full` stays full.
 
 ```kotlin
 Panel().id("admin").maxContentWidth("[900px]")
 Panel().id("admin").maxContentWidth("container")
-Panel().id("admin").maxContentWidth("ScreenLarge")
+Panel().id("admin").maxContentWidth("screen-lg")
+Panel().id("admin").maxContentWidth(MaxWidth.ScreenExtraLarge)
 ```
 
 ```java
 new Panel().id("admin").maxContentWidth("[900px]");
 new Panel().id("admin").maxContentWidth("container");
-new Panel().id("admin").maxContentWidth("ScreenLarge");
+new Panel().id("admin").maxContentWidth("screen-lg");
+new Panel().id("admin").maxContentWidth(MaxWidth.ScreenExtraLarge);
 ```
 
 See [Pages](/docs/firefly/pages/) and [Resources](/docs/firefly/resources/).

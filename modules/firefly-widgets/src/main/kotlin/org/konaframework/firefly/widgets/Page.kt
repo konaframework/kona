@@ -135,13 +135,23 @@ open class Page {
     /**
      * Cap this page's content column.
      * `xs`…`7xl`, `full`, `screen`, and `prose` emit `data-ff-max-width` on the section.
-     * `Prose`, the screen names, `container`, and a bracketed length such as `[900px]` add a class.
-     * Overrides the panel default.
+     * `container`, `screen-sm`, `screen-md`, `screen-lg`, `screen-xl`, `screen-2xl`,
+     * and a bracketed length such as `[900px]` add a class.
+     * Pass the string or a [MaxWidth] constant. Overrides the panel default.
      */
     open fun maxWidth(width: String): Page = apply {
         maxWidthValue = MaxWidth.requireKnown(width)
         maxWidthExplicit = true
     }
+
+    /** Same as [maxWidth] with a [MaxWidth] constant. */
+    open fun maxWidth(width: MaxWidth): Page = maxWidth(width.token)
+
+    /** Alias for [maxWidth]. */
+    open fun maxContentWidth(width: String): Page = maxWidth(width)
+
+    /** Alias for [maxWidth]. */
+    open fun maxContentWidth(width: MaxWidth): Page = maxWidth(width)
 
     /**
      * Resource (or other host) default when the page did not call [maxWidth].
@@ -310,11 +320,8 @@ open class Page {
     }
 }
 
+/** Dashboard grid. Width comes from the panel unless you call [maxWidth] or [maxContentWidth]. */
 open class Dashboard : Page() {
-    init {
-        maxWidth("full")
-    }
-
     override fun sectionClass(): String = "ff-page ff-dashboard"
 
     override fun fallbackTitle(): String = "Dashboard"
