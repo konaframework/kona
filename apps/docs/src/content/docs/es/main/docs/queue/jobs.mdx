@@ -69,6 +69,7 @@ Batch batch = bus.batch(new JobA(), new JobB())
     .name("fulfill-order")
     .allowFailures()
     .then(b -> { })
+    .onCatch((b, err) -> { })
     .onFinally(b -> { })
     .dispatch();
 ```
@@ -82,7 +83,17 @@ queue.batch.driver=database
 queue.batch.table=job_batches
 ```
 
-`QueueServiceProvider` crea una tabla `job_batches` (se exige `Database` de Cadence) y cablea `DatabaseBatchRepository`. Los callbacks (`then` / `catch` / `finally`) se quedan en el proceso de la JVM que despacha; las filas durables siguen totales, pendientes, fallos y banderas de terminado/cancelado.
+`QueueServiceProvider` crea una tabla `job_batches` (se exige `Database` de Cadence) y cablea `DatabaseBatchRepository`. La fila guarda totales, trabajo pendiente, fallos y banderas de terminado o cancelado. Un callback `then`, `catch` o `finally` escrito como una clase concreta con constructor público sin argumentos se guarda en esa fila y se ejecuta cuando un worker de otro proceso termina el lote. Los campos del callback se restauran con él. Las lambdas se quedan en el proceso que despachó el lote. Desde Java, el callback de fallo se registra con `onCatch`.
+
+```kotlin
+class OrderFulfilled : Consumer<Batch> {
+    var note: String = "ready"
+
+    override fun accept(batch: Batch) {
+        // se ejecuta en el proceso que termina el lote
+    }
+}
+```
 
 ### Eventos de cola
 

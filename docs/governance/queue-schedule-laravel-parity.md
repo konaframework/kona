@@ -24,7 +24,7 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 | Delay / `later` on dispatch | **done** | `Bus.later` + `Queue.push(..., delaySeconds)` |
 | Named queue on push | **done** | `Queue.push` |
 | Job chains | **done** | `PendingChain` / `ChainedJob` |
-| Job batches (`Bus::batch`) | **done** | `PendingBatch` / `Batch` — then/catch/finally, allowFailures, cancel, progress |
+| Job batches (`Bus::batch`) | **done** | `PendingBatch` / `Batch` — then/catch/finally, allowFailures, cancel, progress; concrete callbacks stored on the batch row and restored by another repository |
 | Batch repository (memory + database) | **done** | `InMemoryBatchRepository` / `DatabaseBatchRepository` (`job_batches`) |
 | Queue domain events | **done** | `QueueEvents` + batch/job event types |
 | Serializable durable payload | **done** | M16 `jobBody` + `JobRegistry` |
@@ -97,7 +97,6 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 |------|-----|
 | Horizon / metrics dashboard | Out of scope for framework core |
 | Cron day-name tokens | Numeric DOW enough |
-| Cross-process then/catch callbacks | Callbacks remain in-process; durable rows track counts only |
 
 ---
 
@@ -108,3 +107,4 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 | 2026-10-15 | audit | Ledger created |
 | 2026-10-15 | batch1 | PR #69 — delay/later, middleware, unique, chain, light batch, worker flags, schedule frequencies/mutex/work, Digging deeper docs |
 | 2026-10-16 | full-batches | then/catch/finally, allowFailures, DatabaseBatchRepository, QueueEvents, sync/worker batch hooks, Java + Kotlin regressions, docs |
+| 2026-11-13 | cross-process callbacks | Concrete `then` / `catch` / `finally` classes stored on `job_batches.callbacks` and invoked by a fresh `DatabaseBatchRepository` (#547). Lambdas stay in-process. Java failure callback is `onCatch`. |

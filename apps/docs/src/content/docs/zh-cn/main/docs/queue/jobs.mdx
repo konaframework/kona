@@ -69,6 +69,7 @@ Batch batch = bus.batch(new JobA(), new JobB())
     .name("fulfill-order")
     .allowFailures()
     .then(b -> { })
+    .onCatch((b, err) -> { })
     .onFinally(b -> { })
     .dispatch();
 ```
@@ -82,7 +83,17 @@ queue.batch.driver=database
 queue.batch.table=job_batches
 ```
 
-`QueueServiceProvider` 会创建 `job_batches` 表（需要 Cadence `Database`）并接上 `DatabaseBatchRepository`。回调（`then` / `catch` / `finally`）留在派发所在的 JVM 进程内；持久化的行跟踪总数、待处理、失败，以及完成/取消标志。
+`QueueServiceProvider` 会创建 `job_batches` 表（需要 Cadence `Database`）并接上 `DatabaseBatchRepository`。该行保存总数、待处理工作、失败次数，以及完成或取消标志。写成带公开无参构造的具体类的 `then`、`catch` 或 `finally` 回调会保存在这一行上，并在另一个进程的 worker 完成批次时运行。回调上的字段会一起恢复。lambda 留在派发批次的进程里。在 Java 中，失败回调用 `onCatch` 注册。
+
+```kotlin
+class OrderFulfilled : Consumer<Batch> {
+    var note: String = "ready"
+
+    override fun accept(batch: Batch) {
+        // 在完成该批次的进程中运行
+    }
+}
+```
 
 ### 队列事件
 

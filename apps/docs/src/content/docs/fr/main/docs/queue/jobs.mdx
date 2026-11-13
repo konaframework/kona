@@ -69,6 +69,7 @@ Batch batch = bus.batch(new JobA(), new JobB())
     .name("fulfill-order")
     .allowFailures()
     .then(b -> { })
+    .onCatch((b, err) -> { })
     .onFinally(b -> { })
     .dispatch();
 ```
@@ -82,7 +83,17 @@ queue.batch.driver=database
 queue.batch.table=job_batches
 ```
 
-`QueueServiceProvider` crée une table `job_batches` (`Database` Cadence requis) et branche `DatabaseBatchRepository`. Les callbacks (`then` / `catch` / `finally`) restent en processus sur la JVM qui dispatche ; les lignes durables suivent les totaux, l’en attente, les échecs et les drapeaux terminé/annulé.
+`QueueServiceProvider` crée une table `job_batches` (`Database` Cadence requis) et branche `DatabaseBatchRepository`. La ligne garde les totaux, le travail en attente, les échecs et les drapeaux terminé ou annulé. Un callback `then`, `catch` ou `finally` écrit comme une classe concrète avec un constructeur public sans argument est enregistré sur cette ligne et s'exécute quand un worker d'un autre processus termine le lot. Les champs du callback sont restaurés avec lui. Les lambdas restent sur le processus qui a dispatché le lot. Depuis Java, le callback d'échec s'enregistre avec `onCatch`.
+
+```kotlin
+class OrderFulfilled : Consumer<Batch> {
+    var note: String = "ready"
+
+    override fun accept(batch: Batch) {
+        // s'exécute dans le processus qui termine le lot
+    }
+}
+```
 
 ### Événements de file
 

@@ -205,7 +205,7 @@ Schemas, forms, infolists, actions, and tables can render on their own for tests
 ### Intentional deferrals (do not reopen without mandate)
 
 - Horizon / queue metrics dashboard
-- Cross-process batch `then`/`catch` callbacks (durable counts only)
+- ~~Cross-process batch `then`/`catch` callbacks (durable counts only)~~ — done (#547): concrete callback classes are stored on the batch row; lambdas stay in-process
 - Lazy collections / higher-order proxies
 - Full multi-locale Carbon human-diff packs (English `diffForHumans` shipped on `KonaDate`, #411)
 - ~~`make:migration` auto-register into `MigrationRegistry`~~ — done (`META-INF/kona/migrations` + `MigrationDiscovery`; see #150)
