@@ -237,7 +237,7 @@ Depends on `kona-firefly-schemas` and `kona-firefly-support` only. Layouts are s
 | INF-9 | Shared entry helpers and static-or-closure setters | `Entry` | done |
 | INF-10 | Entry scaffold | `make:firefly-entry` | done |
 
-`Entry.prefixAction` and `Entry.suffixAction` render an actions `Action` beside the value. Left for later milestones (not implemented in this module): record aggregates; private-disk temporary URLs; the forms code editor (M31, still not on `main`). Tables shipped in M33.
+`Entry.prefixAction` and `Entry.suffixAction` render an actions `Action` beside the value. `TextEntry` counts, averages, and takes the min, max, and sum of a relationship on the record. Left for later milestones (not implemented in this module): private-disk temporary URLs; the forms code editor (M31, still not on `main`). Tables shipped in M33.
 
 ## Queued
 

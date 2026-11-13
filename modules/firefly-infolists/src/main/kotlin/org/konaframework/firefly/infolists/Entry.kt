@@ -212,9 +212,17 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
         return SchemaBridge.overlay(schema, this) { path -> itemLookup(frame, path) }
     }
 
+    /**
+     * Relationship aggregate for this entry, or [NoAggregate] when the entry reads its own state.
+     * A real aggregate may be null (an average of no rows).
+     */
+    internal open fun aggregatedState(record: Any?): Any? = NoAggregate
+
     internal fun resolvedState(schema: Schema, get: Get): Any? {
         val provided = stateValue.get(get)
         if (provided.first) return provided.second
+        val aggregated = aggregatedState(ItemFrame.current() ?: schema.record())
+        if (aggregated !== NoAggregate) return aggregated
         val frame = ItemFrame.current()
         if (frame != null) return digName(frame, name)
         val path = absolutePath()
@@ -280,6 +288,9 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
     @Suppress("UNCHECKED_CAST")
     protected fun self(): T = this as T
 }
+
+/** Sentinel: this entry does not compute a relationship aggregate. */
+internal object NoAggregate
 
 internal fun <T : Component> configure(type: Class<T>, block: Consumer<T>?) {
     if (block == null) {

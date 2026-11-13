@@ -149,6 +149,39 @@ TextEntry.make("label").formatStateUsing(get -> get.get("label").toString().toUp
 </TabItem>
 </Tabs>
 
+## Relationship aggregates
+
+Show a number computed from related rows on the infolist record. `counts` needs the relationship name. `avg`, `min`, `max`, and `sum` also need the column on those rows.
+
+The record is a Cadence model or a map. On a saved model, Kona loads the aggregate from the database when that relationship is not already on the record. On a map, put the related rows under the relationship key: a list of maps, one map, or one model. A count or sum with no rows is `0`. An average, minimum, or maximum with no numeric values is empty, and the placeholder is what you see. Non-numeric column values are skipped by `avg`, `min`, `max`, and `sum`. They still count as rows for `counts`. Names are trimmed. A blank relationship or column throws `FireflyException`.
+
+When the related rows are not on the record, a stored `books_count`, `books_avg_votes`, `books_min_votes`, `books_max_votes`, or `books_sum_votes` is shown as-is. The entry name can match that stored key or be any other name; the relationship arguments choose the rows. `state(...)` still replaces the computed number when you set it. Call `numeric(decimals)` when you want a fixed number of decimal places.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextEntry.make("books_count").counts("books")
+TextEntry.make("books_avg_votes").avg("books", "votes").numeric(1)
+TextEntry.make("books_min_votes").min("books", "votes")
+TextEntry.make("books_max_votes").max("books", "votes")
+TextEntry.make("books_sum_votes").sum("books", "votes")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry.make("books_count").counts("books");
+TextEntry.make("books_avg_votes").avg("books", "votes").numeric(1);
+TextEntry.make("books_min_votes").min("books", "votes");
+TextEntry.make("books_max_votes").max("books", "votes");
+TextEntry.make("books_sum_votes").sum("books", "votes");
+```
+
+</TabItem>
+</Tabs>
+
 ## Defaults for every make
 
 `TextEntry.configureUsing { entry -> entry.size("sm") }` runs for every later `make()`. Pass `null` to clear it.

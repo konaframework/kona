@@ -2,6 +2,7 @@ package org.konaframework.firefly.infolists;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.konaframework.firefly.support.FireflyException;
 import org.konaframework.firefly.actions.Action;
 import org.konaframework.firefly.schemas.Grid;
 import org.konaframework.firefly.schemas.Schema;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class InfolistJavaTest {
@@ -111,6 +113,29 @@ public class InfolistJavaTest {
         String actions = Schema.make().components(titled).render();
         assertTrue(actions.contains("data-ff-action=\"copy\""));
         assertTrue(actions.contains("data-ff-action=\"open\""));
+    }
+
+    @Test
+    void javaAggregatesRelatedRows() {
+        Map<String, Object> low = new LinkedHashMap<>();
+        low.put("votes", 3);
+        Map<String, Object> high = new LinkedHashMap<>();
+        high.put("votes", 7);
+        Map<String, Object> author = new LinkedHashMap<>();
+        author.put("books", List.of(low, high));
+        String html = Infolist.make().record(author).components(
+            TextEntry.make("books_count").counts("books"),
+            TextEntry.make("books_avg_votes").avg("books", "votes").numeric(0),
+            TextEntry.make("books_min_votes").min("books", "votes"),
+            TextEntry.make("books_max_votes").max("books", "votes"),
+            TextEntry.make("books_sum_votes").sum("books", "votes").numeric(0)
+        ).render();
+        assertTrue(html.contains("ff-value\">2<"));
+        assertTrue(html.contains("ff-value\">5<"));
+        assertTrue(html.contains("ff-value\">3<"));
+        assertTrue(html.contains("ff-value\">7<"));
+        assertTrue(html.contains("ff-value\">10<"));
+        assertThrows(FireflyException.class, () -> TextEntry.make("books_count").counts(" "));
     }
 }
 
